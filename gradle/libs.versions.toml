@@ -1,0 +1,37 @@
+# Pinned deliberately. AGP 8.13.0 and Gradle 8.14.3 are already in this machine's
+# Gradle cache, so the first build downloads less.
+[versions]
+kotlin = "2.2.0"
+agp = "8.13.0"
+composeMultiplatform = "1.8.2"
+ktor = "3.2.0"
+coroutines = "1.10.2"
+kotlinxDatetime = "0.6.2"
+androidxCoreKtx = "1.15.0"
+androidxLifecycle = "2.8.7"
+androidxActivityCompose = "1.9.3"
+androidxComposeBom = "2024.12.01"
+
+[libraries]
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+
+ktor-server-core = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
+ktor-server-cio  = { module = "io.ktor:ktor-server-cio-jvm", version.ref = "ktor" }
+
+androidx-core-ktx        = { module = "androidx.core:core-ktx", version.ref = "androidxCoreKtx" }
+androidx-lifecycle-runtime = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidxLifecycle" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidxActivityCompose" }
+androidx-compose-bom     = { module = "androidx.compose:compose-bom", version.ref = "androidxComposeBom" }
+androidx-compose-ui      = { module = "androidx.compose.ui:ui" }
+androidx-compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
+
+[plugins]
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlinJvm           = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlinAndroid       = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlinComposeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+androidApplication  = { id = "com.android.application", version.ref = "agp" }
+androidLibrary      = { id = "com.android.library", version.ref = "agp" }
+composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }

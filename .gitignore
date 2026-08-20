@@ -1,0 +1,21 @@
+# ── Build output ──
+build/
+*/build/
+.gradle/
+.kotlin/
+
+# ── Machine-local, never commit ──
+# local.properties carries this machine's Android SDK path.
+local.properties
+
+# ── IDE ──
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# ── Keys / secrets (M2 device signing, M5 FCM) ──
+*.jks
+*.keystore
+google-services.json
+fcm-service-account*.json
