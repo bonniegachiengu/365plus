@@ -1,0 +1,12 @@
+* text=auto eol=lf
+
+# gradlew is executed by /bin/sh on Linux/WSL; CRLF would break it outright.
+gradlew        text eol=lf
+*.sh           text eol=lf
+*.kts          text eol=lf
+*.kt           text eol=lf
+*.toml         text eol=lf
+
+gradle/wrapper/gradle-wrapper.jar binary
+*.png binary
+*.jks binary
