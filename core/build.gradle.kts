@@ -26,7 +26,7 @@ kotlin {
 
 android {
     namespace = "online.vyybandasky.plus365.core"
-    compileSdk = 34
+    compileSdk = 36
     defaultConfig { minSdk = 26 }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

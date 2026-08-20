@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launcher name. 365PLUS_BRIEF.md §11.5 asks Bonnie to confirm this. -->
+    <string name="app_name">365+</string>
+</resources>

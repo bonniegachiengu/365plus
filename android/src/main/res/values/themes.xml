@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      A plain platform theme. Compose draws everything, so pulling in the
+      Material Components XML library just to satisfy a parent style would be
+      weight for nothing.
+    -->
+    <style name="Theme.Plus365" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

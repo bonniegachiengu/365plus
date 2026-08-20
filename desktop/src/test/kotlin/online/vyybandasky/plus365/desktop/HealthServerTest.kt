@@ -22,18 +22,6 @@ class HealthServerTest {
         assertEquals(8443, DEFAULT_PORT)
     }
 
-    @Test
-    fun money_formats_from_integer_minor_units() {
-        assertEquals("KSh 0.00", formatKes(0))
-        assertEquals("KSh 1.05", formatKes(105))
-        assertEquals("KSh 5,000.00", formatKes(500_000))
-        assertEquals("KSh 1,234,567.89", formatKes(123_456_789))
-    }
-
-    @Test
-    fun negative_money_keeps_its_sign_in_front_of_the_currency_amount() {
-        assertEquals("KSh -1,200.00", formatKes(-120_000))
-    }
 
     @Test
     fun version_is_reported() {

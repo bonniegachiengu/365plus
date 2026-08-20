@@ -1,5 +1,8 @@
-package online.vyybandasky.plus365.desktop
+package online.vyybandasky.plus365
 
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,38 +14,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Window
-import androidx.compose.ui.window.application
 import online.vyybandasky.plus365.core.SampleLedger
-import online.vyybandasky.plus365.core.money.formatKes
 import online.vyybandasky.plus365.core.ledger.LedgerState
 import online.vyybandasky.plus365.core.ledger.fold
+import online.vyybandasky.plus365.core.money.formatKes
 
-fun main() {
-    // The API comes up first so the phones can reach the master as soon as the
-    // window is on screen. Non-blocking — Compose owns the main thread.
-    val server = startHealthServer()
-    try {
-        application {
-            Window(
-                onCloseRequest = ::exitApplication,
-                title = "365+ — master ledger",
-            ) {
-                App()
-            }
-        }
-    } finally {
-        server.stop(gracePeriodMillis = 1_000, timeoutMillis = 3_000)
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent { LedgerScreen() }
     }
 }
 
 /**
- * M0 shell. There is no store yet (that is M1), so this folds a small in-memory
- * sample purely to prove that `core` really is compiled into the desktop app and
- * that the numbers come from the shared fold rather than anything local.
+ * M0 shell. Room and real recording are M1 — this exists to prove the app boots
+ * and that the numbers it shows come from the same shared fold the desktop uses.
  */
 @Composable
-fun App() {
+fun LedgerScreen() {
     val state = remember { fold(SampleLedger.ENTRIES) }
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -52,16 +41,12 @@ fun App() {
             ) {
                 Text("365+", style = MaterialTheme.typography.headlineMedium)
                 Text(
-                    "Master ledger - API on http://$DEFAULT_HOST:$DEFAULT_PORT/health",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
                     "Pool cash: ${formatKes(state.poolCashCents)}",
                     style = MaterialTheme.typography.titleLarge,
                 )
                 MemberLines(state)
                 Text(
-                    "Sample data - no local store until M1.",
+                    "Sample data - offline store lands in M1.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
