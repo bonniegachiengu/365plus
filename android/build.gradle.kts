@@ -14,9 +14,22 @@ android {
     // runtime behaviour.
     compileSdk = 36
 
+    // Force v1 (JAR) signing back on. AGP drops it once minSdk >= 24 because v2
+    // is guaranteed from Android 7, but some OEM package installers still refuse
+    // a v2-only APK with a bare "App not installed" and no reason given.
+    signingConfigs {
+        getByName("debug") {
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+        }
+    }
+
     defaultConfig {
         applicationId = "online.vyybandasky.plus365"
-        minSdk = 26
+        // 24 (Android 7.0), not 26. Nothing in the app needs API 26, and the
+        // higher floor only narrows which of the three phones can install it.
+        minSdk = 24
         targetSdk = 34
         versionCode = 1
         versionName = "0.1.0"
