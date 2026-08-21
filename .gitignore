@@ -8,6 +8,10 @@ build/
 # local.properties carries this machine's Android SDK path.
 local.properties
 
+# ── JVM crash dumps (the Gradle daemon leaves these when it runs out of memory) ──
+hs_err_pid*.log
+replay_pid*.log
+
 # ── IDE ──
 .idea/
 *.iml
