@@ -1,5 +1,6 @@
 package online.vyybandasky.plus365.core.governance
 
+import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.domain.ConfirmSource
 import online.vyybandasky.plus365.core.domain.Entry
 import online.vyybandasky.plus365.core.domain.EntryState
@@ -113,6 +114,19 @@ fun checkConfirm(
     return Decision.Allowed(Unit)
 }
 
+/**
+ * May [rejecter] throw [entry] out?
+ *
+ * Exactly the same gate as confirming. Rejecting is a decision about someone
+ * else's entry too, and letting the recorder quietly bin their own would be the
+ * same hole from the other side.
+ */
+fun checkReject(
+    entry: Entry,
+    rejecter: MemberId,
+    config: ActorConfig,
+): Decision<Unit> = checkConfirm(entry, rejecter, config)
+
 /** May [recorder] record at all from this device? */
 fun checkRecord(recorder: MemberId, config: ActorConfig): Decision<Unit> =
     if (config.mayAct(recorder)) {
@@ -136,6 +150,24 @@ fun eligibleConfirmers(
 }
 
 /**
+ * The rejected copy of [entry].
+ *
+ * Rejection moves it to [EntryState.DISPUTED], which the fold ignores entirely —
+ * so a rejected entry never touched a balance and never will, but it stays in
+ * the log. Nothing is deleted here either.
+ */
+internal fun Entry.asRejectedBy(
+    rejecter: MemberId,
+    at: Instant?,
+    reason: String?,
+): Entry = copy(
+    state = EntryState.DISPUTED,
+    rejectedByMemberId = rejecter,
+    rejectedAt = at,
+    rejectionReason = reason,
+)
+
+/**
  * The confirmed copy of [entry].
  *
  * Private to the book: the only way to reach it is through a passed [Decision]
@@ -144,8 +176,10 @@ fun eligibleConfirmers(
 internal fun Entry.asConfirmedBy(
     confirmer: MemberId,
     source: ConfirmSource,
+    at: Instant? = null,
 ): Entry = copy(
     state = EntryState.CONFIRMED,
     confirmedByMemberId = confirmer,
+    confirmedAt = at,
     confirmSource = source,
 )

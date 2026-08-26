@@ -177,6 +177,15 @@ data class Entry(
     val confirmedAt: Instant? = null,
     val confirmSource: ConfirmSource? = null,
 
+    /**
+     * Who rejected this, if anyone. A rejection is the other answer to the same
+     * question a confirmation answers, so it obeys the same rule: the member who
+     * recorded an entry may not be the one who throws it out.
+     */
+    val rejectedByMemberId: MemberId? = null,
+    val rejectedAt: Instant? = null,
+    val rejectionReason: String? = null,
+
     /** UNIQUE where not null — the duplicate-entry defence (§2b). */
     val mpesaRef: String? = null,
 
