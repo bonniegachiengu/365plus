@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **134 tests green** (core 112, desktop 12, android 10). APK installs on the Redmi; persistence verified on device. |
+| `main` | Protected trunk. Always green, always installable. | **136 tests green** (core 114, desktop 12, android 10). APK installs on the Redmi; persistence verified on device. |
 
 Nothing else is open right now.
 
