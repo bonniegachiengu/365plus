@@ -49,11 +49,11 @@ class LedgerBookTest {
             recordedBy = DevSeed.BONNIE,
             config = CONFIG,
         ).value().book
-        b = b.confirm("e1", DevSeed.PINAH, CONFIG).value().book
+        b = b.confirm("e1", DevSeed.BRIAN, CONFIG).value().book
 
         assertEquals(100_000L, b.state().poolCashCents)
         assertEquals(0L, b.state().pendingPoolCashCents)
-        assertEquals(DevSeed.PINAH, b.entry("e1")!!.confirmedByMemberId)
+        assertEquals(DevSeed.BRIAN, b.entry("e1")!!.confirmedByMemberId)
         assertEquals(ConfirmSource.HUMAN, b.entry("e1")!!.confirmSource)
     }
 
@@ -84,9 +84,9 @@ class LedgerBookTest {
             recordedBy = DevSeed.BONNIE,
             config = CONFIG,
         ).value().book
-        b = b.confirm("e1", DevSeed.PINAH, CONFIG).value().book
+        b = b.confirm("e1", DevSeed.BRIAN, CONFIG).value().book
 
-        assertIs<Decision.Refused>(b.confirm("e1", DevSeed.BRIAN, CONFIG))
+        assertIs<Decision.Refused>(b.confirm("e1", DevSeed.KANGIRI, CONFIG))
         assertEquals(100_000L, b.state().poolCashCents)
     }
 
@@ -132,7 +132,7 @@ class LedgerBookTest {
         val refused = assertIs<Decision.Refused>(
             freshBook().record(
                 id = "e1", type = EntryType.CONTRIBUTION, amountCents = 100,
-                memberId = DevSeed.PINAH, recordedBy = DevSeed.PINAH, config = prod,
+                memberId = DevSeed.BRIAN, recordedBy = DevSeed.BRIAN, config = prod,
             ),
         )
         assertIs<Refusal.NotAuthorised>(refused.refusal)
@@ -144,7 +144,7 @@ class LedgerBookTest {
             loanId = "L-1",
             borrower = DevSeed.KANGIRI,
             principalCents = 200_000, // KSh 2,000
-            recordedBy = DevSeed.PINAH,
+            recordedBy = DevSeed.BRIAN,
             config = CONFIG,
             txnCostCents = 3_300, // KSh 33 M-Pesa cost
         ).value()
@@ -170,10 +170,10 @@ class LedgerBookTest {
             id = "c1", type = EntryType.CONTRIBUTION, amountCents = 500_000,
             memberId = DevSeed.BONNIE, recordedBy = DevSeed.BONNIE, config = CONFIG,
         ).value().book
-        b = b.confirm("c1", DevSeed.PINAH, CONFIG).value().book
+        b = b.confirm("c1", DevSeed.BRIAN, CONFIG).value().book
         b = b.disburseLoan(
             loanId = "L-1", borrower = DevSeed.KANGIRI, principalCents = 200_000,
-            recordedBy = DevSeed.PINAH, config = CONFIG, txnCostCents = 3_300,
+            recordedBy = DevSeed.BRIAN, config = CONFIG, txnCostCents = 3_300,
         ).value().book
 
         val cleared = b.confirmGroup("L-1", DevSeed.BONNIE, CONFIG).value()
@@ -188,10 +188,10 @@ class LedgerBookTest {
         var b = freshBook()
         b = b.disburseLoan(
             loanId = "L-1", borrower = DevSeed.KANGIRI, principalCents = 200_000,
-            recordedBy = DevSeed.PINAH, config = CONFIG, txnCostCents = 3_300,
+            recordedBy = DevSeed.BRIAN, config = CONFIG, txnCostCents = 3_300,
         ).value().book
 
-        val refused = assertIs<Decision.Refused>(b.confirmGroup("L-1", DevSeed.PINAH, CONFIG))
+        val refused = assertIs<Decision.Refused>(b.confirmGroup("L-1", DevSeed.BRIAN, CONFIG))
         assertIs<Refusal.SelfConfirmation>(refused.refusal)
         assertEquals(3, b.pending().size, "nothing was cleared")
     }
@@ -200,7 +200,7 @@ class LedgerBookTest {
     fun an_unconfirmed_loan_has_not_left_the_pool() {
         val b = freshBook().disburseLoan(
             loanId = "L-1", borrower = DevSeed.KANGIRI, principalCents = 200_000,
-            recordedBy = DevSeed.PINAH, config = CONFIG, txnCostCents = 3_300,
+            recordedBy = DevSeed.BRIAN, config = CONFIG, txnCostCents = 3_300,
         ).value().book
 
         assertEquals(0L, b.state().poolCashCents)
@@ -214,11 +214,11 @@ class LedgerBookTest {
             id = "c1", type = EntryType.CONTRIBUTION, amountCents = 500_000,
             memberId = DevSeed.BONNIE, recordedBy = DevSeed.BONNIE, config = CONFIG,
         ).value().book
-        b = b.confirm("c1", DevSeed.PINAH, CONFIG).value().book
+        b = b.confirm("c1", DevSeed.BRIAN, CONFIG).value().book
 
         val loan = b.disburseLoan(
             loanId = "L-1", borrower = DevSeed.KANGIRI, principalCents = 200_000,
-            recordedBy = DevSeed.PINAH, config = CONFIG, txnCostCents = 3_300,
+            recordedBy = DevSeed.BRIAN, config = CONFIG, txnCostCents = 3_300,
         ).value()
         b = loan.book
         for (e in loan.entries) b = b.confirm(e.id, DevSeed.BONNIE, CONFIG).value().book
@@ -247,12 +247,12 @@ class LedgerBookTest {
             memberId = DevSeed.BONNIE, recordedBy = DevSeed.BONNIE, config = CONFIG,
             accountId = DevSeed.SAVINGS,
         ).value().book
-        b = b.confirm("c1", DevSeed.PINAH, CONFIG).value().book
+        b = b.confirm("c1", DevSeed.BRIAN, CONFIG).value().book
         assertEquals(500_000L, b.state().cashAtHandCents)
 
         b = b.transfer("t1", DevSeed.SAVINGS, DevSeed.FLOAT, 200_000, DevSeed.BONNIE, CONFIG)
             .value().book
-        b = b.confirm("t1", DevSeed.PINAH, CONFIG).value().book
+        b = b.confirm("t1", DevSeed.BRIAN, CONFIG).value().book
 
         assertEquals(300_000L, b.state().accountBalance(DevSeed.SAVINGS))
         assertEquals(200_000L, b.state().accountBalance(DevSeed.FLOAT))
@@ -280,13 +280,13 @@ class LedgerBookTest {
             id = "c1", type = EntryType.CONTRIBUTION, amountCents = 100_000,
             memberId = DevSeed.BONNIE, recordedBy = DevSeed.BONNIE, config = CONFIG,
         ).value().book
-        b = b.confirm("c1", DevSeed.PINAH, CONFIG).value().book
+        b = b.confirm("c1", DevSeed.BRIAN, CONFIG).value().book
         assertEquals(100_000L, b.state().poolCashCents)
 
-        b = b.reverse("rev1", "c1", recordedBy = DevSeed.PINAH, config = CONFIG).value().book
+        b = b.reverse("rev1", "c1", recordedBy = DevSeed.BRIAN, config = CONFIG).value().book
         assertEquals(100_000L, b.state().poolCashCents, "an unconfirmed reversal undoes nothing")
 
-        b = b.confirm("rev1", DevSeed.BRIAN, CONFIG).value().book
+        b = b.confirm("rev1", DevSeed.KANGIRI, CONFIG).value().book
         assertEquals(0L, b.state().poolCashCents)
         assertEquals(2, b.entries.size, "the mistake and the correction both remain")
         assertEquals(EntryState.CONFIRMED, b.entry("c1")!!.state, "nothing was deleted")
@@ -299,10 +299,10 @@ class LedgerBookTest {
             id = "c1", type = EntryType.CONTRIBUTION, amountCents = 100_000,
             memberId = DevSeed.BONNIE, recordedBy = DevSeed.BONNIE, config = CONFIG,
         ).value().book
-        b = b.confirm("c1", DevSeed.PINAH, CONFIG).value().book
-        b = b.reverse("rev1", "c1", recordedBy = DevSeed.PINAH, config = CONFIG).value().book
+        b = b.confirm("c1", DevSeed.BRIAN, CONFIG).value().book
+        b = b.reverse("rev1", "c1", recordedBy = DevSeed.BRIAN, config = CONFIG).value().book
 
-        val refused = assertIs<Decision.Refused>(b.confirm("rev1", DevSeed.PINAH, CONFIG))
+        val refused = assertIs<Decision.Refused>(b.confirm("rev1", DevSeed.BRIAN, CONFIG))
         assertIs<Refusal.SelfConfirmation>(refused.refusal)
     }
 }
