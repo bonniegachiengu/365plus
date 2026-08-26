@@ -31,7 +31,11 @@ import online.vyybandasky.plus365.core.governance.Decision
 object DevSeed {
 
     const val BONNIE: MemberId = "bonnie"
-    const val PINAH: MemberId = "pinah"
+
+    /**
+     * Brian owns the accounting, keeps the ledger, and holds the pool's account.
+     * All three are one person — there is no fourth member.
+     */
     const val BRIAN: MemberId = "brian"
     const val KANGIRI: MemberId = "kangiri"
 
@@ -39,9 +43,12 @@ object DevSeed {
     const val SAVINGS: AccountId = "savings"
     const val FLOAT: AccountId = "float"
 
+    /**
+     * The three members. Three is the smallest set that makes two-person control
+     * workable: whoever records an entry, two others can still clear it.
+     */
     val MEMBERS: List<Member> = listOf(
         Member(id = BONNIE, displayName = "Bonnie", phoneE164 = ""),
-        Member(id = PINAH, displayName = "Pinah", phoneE164 = ""),
         Member(id = BRIAN, displayName = "Brian", phoneE164 = ""),
         Member(id = KANGIRI, displayName = "Kang'iri", phoneE164 = ""),
     )
@@ -71,24 +78,27 @@ object DevSeed {
     fun book(): LedgerBook {
         var b = LedgerBook(members = MEMBERS, accounts = ACCOUNTS)
 
-        // --- Contributions. Each recorded by the member, confirmed by another. ---
-        b = b.contribute("c1", BONNIE, 3_000, recordedBy = BONNIE, confirmedBy = PINAH)
-        b = b.contribute("c2", PINAH, 2_000, recordedBy = PINAH, confirmedBy = BONNIE)
-        b = b.contribute("c3", BRIAN, 1_500, recordedBy = BRIAN, confirmedBy = PINAH)
+        // --- Contributions. Each recorded by one member, confirmed by another. ---
+        b = b.contribute("c1", BONNIE, 3_000, recordedBy = BONNIE, confirmedBy = BRIAN)
+        b = b.contribute("c2", BRIAN, 2_000, recordedBy = BRIAN, confirmedBy = BONNIE)
+        b = b.contribute("c3", BRIAN, 1_500, recordedBy = BRIAN, confirmedBy = KANGIRI)
         b = b.contribute("c4", KANGIRI, 1_000, recordedBy = KANGIRI, confirmedBy = BRIAN)
 
         // --- Some of it moved to the float pocket it gets lent from. ---
-        b = b.move("t1", SAVINGS, FLOAT, 4_000, recordedBy = BONNIE, confirmedBy = PINAH)
+        b = b.move("t1", SAVINGS, FLOAT, 4_000, recordedBy = BONNIE, confirmedBy = BRIAN)
 
         // --- Two loans at 7%, each principal + interest + M-Pesa cost. ---
-        b = b.lend("L-001", KANGIRI, principal = 2_000, txnCost = 33, recordedBy = PINAH, confirmedBy = BONNIE)
-        b = b.lend("L-002", BRIAN, principal = 1_300, txnCost = 23, recordedBy = PINAH, confirmedBy = BONNIE)
+        // Brian keeps the book, so Brian records them; Bonnie clears them.
+        b = b.lend("L-001", KANGIRI, principal = 2_000, txnCost = 33, recordedBy = BRIAN, confirmedBy = BONNIE)
+        // Brian borrowing from the pool. Recording his own loan is fine —
+        // confirming it is not, which is exactly what the rule is for.
+        b = b.lend("L-002", BRIAN, principal = 1_300, txnCost = 23, recordedBy = BRIAN, confirmedBy = BONNIE)
 
         // --- A repayment, back into the float. ---
-        b = b.repay("r1", KANGIRI, "L-001", 500, recordedBy = KANGIRI, confirmedBy = PINAH)
+        b = b.repay("r1", KANGIRI, "L-001", 500, recordedBy = KANGIRI, confirmedBy = BRIAN)
 
         // --- One entry left waiting, so the shell opens with a real pending queue. ---
-        b = b.recordOnly("p1", EntryType.CONTRIBUTION, KANGIRI, 500, recordedBy = PINAH)
+        b = b.recordOnly("p1", EntryType.CONTRIBUTION, KANGIRI, 500, recordedBy = BRIAN)
 
         return b
     }

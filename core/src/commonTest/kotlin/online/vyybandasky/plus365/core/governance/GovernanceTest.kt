@@ -11,8 +11,8 @@ import online.vyybandasky.plus365.core.domain.EntryState
 import online.vyybandasky.plus365.core.domain.EntryType
 
 private const val A = "bonnie"
-private const val B = "pinah"
-private const val C = "brian"
+private const val B = "brian"
+private const val C = "kangiri"
 
 private fun pendingEntry(recordedBy: String = A) = Entry(
     id = "e1",
@@ -46,7 +46,7 @@ class GovernanceTest {
         // Bonnie may act as anyone here — and still cannot confirm his own entry.
         val ownEntry = pendingEntry(recordedBy = A)
         assertIs<Decision.Refused>(checkConfirm(ownEntry, A, dev))
-        // But he may confirm one Pinah recorded, standing in as himself.
+        // But he may confirm one Brian recorded, standing in as himself.
         assertIs<Decision.Allowed<Unit>>(checkConfirm(pendingEntry(recordedBy = B), A, dev))
     }
 

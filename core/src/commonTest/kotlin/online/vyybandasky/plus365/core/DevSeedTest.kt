@@ -8,6 +8,7 @@ import kotlin.test.assertTrue
 import online.vyybandasky.plus365.core.book.confirm
 import online.vyybandasky.plus365.core.domain.EntryState
 import online.vyybandasky.plus365.core.governance.Decision
+import online.vyybandasky.plus365.core.governance.eligibleConfirmers
 import online.vyybandasky.plus365.core.governance.Refusal
 import online.vyybandasky.plus365.core.money.formatKes
 
@@ -20,7 +21,7 @@ class DevSeedTest {
     fun the_seed_builds_at_all() {
         // DevSeed goes through record() and confirm(), so if two-person control
         // were broken this would throw rather than silently seed something wrong.
-        assertEquals(4, book.members.size)
+        assertEquals(3, book.members.size, "Bonnie, Brian, Kang'iri — Brian keeps the book")
         assertEquals(2, book.loans.size)
         assertTrue(book.entries.isNotEmpty())
     }
@@ -94,8 +95,8 @@ class DevSeedTest {
     @Test
     fun stakes_are_what_each_member_put_in() {
         assertEquals(300_000L, state.balanceOf(DevSeed.BONNIE).stakeCents)
-        assertEquals(200_000L, state.balanceOf(DevSeed.PINAH).stakeCents)
-        assertEquals(150_000L, state.balanceOf(DevSeed.BRIAN).stakeCents)
+        // Brian contributed twice: 2,000 then 1,500.
+        assertEquals(350_000L, state.balanceOf(DevSeed.BRIAN).stakeCents)
         assertEquals(100_000L, state.balanceOf(DevSeed.KANGIRI).stakeCents)
     }
 
@@ -129,6 +130,36 @@ class DevSeedTest {
             book.confirm(waiting.id, waiting.recordedByMemberId!!, DevSeed.DEV_CONFIG),
         )
         assertIs<Refusal.SelfConfirmation>(refused.refusal)
+    }
+
+    @Test
+    fun there_are_exactly_three_members_and_brian_keeps_the_book() {
+        // Brian owns the accounting, keeps the ledger and holds the account —
+        // one person, not two. An earlier model split him into "Pinah" and
+        // "Brian"; this pins the correction so it cannot drift back.
+        assertEquals(
+            listOf("bonnie", "brian", "kangiri"),
+            book.members.map { it.id }.sorted(),
+        )
+        assertTrue(
+            book.members.none { it.displayName.equals("pinah", ignoreCase = true) },
+            "Pinah and Brian are the same person",
+        )
+    }
+
+    @Test
+    fun three_members_leaves_two_people_able_to_clear_any_entry() {
+        // Why three is the floor: with two, whoever records is the only other
+        // person, and nothing could ever be confirmed.
+        for (e in book.entries) {
+            val eligible = eligibleConfirmers(
+                e.copy(state = EntryState.PENDING),
+                book.memberIds(),
+                DevSeed.DEV_CONFIG,
+            )
+            assertEquals(2, eligible.size, "${e.id} should have two possible confirmers")
+            assertTrue(e.recordedByMemberId !in eligible)
+        }
     }
 
     @Test
