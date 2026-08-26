@@ -81,6 +81,7 @@ private fun HeadlineCard(d: EntryDetail) {
                     color = when (d.standing) {
                         Standing.CONFIRMED -> Plus.Money
                         Standing.PENDING -> Plus.Pending
+                        Standing.NEEDS_SETTLING -> Plus.Debt
                         Standing.REJECTED -> Plus.Debt
                     },
                 )

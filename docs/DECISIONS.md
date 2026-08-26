@@ -364,6 +364,51 @@ does nothing or an invented login.
 
 **Depends on it:** `core/presentation/Detail.kt`, `android/ui/Detail.kt`.
 
+## D19 — An act moves as a unit, all the way through
+
+**Decided:** 2026-08-26. **Status:** settled.
+
+A loan is three entries but one decision, and that holds for **every** stage, not
+just confirmation. When its messages clash, all its legs escalate together.
+Escalating only the leg that carried the message would leave the interest and
+cost waiting on a confirmation that can never come — they have no message of
+their own — so the act moves as a unit or not at all. Settling it clears every
+leg in one decision.
+
+**Correcting a multi-leg act is deliberately not offered.** A loan's interest and
+transaction cost follow from its principal, so recomputing them from a corrected
+figure would put numbers on the books nobody agreed to. The third member throws
+it out and it is recorded again. Slower, and honest.
+
+**Depends on it:** `confirmGroupOrEscalate`, `overrideGroup`, `overrideActs`.
+
+## D20 — Stuck money does not look like queued money
+
+**Decided:** 2026-08-26. **Status:** settled.
+
+`Standing.NEEDS_SETTLING` is its own state, not a flavour of `PENDING`. Money
+queued behind a second pair of eyes and money stuck in a disagreement are
+different situations, and a member glancing at a list should not have to read the
+small print to tell them apart. It carries the red dot, and the row says who
+disagreed and that it is with the third member.
+
+Found by reading the app on the phone: a disputed entry was showing "waiting for
+someone else" and being counted among the merely-waiting in the ledger tally.
+
+**Depends on it:** `Standing`, `activity()`, `StandingDot`.
+
+## D21 — The ledger shows every leg; the home summary does not
+
+**Decided:** 2026-08-26. **Status:** settled.
+
+Home hides a loan's interest and transaction-cost legs, because four lines for
+one loan reads as noise on a summary. The ledger shows them, because a screen
+that claims to be the whole record and quietly drops two entries per loan is not
+the whole record. A test asserts the ledger is strictly larger than the summary
+and that the summary is the one doing the hiding.
+
+**Depends on it:** `activity(everything = )`.
+
 ---
 
 ## Still open

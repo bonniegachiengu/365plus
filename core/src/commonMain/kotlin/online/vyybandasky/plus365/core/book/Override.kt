@@ -240,3 +240,117 @@ fun LedgerBook.confirmOrEscalate(
         }
     }
 }
+
+
+/**
+ * Confirm a whole act if the messages agree; hand every leg to the third member
+ * if they do not.
+ *
+ * A loan is three entries but one decision. Escalating only the leg that carried
+ * the message would leave the other two waiting on a confirmation that can never
+ * come — the interest and the cost have no message of their own — so the act
+ * moves as a unit or not at all.
+ */
+fun LedgerBook.confirmGroupOrEscalate(
+    groupId: String,
+    confirmedBy: MemberId,
+    config: ActorConfig,
+    at: Instant? = null,
+    evidence: online.vyybandasky.plus365.core.sms.SmsEvidence? = null,
+): Decision<Recorded> {
+    return when (val attempt = confirmGroup(groupId, confirmedBy, config, at = at, evidence = evidence)) {
+        is Decision.Allowed -> attempt
+        is Decision.Refused -> when (val why = attempt.refusal) {
+            is Refusal.EvidenceMismatch -> {
+                var book = this
+                val moved = mutableListOf<Entry>()
+                for (leg in group(groupId).filter { it.state == EntryState.PENDING }) {
+                    when (
+                        val step = book.escalate(
+                            entryId = leg.id,
+                            raisedBy = confirmedBy,
+                            kind = ConflictKind.EVIDENCE_MISMATCH,
+                            config = config,
+                            reasons = why.reasons,
+                            at = at,
+                        )
+                    ) {
+                        is Decision.Refused -> return step
+                        is Decision.Allowed -> {
+                            // Keep the offered message on the leg that had one to
+                            // compare against, so the third member sees both halves.
+                            val marked = step.value.entry.let { e ->
+                                if (e.recordedEvidence != null) {
+                                    e.copy(conflict = e.conflict?.copy(attemptedEvidence = evidence))
+                                } else {
+                                    e
+                                }
+                            }
+                            book = step.value.book.copy(
+                                entries = step.value.book.entries.map {
+                                    if (it.id == marked.id) marked else it
+                                },
+                            )
+                            moved += marked
+                        }
+                    }
+                }
+                Decision.Allowed(Recorded(book, moved))
+            }
+            else -> attempt
+        }
+    }
+}
+
+/**
+ * Settle every leg of an act in one decision.
+ *
+ * Correcting a multi-leg act is deliberately not offered. A loan's interest and
+ * transaction cost follow from its principal, so quietly recomputing them from a
+ * corrected figure would put numbers on the books that nobody agreed to. Reject
+ * it and have it recorded again, which is slower and honest.
+ */
+fun LedgerBook.overrideGroup(
+    groupId: String,
+    overrider: MemberId,
+    decision: OverrideDecision,
+    reason: String,
+    config: ActorConfig,
+    at: Instant? = null,
+): Decision<Recorded> {
+    val legs = group(groupId).filter { it.state == EntryState.NEEDS_OVERRIDE }
+    if (legs.isEmpty()) {
+        return Decision.Refused(Refusal.Invalid("Nothing in $groupId is waiting to be settled."))
+    }
+    if (decision == OverrideDecision.CORRECTED && legs.size > 1) {
+        return Decision.Refused(
+            Refusal.Invalid(
+                "This is a loan, and its interest and cost follow from the amount. " +
+                    "Throw it out and record it again with the right figure.",
+            ),
+        )
+    }
+
+    var book = this
+    val settled = mutableListOf<Entry>()
+    for (leg in legs) {
+        when (val step = book.override(leg.id, overrider, decision, reason, config, at)) {
+            is Decision.Refused -> return step
+            is Decision.Allowed -> {
+                book = step.value.book
+                settled += step.value.entries
+            }
+        }
+    }
+    return Decision.Allowed(Recorded(book, settled))
+}
+
+/** Acts waiting on the third member, grouped the way they will be decided. */
+fun LedgerBook.overrideActs(): List<List<Entry>> {
+    val stuck = needingOverride()
+    val standalone = stuck.filter { it.groupId == null }.map { listOf(it) }
+    val grouped = stuck.filter { it.groupId != null }
+        .groupBy { it.groupId!! }
+        .map { (_, es) -> es.sortedBy { it.seq ?: Long.MAX_VALUE } }
+    return (standalone + grouped).sortedBy { it.first().seq ?: Long.MAX_VALUE }
+}

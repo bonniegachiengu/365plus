@@ -3,6 +3,7 @@ package online.vyybandasky.plus365.core.presentation
 import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.book.LedgerBook
 import online.vyybandasky.plus365.core.book.needingOverride
+import online.vyybandasky.plus365.core.book.overrideActs
 import online.vyybandasky.plus365.core.domain.EntryId
 import online.vyybandasky.plus365.core.domain.EntryState
 import online.vyybandasky.plus365.core.domain.MemberId
@@ -107,6 +108,7 @@ fun LedgerBook.entryDetail(
     val standing = when (e.state) {
         EntryState.CONFIRMED -> Standing.CONFIRMED
         EntryState.DISPUTED -> Standing.REJECTED
+        EntryState.NEEDS_OVERRIDE -> Standing.NEEDS_SETTLING
         else -> Standing.PENDING
     }
     return EntryDetail(
@@ -177,13 +179,21 @@ data class OverrideTask(
     val attemptedEvidence: EvidenceView?,
     /** Exactly one member with three. Empty means nobody on this device may act. */
     val settledBy: List<MemberRef>,
+    /** How many entries this one decision settles. A loan is three. */
+    val entryCount: Int = 1,
+    /** A correction needs a single figure, so a multi-leg act cannot offer one. */
+    val canCorrect: Boolean = true,
 )
 
 fun LedgerBook.overrideTasks(config: ActorConfig, now: Instant? = null): List<OverrideTask> =
-    needingOverride().map { e ->
+    overrideActs().map { act ->
+        // The leg that carried the money is the one worth naming; the interest
+        // and cost legs follow it and have no message of their own.
+        val e = act.firstOrNull { it.recordedEvidence != null } ?: act.first()
         val c = e.conflict
         OverrideTask(
-            entryId = e.id,
+            // A grouped act is settled by its group id, exactly as it is confirmed.
+            entryId = e.groupId ?: e.id,
             sentence = "${displayName(e.recordedByMemberId ?: "?")} recorded: " +
                 "${e.type.label().lowercase()} — ${displayName(e.memberId)}",
             amount = formatKes(e.amountCents),
@@ -198,11 +208,13 @@ fun LedgerBook.overrideTasks(config: ActorConfig, now: Instant? = null): List<Ov
             attemptedEvidence = c?.attemptedEvidence?.let { evidenceView(it) },
             settledBy = eligibleOverriders(e, memberIds(), config)
                 .map { MemberRef(it, displayName(it)) },
+            entryCount = act.size,
+            canCorrect = act.size == 1,
         )
     }
 
 /** Whether the third member has anything waiting. Drives the home-screen card. */
-fun LedgerBook.overrideCount(): Int = needingOverride().size
+fun LedgerBook.overrideCount(): Int = overrideActs().size
 
 // ── you ──────────────────────────────────────────────────────────────────────
 

@@ -21,8 +21,15 @@ import online.vyybandasky.plus365.core.sms.Assurance
  * no entry ids, no type names, no "outstanding principal".
  */
 
-/** Whether money is settled or still waiting on a second person. */
-enum class Standing { CONFIRMED, PENDING, REJECTED }
+/**
+ * Where an entry stands.
+ *
+ * [NEEDS_SETTLING] is deliberately its own state rather than a flavour of
+ * [PENDING]. Money merely queued behind a second pair of eyes and money stuck in
+ * a disagreement are not the same situation, and a member glancing at a list
+ * should not have to read the small print to tell them apart.
+ */
+enum class Standing { CONFIRMED, PENDING, NEEDS_SETTLING, REJECTED }
 
 // ── the hero ─────────────────────────────────────────────────────────────────
 
@@ -188,11 +195,23 @@ data class ActivityRow(
 /**
  * The append-only record, newest first. The trust surface: who recorded it, who
  * confirmed it, when. Nothing here is editable, only added to.
+ *
+ * [everything] decides whether a loan's interest and transaction-cost legs show.
+ * The home screen hides them, because four lines for one loan reads as noise on
+ * a summary. The ledger shows them, because a screen that claims to be the whole
+ * record and quietly drops two entries per loan is not the whole record.
  */
-fun LedgerBook.activity(now: Instant? = null, limit: Int? = null): List<ActivityRow> {
+fun LedgerBook.activity(
+    now: Instant? = null,
+    limit: Int? = null,
+    everything: Boolean = false,
+): List<ActivityRow> {
     val rows = entries
         .sortedByDescending { it.seq ?: Long.MIN_VALUE }
-        .filter { it.type != EntryType.INTEREST_ACCRUAL && it.type != EntryType.TXN_COST }
+        .filter {
+            everything ||
+                (it.type != EntryType.INTEREST_ACCRUAL && it.type != EntryType.TXN_COST)
+        }
         .map { e ->
             val recorder = displayName(e.recordedByMemberId ?: "?")
             ActivityRow(
@@ -202,6 +221,7 @@ fun LedgerBook.activity(now: Instant? = null, limit: Int? = null): List<Activity
                 standing = when (e.state) {
                     EntryState.CONFIRMED -> Standing.CONFIRMED
                     EntryState.DISPUTED -> Standing.REJECTED
+                    EntryState.NEEDS_OVERRIDE -> Standing.NEEDS_SETTLING
                     else -> Standing.PENDING
                 },
                 footnote = when (e.state) {
@@ -210,6 +230,9 @@ fun LedgerBook.activity(now: Instant? = null, limit: Int? = null): List<Activity
                             (e.confirmedAt?.let { " · ${relativeTime(it, now)}" } ?: "")
                     EntryState.DISPUTED ->
                         "$recorder recorded · ${displayName(e.rejectedByMemberId ?: "?")} rejected"
+                    EntryState.NEEDS_OVERRIDE ->
+                        "$recorder recorded · ${displayName(e.conflict?.raisedBy ?: "?")} disagreed " +
+                            "· with the third member"
                     else -> "$recorder recorded · waiting for someone else"
                 },
                 assurance = e.assurance,
@@ -223,22 +246,38 @@ fun LedgerBook.activity(now: Instant? = null, limit: Int? = null): List<Activity
 
 data class MemberDetail(
     val name: String,
+    val initial: String,
     val stake: String,
     val standingLine: String,
+    val inDebt: Boolean,
+    /** Everything they have owed, still owing. */
+    val owes: String,
+    val contributionCount: Int,
+    val activeLoanCount: Int,
     val loans: List<LoanRow>,
     val activity: List<ActivityRow>,
 )
 
 fun LedgerBook.memberDetail(memberId: MemberId, now: Instant? = null): MemberDetail {
     val card = memberCards().first { it.id == memberId }
+    val theirLoans = loanRows().filter { row ->
+        loans.firstOrNull { it.id == row.loanId }?.counterpartyMemberId == memberId
+    }
     return MemberDetail(
         name = card.name,
+        initial = card.initial,
         stake = card.stake,
         standingLine = card.standingLine,
-        loans = loanRows().filter { row ->
-            loans.firstOrNull { it.id == row.loanId }?.counterpartyMemberId == memberId
+        inDebt = card.inDebt,
+        owes = formatKes(if (card.owesCents < 0) -card.owesCents else 0L),
+        contributionCount = entries.count {
+            it.memberId == memberId &&
+                it.type == EntryType.CONTRIBUTION &&
+                it.state == EntryState.CONFIRMED
         },
-        activity = activity(now).filter { row ->
+        activeLoanCount = theirLoans.count { !it.settled },
+        loans = theirLoans,
+        activity = activity(now, everything = true).filter { row ->
             entries.firstOrNull { it.id == row.entryId }?.memberId == memberId
         },
     )

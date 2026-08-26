@@ -1,11 +1,13 @@
 package online.vyybandasky.plus365.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -23,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.presentation.PendingAct
 import online.vyybandasky.plus365.core.presentation.Session
+import online.vyybandasky.plus365.core.presentation.Standing
 import online.vyybandasky.plus365.core.presentation.activity
 import online.vyybandasky.plus365.core.presentation.memberDetail
 import online.vyybandasky.plus365.core.presentation.pendingActs
@@ -164,7 +167,7 @@ private fun PendingActCard(
                 }
             }
         }
-        if (act.eligibleConfirmers.isNotEmpty() && !act.isGroup) {
+        if (act.eligibleConfirmers.isNotEmpty()) {
             Box(Modifier.padding(top = 4.dp)) {
                 BigButton(
                     "I disagree — send to the third member",
@@ -208,6 +211,14 @@ private fun PendingActCard(
     }
 }
 
+@Composable
+private fun Tally(label: String, count: Int, colour: androidx.compose.ui.graphics.Color) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(8.dp).background(colour, androidx.compose.foundation.shape.CircleShape))
+        Text("$count $label", style = MaterialTheme.typography.bodySmall, color = Plus.TextMid)
+    }
+}
+
 /** One member: what they put in, what they owe, and their own history. */
 @Composable
 fun MemberScreen(
@@ -225,12 +236,28 @@ fun MemberScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Card {
-                Label("Stake in the pool")
-                Amount(detail.stake, style = HeroAmount)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Avatar(detail.initial, detail.inDebt)
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Label("Stake in the pool")
+                        Amount(detail.stake, style = BigAmount)
+                    }
+                }
+                HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 10.dp))
                 Text(
                     detail.standingLine,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (detail.standingLine.startsWith("owes")) Plus.Debt else Plus.TextMid,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (detail.inDebt) Plus.Debt else Plus.Money,
+                )
+                Text(
+                    "${detail.contributionCount} contributions · " +
+                        "${detail.activeLoanCount} active " +
+                        if (detail.activeLoanCount == 1) "loan" else "loans",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Plus.TextLow,
                 )
             }
 
@@ -281,7 +308,8 @@ fun LedgerScreen(
     onBack: () -> Unit,
     onOpenEntry: (String) -> Unit = {},
 ) {
-    val rows = session.book.activity(now)
+    val rows = session.book.activity(now, everything = true)
+    val counts = rows.groupingBy { it.standing }.eachCount()
 
     ScreenScaffold(title = "Ledger", onBack = onBack, notice = null) {
         Column(
@@ -295,11 +323,20 @@ fun LedgerScreen(
                     color = Plus.TextHigh,
                 )
                 Text(
-                    "Entries are only ever added, never changed or deleted. A mistake " +
-                        "is corrected by adding its reversal, so both stay visible.",
+                    "${rows.size} entries. Only ever added, never changed or deleted — " +
+                        "a mistake is corrected by adding the correction, and both stay.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Plus.TextMid,
                 )
+                Row(
+                    modifier = Modifier.padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    Tally("confirmed", counts[Standing.CONFIRMED] ?: 0, Plus.Money)
+                    Tally("waiting", counts[Standing.PENDING] ?: 0, Plus.Pending)
+                    Tally("in dispute", counts[Standing.NEEDS_SETTLING] ?: 0, Plus.Debt)
+                    Tally("rejected", counts[Standing.REJECTED] ?: 0, Plus.Debt)
+                }
             }
             for (row in rows) ActivityLine(row) { onOpenEntry(row.entryId) }
             Box(Modifier.height(24.dp))

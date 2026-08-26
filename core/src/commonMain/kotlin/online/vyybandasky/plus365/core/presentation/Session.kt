@@ -4,7 +4,9 @@ import online.vyybandasky.plus365.core.DevSeed
 import online.vyybandasky.plus365.core.book.LedgerBook
 import online.vyybandasky.plus365.core.book.confirm
 import online.vyybandasky.plus365.core.book.confirmGroup
+import online.vyybandasky.plus365.core.book.confirmGroupOrEscalate
 import online.vyybandasky.plus365.core.book.confirmOrEscalate
+import online.vyybandasky.plus365.core.book.overrideGroup
 import online.vyybandasky.plus365.core.book.escalate
 import online.vyybandasky.plus365.core.book.override
 import online.vyybandasky.plus365.core.book.reject
@@ -182,17 +184,18 @@ data class Session(
         smsText: String? = null,
     ): Session {
         val evidence = readPaste(smsText, confirmer).getOrElse { return refuse(it) }
+        // Both paths route a failed match to the third member. A loan moves as a
+        // unit: escalating only the leg that carried the message would leave the
+        // interest and cost waiting on a confirmation that can never come.
         val grouped = book.group(actId).isNotEmpty()
         val r = if (grouped) {
-            book.confirmGroup(actId, confirmer, config, at = at, evidence = evidence)
+            book.confirmGroupOrEscalate(actId, confirmer, config, at = at, evidence = evidence)
         } else {
-            // Single entries route a failed match to the third member rather
-            // than ending as a refusal nobody sends anywhere.
             book.confirmOrEscalate(actId, confirmer, config, at = at, evidence = evidence)
         }
         return when (r) {
             is Decision.Allowed -> {
-                val settled = r.value.entry.state != EntryState.NEEDS_OVERRIDE
+                val settled = r.value.entries.none { it.state == EntryState.NEEDS_OVERRIDE }
                 copy(
                     book = r.value.book,
                     notice = if (!settled) {
@@ -222,14 +225,16 @@ data class Session(
         kind: ConflictKind = ConflictKind.DISPUTED,
         note: String? = null,
         at: Instant? = null,
-    ): Session = when (
-        val r = book.escalate(actId, raisedBy, kind, config, note = note, at = at)
-    ) {
-        is Decision.Allowed -> copy(
-            book = r.value.book,
-            notice = Notice.Info("Sent to the third member to settle."),
-        )
-        is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
+    ): Session {
+        val legs = book.group(actId).ifEmpty { listOfNotNull(book.entry(actId)) }
+        var b = book
+        for (leg in legs.filter { it.state == EntryState.PENDING }) {
+            when (val r = b.escalate(leg.id, raisedBy, kind, config, note = note, at = at)) {
+                is Decision.Refused -> return copy(notice = Notice.Refused(r.refusal.message))
+                is Decision.Allowed -> b = r.value.book
+            }
+        }
+        return copy(book = b, notice = Notice.Info("Sent to the third member to settle."))
     }
 
     /**
@@ -251,17 +256,22 @@ data class Session(
         } else {
             null
         }
+        val grouped = book.group(entryId).isNotEmpty()
         return when (
-            val r = book.override(
-                entryId = entryId,
-                overrider = overrider,
-                decision = decision,
-                reason = reason,
-                config = config,
-                at = at,
-                correctedAmountCents = correctedAmountCents,
-                replacementEntryId = replacementId,
-            )
+            val r = if (grouped) {
+                book.overrideGroup(entryId, overrider, decision, reason, config, at)
+            } else {
+                book.override(
+                    entryId = entryId,
+                    overrider = overrider,
+                    decision = decision,
+                    reason = reason,
+                    config = config,
+                    at = at,
+                    correctedAmountCents = correctedAmountCents,
+                    replacementEntryId = replacementId,
+                )
+            }
         ) {
             is Decision.Allowed -> copy(
                 book = r.value.book,
