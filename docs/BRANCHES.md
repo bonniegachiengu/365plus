@@ -12,7 +12,9 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | — |
+| `main` | Protected trunk. Always green, always installable. | **116 tests green** (core 94, desktop 12, android 10). APK installs and runs on the Redmi; persistence verified on device. |
+
+Nothing else is open right now.
 
 ## Merged
 
@@ -20,7 +22,14 @@ concerned.
 |---|---|---|---|
 | `shell/recorder-not-confirmer` | The shell: governance spine, book, interest, presentation, both UIs. | 2026-08-26 | `f4f6981`, `cd1672a` |
 | `fix/three-members` | Collapse Pinah and Brian into one member. | 2026-08-26 | `9908eef` |
-| `slice/persistence` | The book survives a restart: JSON log store, file-backed on both shells. | 2026-08-26 | see below |
+| `slice/persistence` | The book survives a restart: JSON log store, file-backed on both shells. | 2026-08-26 | `5d794d6` |
+| `docs/state` | Record the branch map and correct a test count. | 2026-08-26 | this commit |
+
+> `5d794d6`'s message says 118 tests. The true count at that commit was **116** —
+> it double-counted two core tests that run on both the jvm and android targets.
+> The history is merged, so the number stands in the commit and is corrected
+> here. Count with the per-target totals above, not by summing every
+> `TEST-*.xml`: `core` runs its suite three times (jvm, debug, release).
 
 ## Abandoned
 
