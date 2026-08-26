@@ -62,3 +62,23 @@ decision from Bonnie.
    re-litigated.
 5. **Update this file in the same commit** that creates, merges or abandons a
    branch.
+6. **Push after every commit.** `git push origin <branch>` immediately, and push
+   `main` after every merge. Work that only exists on this laptop is one disk
+   failure from not existing.
+
+## The remote
+
+`https://github.com/bonniegachiengu/365plus` — **private, and it stays private.**
+
+This repo holds a real money ledger's design and the rules that govern three
+people's savings. There is no version of this that belongs in public. Before any
+push that could change visibility, check it with:
+
+```
+gh repo view bonniegachiengu/365plus --json isPrivate,visibility
+```
+
+Nothing secret is tracked: `local.properties` (the SDK path) is gitignored, no
+keystore or token is committed, and the only phone-number-shaped strings in the
+repo are invented ones inside test fixtures. Members' real numbers have never
+been in the code and must not be — see D7.
