@@ -58,18 +58,25 @@ fun FlowScreen(
     onBack: () -> Unit,
     onCommit: (Session) -> Unit,
 ) {
-    var step by remember { mutableStateOf(Step.PICK) }
-    var member by remember { mutableStateOf(session.actingAs) }
-    var loan by remember { mutableStateOf<RepayableLoan?>(null) }
-    var amount by remember { mutableStateOf("") }
+    // Borrowing is always for yourself, so there is nobody to pick.
+    val skipsPick = action == PoolAction.BORROW
+
+    // Keyed on the action. Without the key these remembers share one slot across
+    // every flow, because Lend and Borrow are the same call site — so backing out
+    // of "lend to Brian" and opening Borrow would offer to lend to Brian again,
+    // under a heading that says the loan is to you. On a money screen that is not
+    // untidiness, it is recording a debt against the wrong person.
+    var step by remember(action) {
+        mutableStateOf(if (skipsPick) Step.AMOUNT else Step.PICK)
+    }
+    var member by remember(action) { mutableStateOf(session.actingAs) }
+    var loan by remember(action) { mutableStateOf<RepayableLoan?>(null) }
+    var amount by remember(action) { mutableStateOf("") }
 
     val members = session.book.memberCards()
     val loans = session.book.repayableLoans()
     val shillings = amount.toLongOrNull() ?: 0L
     val cents = shillings * 100
-
-    // Borrowing is always for yourself, so there is nobody to pick.
-    val skipsPick = action == PoolAction.BORROW
 
     ScreenScaffold(
         title = action.label,
@@ -122,11 +129,6 @@ fun FlowScreen(
         Box(Modifier.height(24.dp))
     }
 
-    // Borrow has no pick step; jump straight to the amount.
-    if (skipsPick && step == Step.PICK) {
-        member = session.actingAs
-        step = Step.AMOUNT
-    }
 }
 
 @Composable
@@ -326,7 +328,12 @@ private fun ReviewStep(
                 ReviewLine("Amount borrowed", quote!!.principal)
                 ReviewLine("Charge (${quote.rateLabel})", quote.interest)
                 HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 8.dp))
-                ReviewLine("They repay in total", quote.totalRepayable, emphasis = true)
+                // "They" is wrong when the borrower is the person reading it.
+                ReviewLine(
+                    if (action == PoolAction.BORROW) "You repay in total" else "They repay in total",
+                    quote.totalRepayable,
+                    emphasis = true,
+                )
             }
 
             PoolAction.REPAY -> {

@@ -15,10 +15,28 @@ private val T0 = Instant.parse("2026-08-26T04:00:00Z")
 
 class HomeTest {
 
-    private val session = Session.restored(InMemoryStore())
+    private val session = Session.restored(InMemoryStore(), T0)
     private val book = session.book
 
     // ── the hero ─────────────────────────────────────────────────────────────
+
+    @Test
+    fun the_hero_says_when_the_book_was_last_touched() {
+        // A pool full of money and "no activity yet" underneath it reads as a
+        // bug, because it is one — the seed must carry real times.
+        val cash = book.cashOnHand(T0)
+        assertFalse(cash.lastUpdated.contains("no activity"), cash.lastUpdated)
+        assertTrue(cash.lastUpdated.startsWith("updated "), cash.lastUpdated)
+    }
+
+    @Test
+    fun every_seeded_entry_knows_when_it_happened() {
+        assertTrue(
+            book.entries.all { it.recordedAt != null },
+            "an entry from nowhere makes the screen lie about time",
+        )
+        assertTrue(book.entries.mapNotNull { it.recordedAt }.all { it <= T0 })
+    }
 
     @Test
     fun the_hero_shows_the_roll_up_and_says_how_many_members() {

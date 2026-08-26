@@ -12,6 +12,8 @@ import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.domain.Member
 import online.vyybandasky.plus365.core.domain.MemberId
 import online.vyybandasky.plus365.core.governance.ActorConfig
+import kotlin.time.Duration.Companion.hours
+import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.governance.Decision
 
 /**
@@ -75,30 +77,37 @@ object DevSeed {
      * this seed disagree, and that is a bug worth failing loudly on rather than
      * quietly seeding an empty book.
      */
-    fun book(): LedgerBook {
+    fun book(now: Instant? = null): LedgerBook {
         var b = LedgerBook(members = MEMBERS, accounts = ACCOUNTS)
+        // Space the seeded history backwards from [now] so the screens can say
+        // "3 h ago" honestly. Without this every seeded entry has no time at all
+        // and the home screen has to fall back to "no activity yet" while
+        // plainly showing a pool full of money — which reads as a bug, because
+        // it is one.
+        var step = 0
+        fun stamp(): Instant? = now?.minus((36 - step++ * 4).hours)
 
         // --- Contributions. Each recorded by one member, confirmed by another. ---
-        b = b.contribute("c1", BONNIE, 3_000, recordedBy = BONNIE, confirmedBy = BRIAN)
-        b = b.contribute("c2", BRIAN, 2_000, recordedBy = BRIAN, confirmedBy = BONNIE)
-        b = b.contribute("c3", BRIAN, 1_500, recordedBy = BRIAN, confirmedBy = KANGIRI)
-        b = b.contribute("c4", KANGIRI, 1_000, recordedBy = KANGIRI, confirmedBy = BRIAN)
+        b = b.contribute("c1", BONNIE, 3_000, recordedBy = BONNIE, confirmedBy = BRIAN, at = stamp())
+        b = b.contribute("c2", BRIAN, 2_000, recordedBy = BRIAN, confirmedBy = BONNIE, at = stamp())
+        b = b.contribute("c3", BRIAN, 1_500, recordedBy = BRIAN, confirmedBy = KANGIRI, at = stamp())
+        b = b.contribute("c4", KANGIRI, 1_000, recordedBy = KANGIRI, confirmedBy = BRIAN, at = stamp())
 
         // --- Some of it moved to the float pocket it gets lent from. ---
-        b = b.move("t1", SAVINGS, FLOAT, 4_000, recordedBy = BONNIE, confirmedBy = BRIAN)
+        b = b.move("t1", SAVINGS, FLOAT, 4_000, recordedBy = BONNIE, confirmedBy = BRIAN, at = stamp())
 
         // --- Two loans at 7%, each principal + interest + M-Pesa cost. ---
         // Brian keeps the book, so Brian records them; Bonnie clears them.
-        b = b.lend("L-001", KANGIRI, principal = 2_000, txnCost = 33, recordedBy = BRIAN, confirmedBy = BONNIE)
+        b = b.lend("L-001", KANGIRI, principal = 2_000, txnCost = 33, recordedBy = BRIAN, confirmedBy = BONNIE, at = stamp())
         // Brian borrowing from the pool. Recording his own loan is fine —
         // confirming it is not, which is exactly what the rule is for.
-        b = b.lend("L-002", BRIAN, principal = 1_300, txnCost = 23, recordedBy = BRIAN, confirmedBy = BONNIE)
+        b = b.lend("L-002", BRIAN, principal = 1_300, txnCost = 23, recordedBy = BRIAN, confirmedBy = BONNIE, at = stamp())
 
         // --- A repayment, back into the float. ---
-        b = b.repay("r1", KANGIRI, "L-001", 500, recordedBy = KANGIRI, confirmedBy = BRIAN)
+        b = b.repay("r1", KANGIRI, "L-001", 500, recordedBy = KANGIRI, confirmedBy = BRIAN, at = stamp())
 
         // --- One entry left waiting, so the shell opens with a real pending queue. ---
-        b = b.recordOnly("p1", EntryType.CONTRIBUTION, KANGIRI, 500, recordedBy = BRIAN)
+        b = b.recordOnly("p1", EntryType.CONTRIBUTION, KANGIRI, 500, recordedBy = BRIAN, at = stamp())
 
         return b
     }
@@ -111,6 +120,7 @@ object DevSeed {
         amount: Long,
         recordedBy: MemberId,
         confirmedBy: MemberId,
+        at: Instant? = null,
     ): LedgerBook {
         val recorded = record(
             id = id,
@@ -120,8 +130,9 @@ object DevSeed {
             recordedBy = recordedBy,
             config = DEV_CONFIG,
             accountId = SAVINGS,
+            at = at,
         ).orThrow("record contribution $id")
-        return recorded.book.confirmOne(id, confirmedBy)
+        return recorded.book.confirmOne(id, confirmedBy, at)
     }
 
     private fun LedgerBook.move(
@@ -131,6 +142,7 @@ object DevSeed {
         amount: Long,
         recordedBy: MemberId,
         confirmedBy: MemberId,
+        at: Instant? = null,
     ): LedgerBook {
         val recorded = transfer(
             id = id,
@@ -139,8 +151,9 @@ object DevSeed {
             amountCents = shillings(amount),
             recordedBy = recordedBy,
             config = DEV_CONFIG,
+            at = at,
         ).orThrow("transfer $id")
-        return recorded.book.confirmOne(id, confirmedBy)
+        return recorded.book.confirmOne(id, confirmedBy, at)
     }
 
     private fun LedgerBook.lend(
@@ -150,6 +163,7 @@ object DevSeed {
         txnCost: Long,
         recordedBy: MemberId,
         confirmedBy: MemberId,
+        at: Instant? = null,
     ): LedgerBook {
         val recorded = disburseLoan(
             loanId = loanId,
@@ -159,9 +173,10 @@ object DevSeed {
             config = DEV_CONFIG,
             txnCostCents = shillings(txnCost),
             fromAccount = FLOAT,
+            at = at,
         ).orThrow("disburse $loanId")
         // Three facts, one decision — cleared together, each confirmed on its own.
-        return recorded.book.confirmGroup(loanId, confirmedBy, DEV_CONFIG)
+        return recorded.book.confirmGroup(loanId, confirmedBy, DEV_CONFIG, at = at)
             .orThrow("confirm $loanId").book
     }
 
@@ -172,6 +187,7 @@ object DevSeed {
         amount: Long,
         recordedBy: MemberId,
         confirmedBy: MemberId,
+        at: Instant? = null,
     ): LedgerBook {
         val recorded = record(
             id = id,
@@ -182,8 +198,9 @@ object DevSeed {
             config = DEV_CONFIG,
             loanId = loanId,
             accountId = FLOAT,
+            at = at,
         ).orThrow("record repayment $id")
-        return recorded.book.confirmOne(id, confirmedBy)
+        return recorded.book.confirmOne(id, confirmedBy, at)
     }
 
     private fun LedgerBook.recordOnly(
@@ -192,6 +209,7 @@ object DevSeed {
         member: MemberId,
         amount: Long,
         recordedBy: MemberId,
+        at: Instant? = null,
     ): LedgerBook = record(
         id = id,
         type = type,
@@ -200,10 +218,11 @@ object DevSeed {
         recordedBy = recordedBy,
         config = DEV_CONFIG,
         accountId = SAVINGS,
+        at = at,
     ).orThrow("record $id").book
 
-    private fun LedgerBook.confirmOne(id: String, by: MemberId): LedgerBook =
-        confirm(id, by, DEV_CONFIG).orThrow("confirm $id").book
+    private fun LedgerBook.confirmOne(id: String, by: MemberId, at: Instant? = null): LedgerBook =
+        confirm(id, by, DEV_CONFIG, at = at).orThrow("confirm $id").book
 
     private fun <T> Decision<T>.orThrow(what: String): T = when (this) {
         is Decision.Allowed -> value

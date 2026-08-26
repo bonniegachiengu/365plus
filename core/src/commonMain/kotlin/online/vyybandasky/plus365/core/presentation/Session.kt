@@ -236,8 +236,8 @@ data class Session(
          * second run cannot mint an id that collides with a stored entry and be
          * silently swallowed by record()'s idempotency check.
          */
-        fun restored(store: LedgerStore): Session {
-            val book = store.openOrSeed { DevSeed.book() }
+        fun restored(store: LedgerStore, now: Instant? = null): Session {
+            val book = store.openOrSeed { DevSeed.book(now) }
             return Session(
                 book = book,
                 config = DevSeed.DEV_CONFIG,
