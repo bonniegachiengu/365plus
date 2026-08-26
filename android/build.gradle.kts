@@ -68,6 +68,11 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons)
+
+    // Clock.System.now() at the UI edge — core stays pure and takes the instant
+    // as an argument.
+    implementation(libs.kotlinx.datetime)
 
     testImplementation(kotlin("test"))
 }

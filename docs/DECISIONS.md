@@ -153,6 +153,78 @@ and is never overwritten.
 `FileLedgerStore` in each shell — ten lines each, because `core` has no file API
 and should not grow one.
 
+## D9 — Dark fintech, one look, always
+
+**Decided:** 2026-08-26. **Status:** settled. Spec: `docs/UI_UX.md`.
+
+The app is dark whatever the phone is set to. Two of the three members are not
+technical and this holds their money: a screen that changes character with the
+system theme is a screen they have to re-learn.
+
+**Colour carries meaning and nothing else.** Teal is money and the way forward,
+amber is waiting on somebody, red is owed. There is no decorative colour on any
+screen — if something is coloured, it is saying something.
+
+Numbers are the hero and get their own type styles rather than borrowing a
+heading that happens to be large. Labels are quiet.
+
+**Depends on it:** `android/ui/Theme.kt`, `android/ui/Parts.kt`.
+
+## D10 — Every money action is pick → amount → review → record
+
+**Decided:** 2026-08-26. **Status:** settled.
+
+The review step is never skipped. Nobody commits money without seeing the number
+on its own screen first, and for a loan, without seeing what will actually be
+repaid — the quote spells out principal, the 7% charge, and the total.
+
+The review screen states plainly that recording does **not** move money and that
+a different member must confirm it. Recording then lands on the confirm screen,
+so the second half of the control is the obvious next thing rather than
+something to go looking for.
+
+**Borrow and Lend are the same event** — money leaves the pool, that member owes
+it back. Only the wording differs, and the wording is the whole point: "lend" is
+what you do for someone else, "borrow" is what you do for yourself, and a member
+should not have to translate.
+
+**Depends on it:** `android/ui/Flows.kt`, `Session.contribute/lend/borrow/repay`.
+
+## D11 — Reject is the other answer to the same question
+
+**Decided:** 2026-08-26. **Status:** settled.
+
+A pending entry can be thrown out, and rejection passes **the same gate** as
+confirmation: whoever recorded it cannot be the one who bins it. Letting the
+recorder quietly reject their own entry would be the same hole from the other
+side.
+
+A rejected entry goes to `DISPUTED`, which the fold ignores — it never touched a
+balance and never will — but it stays in the log with who rejected it and why.
+Nothing is deleted, ever.
+
+**Depends on it:** `LedgerBook.reject/rejectGroup`, `checkReject`.
+
+## D12 — The screen speaks in names and shillings
+
+**Decided:** 2026-08-26. **Status:** settled.
+
+Every sentence a member reads is built in shared `core`, so the phone and the
+laptop cannot describe the same entry differently. No entry ids, no type names,
+no "outstanding principal" — "Brian recorded: lend to Kang'iri", "owes
+KSh 1,673.00". A test asserts no screen string contains `LOAN_OUT`,
+`INTEREST_ACCRUAL`, `TXN_COST`, a loan id or a raw member key.
+
+**A loan is three entries but one decision**, so the confirm screen asks once.
+`pendingActs()` groups them and confirming clears all legs, each still recording
+its own confirmation.
+
+Time reads in words — "5 min ago", not a timestamp. Core stays pure: the clock
+is passed in from the UI edge, read once per screen so every relative time on it
+is against the same instant.
+
+**Depends on it:** `core/presentation/Home.kt`.
+
 ---
 
 ## Still open

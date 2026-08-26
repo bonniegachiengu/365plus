@@ -1,5 +1,6 @@
 package online.vyybandasky.plus365.core.book
 
+import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.domain.Account
 import online.vyybandasky.plus365.core.domain.AccountId
 import online.vyybandasky.plus365.core.domain.ConfirmSource
@@ -17,8 +18,10 @@ import online.vyybandasky.plus365.core.governance.ActorConfig
 import online.vyybandasky.plus365.core.governance.Decision
 import online.vyybandasky.plus365.core.governance.Refusal
 import online.vyybandasky.plus365.core.governance.asConfirmedBy
+import online.vyybandasky.plus365.core.governance.asRejectedBy
 import online.vyybandasky.plus365.core.governance.checkConfirm
 import online.vyybandasky.plus365.core.governance.checkRecord
+import online.vyybandasky.plus365.core.governance.checkReject
 import online.vyybandasky.plus365.core.interest.HOUSE_RATE_BPS
 import online.vyybandasky.plus365.core.interest.interestCents
 import online.vyybandasky.plus365.core.ledger.LedgerState
@@ -75,6 +78,25 @@ data class LedgerBook(
     /** Entries recorded as one act, in ledger order. */
     fun group(groupId: String): List<Entry> =
         entries.filter { it.groupId == groupId }.sortedBy { it.seq ?: Long.MAX_VALUE }
+
+    /** Entries thrown out. Kept, never deleted, and ignored by the fold. */
+    fun rejected(): List<Entry> =
+        entries.filter { it.state == EntryState.DISPUTED }
+            .sortedByDescending { it.seq ?: Long.MIN_VALUE }
+
+    /**
+     * Pending work grouped into the acts a person actually decides on.
+     *
+     * A loan is three entries but one decision, so the confirm screen should ask
+     * once. Entries with no group stand alone.
+     */
+    fun pendingActs(): List<List<Entry>> {
+        val standalone = pending().filter { it.groupId == null }.map { listOf(it) }
+        val grouped = pending().filter { it.groupId != null }
+            .groupBy { it.groupId!! }
+            .map { (_, es) -> es.sortedBy { it.seq ?: Long.MAX_VALUE } }
+        return (standalone + grouped).sortedBy { it.first().seq ?: Long.MAX_VALUE }
+    }
 }
 
 /** What a successful change produced. */
@@ -100,6 +122,7 @@ fun LedgerBook.record(
     accountId: AccountId? = null,
     groupId: String? = null,
     note: String? = null,
+    at: Instant? = null,
 ): Decision<Recorded> {
     when (val gate = checkRecord(recordedBy, config)) {
         is Decision.Refused -> return gate
@@ -132,6 +155,7 @@ fun LedgerBook.record(
         accountId = accountId ?: defaultAccount(),
         groupId = groupId,
         recordedByMemberId = recordedBy,
+        recordedAt = at,
         state = EntryState.PENDING,
         note = note,
     )
@@ -156,6 +180,7 @@ fun LedgerBook.confirmGroup(
     confirmedBy: MemberId,
     config: ActorConfig,
     source: ConfirmSource = ConfirmSource.HUMAN,
+    at: Instant? = null,
 ): Decision<Recorded> {
     val members = group(groupId).filter { it.state == EntryState.PENDING }
     if (members.isEmpty()) {
@@ -164,7 +189,7 @@ fun LedgerBook.confirmGroup(
     var book = this
     val confirmed = mutableListOf<Entry>()
     for (e in members) {
-        when (val step = book.confirm(e.id, confirmedBy, config, source)) {
+        when (val step = book.confirm(e.id, confirmedBy, config, source, at)) {
             is Decision.Refused -> return step
             is Decision.Allowed -> {
                 book = step.value.book
@@ -190,6 +215,7 @@ fun LedgerBook.transfer(
     recordedBy: MemberId,
     config: ActorConfig,
     note: String? = null,
+    at: Instant? = null,
 ): Decision<Recorded> {
     when (val gate = checkRecord(recordedBy, config)) {
         is Decision.Refused -> return gate
@@ -214,6 +240,7 @@ fun LedgerBook.transfer(
         accountId = toAccount,
         counterAccountId = fromAccount,
         recordedByMemberId = recordedBy,
+        recordedAt = at,
         state = EntryState.PENDING,
         note = note,
     )
@@ -234,6 +261,7 @@ fun LedgerBook.confirm(
     confirmedBy: MemberId,
     config: ActorConfig,
     source: ConfirmSource = ConfirmSource.HUMAN,
+    at: Instant? = null,
 ): Decision<Recorded> {
     val target = entry(entryId)
         ?: return Decision.Refused(Refusal.UnknownEntry(entryId))
@@ -245,7 +273,7 @@ fun LedgerBook.confirm(
         is Decision.Allowed -> Unit
     }
 
-    val confirmed = target.asConfirmedBy(confirmedBy, source)
+    val confirmed = target.asConfirmedBy(confirmedBy, source, at)
     return Decision.Allowed(
         Recorded(
             copy(entries = entries.map { if (it.id == entryId) confirmed else it }),
@@ -279,6 +307,7 @@ fun LedgerBook.disburseLoan(
     rateBps: Int = HOUSE_RATE_BPS,
     fromAccount: AccountId? = null,
     note: String? = null,
+    at: Instant? = null,
 ): Decision<Recorded> {
     if (loan(loanId) != null) {
         return Decision.Refused(Refusal.Invalid("Loan $loanId already exists."))
@@ -330,6 +359,7 @@ fun LedgerBook.disburseLoan(
                 accountId = account,
                 groupId = loanId,
                 note = legNote,
+                at = at,
             )
         ) {
             is Decision.Refused -> return step
@@ -340,6 +370,67 @@ fun LedgerBook.disburseLoan(
         }
     }
     return Decision.Allowed(Recorded(book, appended))
+}
+
+/**
+ * Throw out a pending entry.
+ *
+ * The other answer to the question [confirm] asks, and it passes the same gate:
+ * whoever recorded an entry cannot be the one who bins it. A rejected entry goes
+ * to [EntryState.DISPUTED], which the fold ignores — so it never touched a
+ * balance and never will — but it stays in the log with who rejected it and why.
+ * Nothing is deleted.
+ */
+fun LedgerBook.reject(
+    entryId: EntryId,
+    rejectedBy: MemberId,
+    config: ActorConfig,
+    reason: String? = null,
+    at: Instant? = null,
+): Decision<Recorded> {
+    val target = entry(entryId)
+        ?: return Decision.Refused(Refusal.UnknownEntry(entryId))
+    if (member(rejectedBy) == null) {
+        return Decision.Refused(Refusal.UnknownMember(rejectedBy))
+    }
+    when (val gate = checkReject(target, rejectedBy, config)) {
+        is Decision.Refused -> return gate
+        is Decision.Allowed -> Unit
+    }
+
+    val rejected = target.asRejectedBy(rejectedBy, at, reason)
+    return Decision.Allowed(
+        Recorded(
+            copy(entries = entries.map { if (it.id == entryId) rejected else it }),
+            listOf(rejected),
+        ),
+    )
+}
+
+/** Throw out every pending entry of one act — a loan's three legs together. */
+fun LedgerBook.rejectGroup(
+    groupId: String,
+    rejectedBy: MemberId,
+    config: ActorConfig,
+    reason: String? = null,
+    at: Instant? = null,
+): Decision<Recorded> {
+    val members = group(groupId).filter { it.state == EntryState.PENDING }
+    if (members.isEmpty()) {
+        return Decision.Refused(Refusal.Invalid("Nothing pending in group $groupId."))
+    }
+    var book = this
+    val done = mutableListOf<Entry>()
+    for (e in members) {
+        when (val step = book.reject(e.id, rejectedBy, config, reason, at)) {
+            is Decision.Refused -> return step
+            is Decision.Allowed -> {
+                book = step.value.book
+                done += step.value.entries
+            }
+        }
+    }
+    return Decision.Allowed(Recorded(book, done))
 }
 
 /**
@@ -355,6 +446,7 @@ fun LedgerBook.reverse(
     recordedBy: MemberId,
     config: ActorConfig,
     note: String? = null,
+    at: Instant? = null,
 ): Decision<Recorded> {
     when (val gate = checkRecord(recordedBy, config)) {
         is Decision.Refused -> return gate
