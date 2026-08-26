@@ -145,6 +145,31 @@ class HomeTest {
     }
 
     @Test
+    fun an_entry_stuck_in_a_dispute_does_not_look_like_one_merely_waiting() {
+        // Money queued behind a second pair of eyes and money stuck in a
+        // disagreement are different situations, and the list must say so.
+        val stuck = book.activity(T0).first { it.entryId == "x1" }
+        assertEquals(Standing.NEEDS_SETTLING, stuck.standing)
+        assertTrue(stuck.footnote.contains("disagreed"), stuck.footnote)
+        assertTrue(stuck.footnote.contains("third member"), stuck.footnote)
+
+        val queued = book.activity(T0).first { it.entryId == "p1" }
+        assertEquals(Standing.PENDING, queued.standing)
+    }
+
+    @Test
+    fun the_ledger_shows_every_leg_while_the_home_summary_hides_the_noise() {
+        val summary = book.activity(T0)
+        val everything = book.activity(T0, everything = true)
+        assertTrue(
+            everything.size > summary.size,
+            "the ledger must not quietly drop a loan's interest and cost",
+        )
+        assertTrue(everything.any { it.sentence.startsWith("Interest") })
+        assertTrue(summary.none { it.sentence.startsWith("Interest") })
+    }
+
+    @Test
     fun a_waiting_entry_looks_different_from_a_settled_one() {
         val standings = book.activity(T0).map { it.standing }.toSet()
         assertTrue(Standing.PENDING in standings)

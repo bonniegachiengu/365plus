@@ -106,7 +106,8 @@ private fun OverrideCard(
             Amount(task.amount, style = BigAmount)
         }
         Text(
-            "${task.raisedBy} raised it · ${task.whenIt}",
+            "${task.raisedBy} raised it · ${task.whenIt}" +
+                if (task.entryCount > 1) " · ${task.entryCount} linked entries" else "",
             style = MaterialTheme.typography.bodySmall,
             color = Plus.TextLow,
         )
@@ -177,7 +178,16 @@ private fun OverrideCard(
                 )
             }
         }
-        Box(Modifier.padding(top = 4.dp)) {
+        if (!task.canCorrect) {
+            Text(
+                "This is a loan, and its interest and cost follow from the amount. " +
+                    "To change the figure, throw it out and record it again.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Plus.TextLow,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
+        if (task.canCorrect) Box(Modifier.padding(top = 4.dp)) {
             BigButton(
                 if (correcting) "Save the correct figure" else "Correct the figure",
                 filled = correcting,

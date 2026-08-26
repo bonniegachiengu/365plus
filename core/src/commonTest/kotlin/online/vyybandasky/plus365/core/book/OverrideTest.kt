@@ -288,6 +288,56 @@ class OverrideTest {
     }
 
     @Test
+    fun a_loan_whose_messages_clash_also_goes_to_the_third_member() {
+        // AUDIT: a loan is three entries but one decision, and its money leg
+        // carries the message. A clash there is the same kind of disagreement as
+        // on a lone entry, so it must route the same way.
+        var b = LedgerBook(members = DevSeed.MEMBERS, accounts = DevSeed.ACCOUNTS)
+            .disburseLoan(
+                loanId = "L-9",
+                borrower = DevSeed.KANGIRI,
+                principalCents = 200_000,
+                recordedBy = DevSeed.BONNIE,
+                config = CONFIG,
+                evidence = ev(SENT, DevSeed.BONNIE),
+                at = T0,
+            ).value().book
+
+        b = b.confirmGroupOrEscalate(
+            "L-9", DevSeed.BRIAN, CONFIG, at = T0, evidence = ev(RECEIVED_WRONG, DevSeed.BRIAN),
+        ).value().book
+
+        assertEquals(2, b.needingOverride().size, "every leg of the loan goes together")
+        assertTrue(b.pending().isEmpty(), "no leg is left half-settled")
+        assertEquals(
+            listOf(DevSeed.KANGIRI),
+            eligibleOverriders(b.entry("L-9-principal")!!, b.memberIds(), CONFIG),
+        )
+    }
+
+    @Test
+    fun settling_a_loan_clears_every_leg_in_one_decision() {
+        var b = LedgerBook(members = DevSeed.MEMBERS, accounts = DevSeed.ACCOUNTS)
+            .disburseLoan(
+                loanId = "L-9", borrower = DevSeed.KANGIRI, principalCents = 200_000,
+                recordedBy = DevSeed.BONNIE, config = CONFIG,
+                evidence = ev(SENT, DevSeed.BONNIE), at = T0,
+            ).value().book
+        b = b.confirmGroupOrEscalate(
+            "L-9", DevSeed.BRIAN, CONFIG, at = T0, evidence = ev(RECEIVED_WRONG, DevSeed.BRIAN),
+        ).value().book
+
+        b = b.overrideGroup(
+            "L-9", DevSeed.KANGIRI, OverrideDecision.CONFIRMED, "I saw it land", CONFIG, T0,
+        ).value().book
+
+        assertTrue(b.needingOverride().isEmpty())
+        assertEquals(EntryState.CONFIRMED, b.entry("L-9-principal")!!.state)
+        assertEquals(EntryState.CONFIRMED, b.entry("L-9-interest")!!.state)
+        assertEquals(-214_000L, b.state().balanceOf(DevSeed.KANGIRI).debtCents)
+    }
+
+    @Test
     fun a_matching_pair_still_confirms_without_ever_involving_a_third_person() {
         val received =
             "SK34H7T8QW Confirmed. You have received Ksh2,000.00 from BONNIE 0798765432 on 26/8/26."

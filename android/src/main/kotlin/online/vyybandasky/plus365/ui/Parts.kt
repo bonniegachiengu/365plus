@@ -76,6 +76,7 @@ fun StandingDot(standing: Standing, modifier: Modifier = Modifier) {
     val colour = when (standing) {
         Standing.CONFIRMED -> Plus.Money
         Standing.PENDING -> Plus.Pending
+        Standing.NEEDS_SETTLING -> Plus.Debt
         Standing.REJECTED -> Plus.Debt
     }
     Box(modifier.size(9.dp).background(colour, CircleShape))
