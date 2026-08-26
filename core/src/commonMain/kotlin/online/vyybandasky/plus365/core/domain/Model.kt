@@ -4,6 +4,7 @@ import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 
 typealias MemberId = String
+typealias AccountId = String
 typealias DeviceId = String
 typealias EntryId = String
 typealias LoanId = String
@@ -22,8 +23,19 @@ enum class EntryType {
     MEMBER_LOAN_IN,
     POOL_REPAY_MEMBER,
 
-    /** Interest for one period on an outstanding loan. Never moves cash. */
+    /** Interest on an outstanding loan. Never moves cash — it is owed, not held. */
     INTEREST_ACCRUAL,
+
+    /**
+     * The M-Pesa cost of moving a loan. Kept as its own component rather than
+     * folded into principal: the pool has always tracked it separately, and
+     * burying it would put our running total a few shillings off theirs with no
+     * way to tell which was right.
+     */
+    TXN_COST,
+
+    /** Cash moved between the pool's own accounts. Cash-at-hand is unchanged. */
+    TRANSFER,
 
     /** Cancels a prior entry by applying the exact inverse of its effect. */
     REVERSAL,
@@ -48,6 +60,25 @@ enum class InterestPeriod { MONTHLY }
 
 enum class InterestMethod { SIMPLE }
 
+/**
+ * Where the pool's money physically sits.
+ *
+ * Cash-at-hand is the sum of these and is derived, never stored — the same
+ * discipline as every other total in this app.
+ */
+data class Account(
+    val id: AccountId,
+    val label: String,
+)
+
+object Accounts {
+    /**
+     * Cash whose account was never stated. Entries recorded before accounts
+     * existed land here rather than vanishing from the roll-up.
+     */
+    const val UNASSIGNED: AccountId = "unassigned"
+}
+
 data class Member(
     val id: MemberId,
     val displayName: String,
@@ -70,6 +101,8 @@ data class Loan(
     val direction: LoanDirection,
     val counterpartyMemberId: MemberId,
     val principalCents: Long,
+    /** The M-Pesa cost of disbursing this loan. Tracked apart from principal. */
+    val txnCostCents: Long = 0L,
     val rateBps: Int = 0,
     val period: InterestPeriod = InterestPeriod.MONTHLY,
     val interestMethod: InterestMethod = InterestMethod.SIMPLE,
@@ -100,8 +133,24 @@ data class Entry(
     /** Whose stake/debt this touches. */
     val memberId: MemberId,
 
-    /** Set for LOAN_OUT, LOAN_REPAYMENT, MEMBER_LOAN_IN, POOL_REPAY_MEMBER, INTEREST_ACCRUAL. */
+    /** Set for LOAN_OUT, LOAN_REPAYMENT, MEMBER_LOAN_IN, POOL_REPAY_MEMBER, INTEREST_ACCRUAL, TXN_COST. */
     val loanId: LoanId? = null,
+
+    /**
+     * Which pocket the cash moved through. Null means [Accounts.UNASSIGNED].
+     * On a TRANSFER this is the destination.
+     */
+    val accountId: AccountId? = null,
+
+    /** The source account. TRANSFER only. */
+    val counterAccountId: AccountId? = null,
+
+    /**
+     * Entries that describe one act and are confirmed together — a loan's
+     * principal, its interest and its transaction cost are three facts but one
+     * decision. Each still records its own confirmation.
+     */
+    val groupId: String? = null,
 
     /** When the money actually moved — not when it was typed in. */
     val eventDate: LocalDate? = null,
@@ -135,6 +184,12 @@ data class Entry(
         }
         require(type == EntryType.REVERSAL || reversesEntryId == null) {
             "only a REVERSAL may carry reversesEntryId"
+        }
+        require(type != EntryType.TRANSFER || counterAccountId != null) {
+            "a TRANSFER must name the account the money came from"
+        }
+        require(type == EntryType.TRANSFER || counterAccountId == null) {
+            "only a TRANSFER may carry counterAccountId"
         }
     }
 }

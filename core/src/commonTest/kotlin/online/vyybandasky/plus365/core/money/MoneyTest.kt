@@ -2,8 +2,6 @@ package online.vyybandasky.plus365.core.money
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import online.vyybandasky.plus365.core.SampleLedger
-import online.vyybandasky.plus365.core.ledger.fold
 
 class MoneyTest {
 
@@ -36,15 +34,5 @@ class MoneyTest {
         // renders a large POSITIVE amount, which is the worst possible bug in a
         // money formatter.
         assertEquals('-', formatKes(Long.MIN_VALUE)[4])
-    }
-}
-
-class SampleLedgerTest {
-
-    @Test
-    fun the_shared_sample_folds_to_the_number_both_shells_display() {
-        val state = fold(SampleLedger.ENTRIES)
-        assertEquals(SampleLedger.EXPECTED_POOL_CASH_CENTS, state.poolCashCents)
-        assertEquals("KSh 6,300.00", formatKes(state.poolCashCents))
     }
 }

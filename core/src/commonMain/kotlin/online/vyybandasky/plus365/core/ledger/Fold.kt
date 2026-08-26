@@ -1,5 +1,7 @@
 package online.vyybandasky.plus365.core.ledger
 
+import online.vyybandasky.plus365.core.domain.AccountId
+import online.vyybandasky.plus365.core.domain.Accounts
 import online.vyybandasky.plus365.core.domain.Entry
 import online.vyybandasky.plus365.core.domain.EntryId
 import online.vyybandasky.plus365.core.domain.EntryState
@@ -57,6 +59,23 @@ fun effectOf(
             )
         }
 
+        // The pool pays the transfer fee out of pocket and the counterparty owes
+        // it back, so unlike interest this one DOES move cash. Direction follows
+        // the loan for the same reason interest does.
+        EntryType.TXN_COST -> when (loanDirection) {
+            LoanDirection.POOL_TO_MEMBER ->
+                Effect(debtCents = -amt, poolCashCents = -amt)
+            LoanDirection.MEMBER_TO_POOL ->
+                Effect(debtCents = amt, poolCashCents = -amt)
+            null -> throw IllegalArgumentException(
+                "TXN_COST needs its loan to know the direction; pass loans to fold()"
+            )
+        }
+
+        // Between the pool's own pockets. Cash-at-hand cannot change, so the
+        // net effect is zero — the movement is in the per-account split alone.
+        EntryType.TRANSFER -> Effect()
+
         EntryType.REVERSAL -> throw IllegalArgumentException(
             "a REVERSAL effect is the inverse of its target and is resolved by fold()"
         )
@@ -93,6 +112,7 @@ fun fold(
 
     val confirmedMembers = mutableMapOf<MemberId, MemberBalance>()
     val pendingMembers = mutableMapOf<MemberId, MemberBalance>()
+    val confirmedAccounts = mutableMapOf<AccountId, Long>()
     var confirmedCash = 0L
     var pendingCash = 0L
     var draftCount = 0
@@ -114,6 +134,7 @@ fun fold(
             if (entry.state == EntryState.DRAFT) draftCount++
             confirmedMembers.accumulate(entry.memberId, effect)
             confirmedCash += effect.poolCashCents
+            routeToAccounts(entry, byId, effect, confirmedAccounts)
             tallyLoan(entry, byId, loansById, loanTallies)
         } else {
             pendingMembers.accumulate(entry.memberId, effect)
@@ -124,6 +145,7 @@ fun fold(
     return LedgerState(
         perMember = confirmedMembers.toMap(),
         poolCashCents = confirmedCash,
+        perAccount = confirmedAccounts.filterValues { it != 0L }.toMap(),
         loans = loanTallies.mapValues { (_, tally) -> tally.toOutstanding() },
         pendingPerMember = pendingMembers.toMap(),
         pendingPoolCashCents = pendingCash,
@@ -155,6 +177,45 @@ private fun resolveEffect(
 private fun Entry.loanDirection(loansById: Map<LoanId, Loan>): LoanDirection? =
     loanId?.let { loansById[it]?.direction }
 
+/**
+ * Put an entry's cash movement into the right pocket.
+ *
+ * Every entry that moves cash moves it through exactly one account, except a
+ * TRANSFER, which moves it between two and nets to nothing. Cash-at-hand is the
+ * sum over this map, so it agrees with [LedgerState.poolCashCents] by
+ * construction rather than by anyone remembering to keep them in step.
+ */
+private fun routeToAccounts(
+    entry: Entry,
+    byId: Map<EntryId, Entry>,
+    effect: Effect,
+    into: MutableMap<AccountId, Long>,
+) {
+    // A reversal moves the inverse through whatever accounts its target used.
+    val subject: Entry
+    val sign: Long
+    if (entry.type == EntryType.REVERSAL) {
+        subject = byId[entry.reversesEntryId] ?: return
+        sign = -1L
+    } else {
+        subject = entry
+        sign = 1L
+    }
+
+    if (subject.type == EntryType.TRANSFER) {
+        val from = subject.counterAccountId ?: Accounts.UNASSIGNED
+        val to = subject.accountId ?: Accounts.UNASSIGNED
+        val amt = subject.amountCents * sign
+        into[from] = (into[from] ?: 0L) - amt
+        into[to] = (into[to] ?: 0L) + amt
+        return
+    }
+
+    if (effect.poolCashCents == 0L) return
+    val account = subject.accountId ?: Accounts.UNASSIGNED
+    into[account] = (into[account] ?: 0L) + effect.poolCashCents
+}
+
 private fun MutableMap<MemberId, MemberBalance>.accumulate(memberId: MemberId, effect: Effect) {
     val current = this[memberId] ?: MemberBalance()
     this[memberId] = MemberBalance(
@@ -163,21 +224,37 @@ private fun MutableMap<MemberId, MemberBalance>.accumulate(memberId: MemberId, e
     )
 }
 
+/**
+ * A loan's four components, kept apart.
+ *
+ * Principal, interest and transaction cost are gross — what was ever charged —
+ * and [repaid] is what has come back. Both the old principal-only view and the
+ * full outstanding derive from these same four numbers, so the two views cannot
+ * drift from each other.
+ */
 private class MutableLoanTally(val loanId: LoanId, val direction: LoanDirection) {
     var principal = 0L
     var interest = 0L
+    var txnCost = 0L
+    var repaid = 0L
 
     fun toOutstanding() = LoanOutstanding(
         loanId = loanId,
         direction = direction,
-        principalOutstandingCents = if (principal < 0L) 0L else principal,
+        principalCents = principal,
         interestAccruedCents = interest,
+        txnCostCents = txnCost,
+        repaidCents = repaid,
     )
 }
 
 /**
- * Loan-level running totals. Deliberately thin for M0 — repayment allocation
- * (interest first, then principal) is M4.
+ * Loan-level running totals: principal, interest, transaction cost and what has
+ * been repaid, each tallied separately.
+ *
+ * How a repayment is *allocated* across those three — interest first, or
+ * principal first — is a later question. Until it is answered, a repayment
+ * reduces the loan as a whole and the components stay gross.
  */
 private fun tallyLoan(
     entry: Entry,
@@ -203,8 +280,9 @@ private fun tallyLoan(
 
     when (subject.type) {
         EntryType.LOAN_OUT, EntryType.MEMBER_LOAN_IN -> tally.principal += amt
-        EntryType.LOAN_REPAYMENT, EntryType.POOL_REPAY_MEMBER -> tally.principal -= amt
+        EntryType.LOAN_REPAYMENT, EntryType.POOL_REPAY_MEMBER -> tally.repaid += amt
         EntryType.INTEREST_ACCRUAL -> tally.interest += amt
+        EntryType.TXN_COST -> tally.txnCost += amt
         else -> Unit
     }
 }

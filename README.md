@@ -1,22 +1,65 @@
 # 365+ — contributions & loans
 
-A private money ledger for three people pooling savings and lending to and from
-that pool. Three Android phones; one desktop app on Bonnie's laptop holding the
-master copy. Fully offline; syncs when it can reach the master.
+A private money ledger for a small savings pool: members contribute, the pool
+lends, borrowers repay. Android phones, plus one desktop app on Bonnie's laptop
+holding the master copy. Fully offline; syncs when it can reach the master.
 
-The contract is `365PLUS_BRIEF.md` in the Gigs folder. Update that first, then
-the code.
+**Standalone.** Kotlin end to end, its own repo, no dependency on any other
+project. It shares only the host machine and the Cloudflare Tunnel.
 
-**This is not the Myra stack.** Kotlin end to end, its own repo. It shares only
-the host machine and the Cloudflare Tunnel.
+## The rule the app is built around
+
+**Whoever records a transaction cannot confirm it.** Everything recorded lands
+`PENDING` and touches no balance until a *different* member confirms it. That is
+enforced in `core/governance`, and `LedgerBook.confirm` is the only door to a
+confirmed entry — there is no second path, and the UI has no back channel.
+
+Dev builds do not relax the rule. What they relax is *who may fill the roles*: on
+his own device, testing alone, Bonnie may act as any member, so one person can
+work both ends while the separation itself stays enforced in code. Who fills the
+roles is config; that they must differ is not.
+
+Loan interest is **7% flat on principal**, charged once at disbursement, rounded
+to the nearest whole shilling.
+
+## The model
+
+Sustena-shaped on purpose — accounts, an append-only event ledger, a fold to
+running totals, a roll-up to cash-at-hand. That is not a dependency on anything;
+it is structure chosen so that later, on a functional Sustena, 365+ can be
+embroidered in as a Sustain rather than rebuilt. **Standalone now, convergence
+later.**
+
+- **Accounts** are the pockets the pool's cash sits in. **Cash-at-hand is their
+  sum** — derived, never stored. A transfer between them cannot change it.
+- **A loan is three components, kept apart**: principal, 7% flat interest, and
+  the M-Pesa cost of moving it. The pool has always tracked the cost separately,
+  so burying it inside principal would put our running total a few shillings from
+  theirs with no way to tell which was right.
+- Cash leaves the pool for the principal and the cost, **never for the
+  interest** — that is owed by the borrower, not money the pool ever held.
+- **Running outstanding** is every loan's `principal + interest + cost − repaid`,
+  added up.
+- A loan's three legs share a group, so one decision confirms all three while
+  each still records its own confirmation.
 
 ## Layout
 
 ```
-core/       KMP (jvm + android) — domain model, fold(), money. No I/O, no clock.
+core/       KMP (jvm + android). No I/O, no clock, no platform types:
+              domain/       the entry, loan and member model
+              ledger/       fold() — balances derived from the log, never stored
+              governance/   recorder != confirmer, and who may act as whom
+              interest/     7% flat, rounded to the shilling
+              book/         LedgerBook: record() and confirm(), the only two doors
+              presentation/ the rows both shells render, computed once
+              DevSeed       the sample book, built through record()/confirm()
 desktop/    Kotlin/JVM — Compose Desktop window + embedded Ktor. The master.
-android/    The phone app. Sideloaded to three devices, never Play Store.
+android/    The phone app. Sideloaded, never Play Store.
 ```
+
+Both shells hold one `Session` value and replace it after every action. Neither
+computes a balance or decides whether an action is allowed.
 
 `core` is compiled into both. **The fold must never be written twice** — if a
 phone and the laptop disagreed about a balance, the app is worthless.
@@ -57,13 +100,20 @@ Two things differ from a clean setup and will bite anyone who assumes otherwise:
   another machine needs its own. Only `android-34` and `android-36` are
   installed, no 35; `compileSdk` is 36 because androidx now requires 35 or later.
 
-## Milestones
+## Where it is
 
-M0 (this) is the skeleton: domain model, `fold()` with its invariants, a desktop
-window with `/health`, and an Android app that boots. M1 onward — local Room
-store, sync, M-Pesa confirmation, interest, FCM — are in the brief.
+The shell runs end to end. Pool, members, loans, a confirm queue that only ever
+offers members who are *allowed* to confirm, a record screen, and history — all
+folding through shared `core`.
 
-Before M1 starts, §11 of the brief asks Bonnie to confirm six things: interest
-rate and period, who may confirm an entry, where the pool float lives, member
-names and numbers, the launcher name, and whether `cloudflared` runs in Docker
-or natively on the laptop.
+The store is **in memory**: closing the app loses the session. That is the next
+slice, along with sync, M-Pesa SMS confirmation, and `cloudflared` as a native
+Windows service.
+
+Sample data is made up and lives in `DevSeed`. It is built by calling `record()`
+and `confirm()`, so if two-person control ever broke, the seed would fail to
+build. The real book loads later, once it has been exported and processed —
+**data is not the app.**
+
+No phone number is compiled into this app, and nothing in it calls, texts, or
+otherwise contacts anyone.

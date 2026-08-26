@@ -1,5 +1,6 @@
 package online.vyybandasky.plus365.core.ledger
 
+import online.vyybandasky.plus365.core.domain.AccountId
 import online.vyybandasky.plus365.core.domain.LoanDirection
 import online.vyybandasky.plus365.core.domain.LoanId
 import online.vyybandasky.plus365.core.domain.MemberId
@@ -8,37 +9,73 @@ import online.vyybandasky.plus365.core.domain.MemberId
  * What one member has put in, and what they owe.
  *
  * [debtCents] is signed from the pool's point of view: negative means the member
- * owes the pool, positive means the pool owes the member (365PLUS_BRIEF.md §2a).
+ * owes the pool, positive means the pool owes the member.
  */
 data class MemberBalance(
     val stakeCents: Long = 0L,
     val debtCents: Long = 0L,
 )
 
+/**
+ * One loan, in the four parts the pool has always kept it in.
+ *
+ * Principal, interest and transaction cost are **gross** — everything ever
+ * charged on this loan — and [repaidCents] is what has come back against it.
+ * Every other figure here is derived from those four, so no two views of the
+ * same loan can disagree.
+ */
 data class LoanOutstanding(
     val loanId: LoanId,
     val direction: LoanDirection,
-    /** Principal still outstanding. Never negative — an overpayment clamps at zero. */
-    val principalOutstandingCents: Long,
-    /** Interest accrued to date, before any repayment allocation (M4). */
+    /** Everything ever lent on this loan, before repayments. */
+    val principalCents: Long,
+    /** Interest charged. Flat, at disbursement — not an accruing balance. */
     val interestAccruedCents: Long,
-)
+    /** The M-Pesa cost of moving it, kept apart from principal. */
+    val txnCostCents: Long,
+    /** Everything repaid against this loan. */
+    val repaidCents: Long,
+) {
+    /** What the loan cost the borrower in total: principal + interest + txn. */
+    val totalDueCents: Long
+        get() = principalCents + interestAccruedCents + txnCostCents
+
+    /** What is still owed. Never negative — an overpayment clamps at zero. */
+    val outstandingCents: Long
+        get() = (totalDueCents - repaidCents).coerceAtLeast(0L)
+
+    /**
+     * Principal still outstanding, ignoring interest and cost.
+     *
+     * The narrower view, kept because a repayment's allocation across the three
+     * components is still an open question and this needs no answer to it.
+     */
+    val principalOutstandingCents: Long
+        get() = (principalCents - repaidCents).coerceAtLeast(0L)
+
+    val settled: Boolean get() = outstandingCents == 0L
+}
 
 /**
- * Derived, never stored (§1.2). Two devices holding the same entries must produce
- * an identical [LedgerState] — which is why the fold is shared code rather than
+ * Derived, never stored. Two devices holding the same entries must produce an
+ * identical [LedgerState] — which is why the fold is shared code rather than
  * written once per platform.
  */
 data class LedgerState(
     /** CONFIRMED entries only. */
     val perMember: Map<MemberId, MemberBalance> = emptyMap(),
-    /** CONFIRMED entries only. */
+    /** CONFIRMED entries only. The pool's total cash. */
     val poolCashCents: Long = 0L,
+    /**
+     * The same cash, split by the pocket it sits in. Sums to [poolCashCents] by
+     * construction — see the fold's account routing.
+     */
+    val perAccount: Map<AccountId, Long> = emptyMap(),
     val loans: Map<LoanId, LoanOutstanding> = emptyMap(),
 
     /**
      * PENDING entries, kept apart so an unconfirmed claim is never mistaken for
-     * money (§2c).
+     * money.
      */
     val pendingPerMember: Map<MemberId, MemberBalance> = emptyMap(),
     val pendingPoolCashCents: Long = 0L,
@@ -50,4 +87,21 @@ data class LedgerState(
 
     fun pendingBalanceOf(memberId: MemberId): MemberBalance =
         pendingPerMember[memberId] ?: MemberBalance()
+
+    /** The roll-up: every pocket added together. Equals [poolCashCents]. */
+    val cashAtHandCents: Long get() = perAccount.values.sum()
+
+    fun accountBalance(accountId: AccountId): Long = perAccount[accountId] ?: 0L
+
+    /** Everything still owed to the pool, across every loan. */
+    val totalOutstandingCents: Long
+        get() = loans.values
+            .filter { it.direction == LoanDirection.POOL_TO_MEMBER }
+            .sumOf { it.outstandingCents }
+
+    /** Everything the pool still owes its members. */
+    val totalOwedToMembersCents: Long
+        get() = loans.values
+            .filter { it.direction == LoanDirection.MEMBER_TO_POOL }
+            .sumOf { it.outstandingCents }
 }
