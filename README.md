@@ -106,9 +106,11 @@ The shell runs end to end. Pool, members, loans, a confirm queue that only ever
 offers members who are *allowed* to confirm, a record screen, and history — all
 folding through shared `core`.
 
-The store is **in memory**: closing the app loses the session. That is the next
-slice, along with sync, M-Pesa SMS confirmation, and `cloudflared` as a native
-Windows service.
+The book **persists**. It is kept as a JSON log — entries and their
+confirmations, never a balance — so the file cannot drift from what the fold
+computes. The phone keeps it in private app storage; the laptop in
+`~/.365plus/ledger.json`. Sync, M-Pesa SMS confirmation, and `cloudflared` as a
+native Windows service are still ahead.
 
 Sample data is made up and lives in `DevSeed`. It is built by calling `record()`
 and `confirm()`, so if two-person control ever broke, the seed would fail to

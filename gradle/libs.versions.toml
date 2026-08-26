@@ -7,6 +7,7 @@ composeMultiplatform = "1.8.2"
 ktor = "3.2.0"
 coroutines = "1.10.2"
 kotlinxDatetime = "0.6.2"
+kotlinxSerialization = "1.8.0"
 androidxCoreKtx = "1.15.0"
 androidxLifecycle = "2.8.7"
 androidxActivityCompose = "1.9.3"
@@ -14,6 +15,7 @@ androidxComposeBom = "2024.12.01"
 
 [libraries]
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 
 ktor-server-core = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
@@ -32,6 +34,7 @@ kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref =
 kotlinJvm           = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlinAndroid       = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlinComposeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 androidApplication  = { id = "com.android.application", version.ref = "agp" }
 androidLibrary      = { id = "com.android.library", version.ref = "agp" }
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }

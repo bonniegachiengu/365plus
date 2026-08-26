@@ -33,7 +33,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import java.io.File
 import online.vyybandasky.plus365.core.domain.EntryType
+import online.vyybandasky.plus365.core.store.LedgerStore
+import online.vyybandasky.plus365.core.store.save
+import online.vyybandasky.plus365.store.FileLedgerStore
 import online.vyybandasky.plus365.core.presentation.Notice
 import online.vyybandasky.plus365.core.presentation.RECORDABLE_TYPES
 import online.vyybandasky.plus365.core.presentation.Session
@@ -47,7 +51,9 @@ import online.vyybandasky.plus365.core.presentation.summaryView
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { Plus365App() }
+        // Private app storage. Never external — this is the pool's money record.
+        val store = FileLedgerStore(File(filesDir, "ledger.json"))
+        setContent { Plus365App(store) }
     }
 }
 
@@ -61,13 +67,20 @@ private val TABS = listOf("Pool", "Confirm", "Record", "Loans", "History")
  * core produced and calls back into it. That is what keeps the phone and the
  * laptop showing the same numbers.
  *
- * The store is in memory: closing the app loses the session. Persistence is the
- * next slice; this proves the spine works end to end first.
+ * Every change is written straight through to [store]. What is saved is the log,
+ * never a balance, so the file cannot drift from what the app computes from it.
  */
 @Composable
-fun Plus365App() {
-    var session by remember { mutableStateOf(Session.dev()) }
+fun Plus365App(store: LedgerStore) {
+    var session by remember { mutableStateOf(Session.restored(store)) }
     var tab by remember { mutableStateOf(0) }
+
+    // One place where a change reaches disk. Every callback goes through it, so
+    // there is no path that updates the screen without also saving.
+    val update: (Session) -> Unit = { next ->
+        session = next
+        store.save(next.book)
+    }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -93,8 +106,8 @@ fun Plus365App() {
                     session.notice?.let { NoticeBar(it) }
                     when (tab) {
                         0 -> PoolTab(session)
-                        1 -> ConfirmTab(session) { session = it }
-                        2 -> RecordTab(session) { session = it }
+                        1 -> ConfirmTab(session, update)
+                        2 -> RecordTab(session, update)
                         3 -> LoansTab(session)
                         else -> HistoryTab(session)
                     }

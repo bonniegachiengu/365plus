@@ -122,6 +122,37 @@ dev run may ever contact a real number. Asserted by a test.
 
 **Depends on it:** `DevSeed.MEMBERS`, `DevSeedTest`.
 
+## D8 — The log is persisted, never the balances
+
+**Decided:** 2026-08-26. **Status:** settled.
+
+What is written to disk is the log — members, accounts, loans, and every entry
+with its confirmation. **No balance, total or roll-up is ever stored.** They are
+refolded on load, so a stored file cannot disagree with what the app computes
+from it. There is no column anywhere that can drift, which is the same reason the
+fold is shared rather than written per platform. A test asserts the words
+`poolCash`, `cashAtHand`, `totalOutstanding` and `balance` do not appear in the
+file at all.
+
+Format is pretty-printed JSON with a version stamp, chosen so a person can read
+the ledger in a text editor if this app ever loses its way. A file from another
+version is refused **by name** rather than silently misparsed.
+
+A load failure degrades to the seed with a reason, never a crash — a phone that
+cannot open its own records is worse than one showing an empty book.
+
+Writes are whole-file, via a temporary and a rename, so a crash mid-write leaves
+either the complete new book or the complete previous one.
+
+**Opening the app lays down the baseline.** Without that write the app re-seeds
+on every cold start until somebody records something, so the book it showed was
+not the book it had. A file that reads back fine is always preferred to the seed
+and is never overwritten.
+
+**Depends on it:** `core/store/LedgerStore.kt`, and the platform
+`FileLedgerStore` in each shell — ten lines each, because `core` has no file API
+and should not grow one.
+
 ---
 
 ## Still open
