@@ -40,16 +40,55 @@ class DevSeedTest {
 
     @Test
     fun the_pool_holds_what_the_confirmed_entries_add_up_to() {
-        // 3,000 + 2,000 + 1,500 + 1,000 in, 2,000 and 1,300 lent out, 500 repaid.
-        assertEquals(470_000L, state.poolCashCents)
-        assertEquals("KSh 4,700.00", formatKes(state.poolCashCents))
+        // In:  3,000 + 2,000 + 1,500 + 1,000            = 7,500
+        // Out: (2,000 + 33) + (1,300 + 23)              = 3,356   principal + cost
+        // In:  500 repaid                               =   500
+        //                                          cash = 4,644
+        // The two interest charges never touch cash — they are owed, not held.
+        assertEquals(464_400L, state.poolCashCents)
+        assertEquals("KSh 4,644.00", formatKes(state.poolCashCents))
+    }
+
+    @Test
+    fun cash_at_hand_is_the_roll_up_over_the_pockets() {
+        assertEquals(350_000L, state.accountBalance(DevSeed.SAVINGS))
+        assertEquals(114_400L, state.accountBalance(DevSeed.FLOAT))
+        assertEquals(464_400L, state.cashAtHandCents)
+        assertEquals(
+            state.poolCashCents,
+            state.cashAtHandCents,
+            "the roll-up and the total are the same money",
+        )
+    }
+
+    @Test
+    fun the_running_outstanding_is_every_loan_added_up() {
+        // Kang'iri 2,173 due less 500 repaid = 1,673; Brian 1,414 due.
+        assertEquals(308_700L, state.totalOutstandingCents)
+        assertEquals("KSh 3,087.00", formatKes(state.totalOutstandingCents))
+    }
+
+    @Test
+    fun a_loan_keeps_its_three_components_apart() {
+        val k = state.loans.getValue("L-001")
+        assertEquals(200_000L, k.principalCents)
+        assertEquals(14_000L, k.interestAccruedCents, "7% of 2,000")
+        assertEquals(3_300L, k.txnCostCents, "M-Pesa cost, never folded into principal")
+        assertEquals(50_000L, k.repaidCents)
+        assertEquals(217_300L, k.totalDueCents)
+        assertEquals(167_300L, k.outstandingCents)
+
+        val b = state.loans.getValue("L-002")
+        assertEquals(9_100L, b.interestAccruedCents, "7% of 1,300 is 91")
+        assertEquals(2_300L, b.txnCostCents)
+        assertEquals(141_400L, b.totalDueCents)
     }
 
     @Test
     fun the_pending_entry_is_held_apart_from_the_pool() {
         assertEquals(1, book.pending().size)
         assertEquals(50_000L, state.pendingPoolCashCents)
-        assertEquals(470_000L, state.poolCashCents, "pending money is not in the pool")
+        assertEquals(464_400L, state.poolCashCents, "pending money is not in the pool")
     }
 
     @Test
@@ -62,10 +101,10 @@ class DevSeedTest {
 
     @Test
     fun borrowers_owe_principal_plus_seven_percent_less_what_they_have_repaid() {
-        // Kang'iri: 2,000 + 140 interest - 500 repaid = 1,640 owed.
-        assertEquals(-164_000L, state.balanceOf(DevSeed.KANGIRI).debtCents)
-        // Brian: 1,300 + 91 interest = 1,391 owed.
-        assertEquals(-139_100L, state.balanceOf(DevSeed.BRIAN).debtCents)
+        // Kang'iri: 2,000 + 140 interest + 33 cost - 500 repaid = 1,673 owed.
+        assertEquals(-167_300L, state.balanceOf(DevSeed.KANGIRI).debtCents)
+        // Brian: 1,300 + 91 interest + 23 cost = 1,414 owed.
+        assertEquals(-141_400L, state.balanceOf(DevSeed.BRIAN).debtCents)
     }
 
     @Test
@@ -74,6 +113,7 @@ class DevSeedTest {
         assertEquals(700, book.loan("L-002")!!.rateBps)
         assertEquals(14_000L, state.loans["L-001"]!!.interestAccruedCents)
         assertEquals(9_100L, state.loans["L-002"]!!.interestAccruedCents)
+        assertEquals(2, book.accounts.size)
     }
 
     @Test

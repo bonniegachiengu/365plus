@@ -22,6 +22,27 @@ roles is config; that they must differ is not.
 Loan interest is **7% flat on principal**, charged once at disbursement, rounded
 to the nearest whole shilling.
 
+## The model
+
+Sustena-shaped on purpose — accounts, an append-only event ledger, a fold to
+running totals, a roll-up to cash-at-hand. That is not a dependency on anything;
+it is structure chosen so that later, on a functional Sustena, 365+ can be
+embroidered in as a Sustain rather than rebuilt. **Standalone now, convergence
+later.**
+
+- **Accounts** are the pockets the pool's cash sits in. **Cash-at-hand is their
+  sum** — derived, never stored. A transfer between them cannot change it.
+- **A loan is three components, kept apart**: principal, 7% flat interest, and
+  the M-Pesa cost of moving it. The pool has always tracked the cost separately,
+  so burying it inside principal would put our running total a few shillings from
+  theirs with no way to tell which was right.
+- Cash leaves the pool for the principal and the cost, **never for the
+  interest** — that is owed by the borrower, not money the pool ever held.
+- **Running outstanding** is every loan's `principal + interest + cost − repaid`,
+  added up.
+- A loan's three legs share a group, so one decision confirms all three while
+  each still records its own confirmation.
+
 ## Layout
 
 ```

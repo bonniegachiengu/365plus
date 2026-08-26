@@ -77,9 +77,15 @@ fun App() {
 
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), Arrangement.spacedBy(4.dp)) {
-                        Text("Pool cash", style = MaterialTheme.typography.labelMedium)
-                        Text(summary.poolCash, style = MaterialTheme.typography.headlineMedium)
-                        Text("Owed to the pool: ${summary.totalOwed}")
+                        Text("Cash at hand", style = MaterialTheme.typography.labelMedium)
+                        Text(summary.cashAtHand, style = MaterialTheme.typography.headlineMedium)
+                        for (acct in summary.accounts) {
+                            Text(
+                                "${acct.label} — ${acct.balance}",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        Text("Outstanding: ${summary.totalOutstanding}")
                         Text(
                             "Awaiting confirmation: ${summary.pendingCash} (${summary.pendingCount})",
                             style = MaterialTheme.typography.bodySmall,
@@ -117,8 +123,9 @@ fun App() {
                 Section("Loans")
                 for (row in session.book.loanRows()) {
                     Text(
-                        "${row.borrower} · ${row.loanId} — outstanding ${row.principalOutstanding}, " +
-                            "interest ${row.interest} (${row.rateLabel})",
+                        "${row.borrower} · ${row.loanId} — outstanding ${row.outstanding} " +
+                            "(principal ${row.principal}, interest ${row.interest} " +
+                            "${row.rateLabel}, cost ${row.txnCost}, repaid ${row.repaid})",
                     )
                 }
 

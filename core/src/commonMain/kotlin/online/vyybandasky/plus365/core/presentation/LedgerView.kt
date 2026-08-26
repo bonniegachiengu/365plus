@@ -20,10 +20,20 @@ import online.vyybandasky.plus365.core.money.formatKes
  */
 
 data class SummaryView(
-    val poolCash: String,
+    /** The roll-up: every account added together. */
+    val cashAtHand: String,
     val pendingCash: String,
-    val totalOwed: String,
+    /** Still owed to the pool across every loan. */
+    val totalOutstanding: String,
     val pendingCount: Int,
+    val accounts: List<AccountRow>,
+)
+
+data class AccountRow(
+    val id: String,
+    val label: String,
+    val balance: String,
+    val balanceCents: Long,
 )
 
 data class MemberRow(
@@ -35,11 +45,16 @@ data class MemberRow(
     val owesCents: Long,
 )
 
+/** A loan in the four parts the pool keeps it in, plus the two roll-ups. */
 data class LoanRow(
     val loanId: String,
     val borrower: String,
-    val principalOutstanding: String,
+    val principal: String,
     val interest: String,
+    val txnCost: String,
+    val repaid: String,
+    val totalDue: String,
+    val outstanding: String,
     val rateLabel: String,
     val settled: Boolean,
 )
@@ -73,6 +88,8 @@ fun EntryType.label(): String = when (this) {
     EntryType.MEMBER_LOAN_IN -> "Member loan in"
     EntryType.POOL_REPAY_MEMBER -> "Pool repays member"
     EntryType.INTEREST_ACCRUAL -> "Interest"
+    EntryType.TXN_COST -> "Transaction cost"
+    EntryType.TRANSFER -> "Transfer"
     EntryType.REVERSAL -> "Reversal"
 }
 
@@ -81,12 +98,19 @@ private fun LedgerBook.describe(e: Entry): String =
 
 fun LedgerBook.summaryView(): SummaryView {
     val s = state()
-    val owed = s.perMember.values.sumOf { if (it.debtCents < 0) -it.debtCents else 0L }
     return SummaryView(
-        poolCash = formatKes(s.poolCashCents),
+        cashAtHand = formatKes(s.cashAtHandCents),
         pendingCash = formatKes(s.pendingPoolCashCents),
-        totalOwed = formatKes(owed),
+        totalOutstanding = formatKes(s.totalOutstandingCents),
         pendingCount = pending().size,
+        accounts = accounts.map { a ->
+            AccountRow(
+                id = a.id,
+                label = a.label,
+                balance = formatKes(s.accountBalance(a.id)),
+                balanceCents = s.accountBalance(a.id),
+            )
+        },
     )
 }
 
@@ -112,15 +136,18 @@ fun LedgerBook.loanRows(): List<LoanRow> {
     val s = state()
     return loans.map { loan ->
         val o = s.loans[loan.id]
-        val principal = o?.principalOutstandingCents ?: 0L
         val interest = o?.interestAccruedCents ?: 0L
         LoanRow(
             loanId = loan.id,
             borrower = displayName(loan.counterpartyMemberId),
-            principalOutstanding = formatKes(principal),
+            principal = formatKes(o?.principalCents ?: 0L),
             interest = formatKes(interest),
+            txnCost = formatKes(o?.txnCostCents ?: 0L),
+            repaid = formatKes(o?.repaidCents ?: 0L),
+            totalDue = formatKes(o?.totalDueCents ?: 0L),
+            outstanding = formatKes(o?.outstandingCents ?: 0L),
             rateLabel = "${actualRateBps(loan.principalCents, interest) / 100.0}% flat",
-            settled = principal <= 0L,
+            settled = o?.settled ?: false,
         )
     }
 }

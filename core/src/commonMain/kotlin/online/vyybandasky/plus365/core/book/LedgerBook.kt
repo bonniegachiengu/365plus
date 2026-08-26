@@ -1,5 +1,7 @@
 package online.vyybandasky.plus365.core.book
 
+import online.vyybandasky.plus365.core.domain.Account
+import online.vyybandasky.plus365.core.domain.AccountId
 import online.vyybandasky.plus365.core.domain.ConfirmSource
 import online.vyybandasky.plus365.core.domain.Entry
 import online.vyybandasky.plus365.core.domain.EntryId
@@ -18,7 +20,7 @@ import online.vyybandasky.plus365.core.governance.asConfirmedBy
 import online.vyybandasky.plus365.core.governance.checkConfirm
 import online.vyybandasky.plus365.core.governance.checkRecord
 import online.vyybandasky.plus365.core.interest.HOUSE_RATE_BPS
-import online.vyybandasky.plus365.core.interest.houseInterestCents
+import online.vyybandasky.plus365.core.interest.interestCents
 import online.vyybandasky.plus365.core.ledger.LedgerState
 import online.vyybandasky.plus365.core.ledger.fold
 
@@ -35,6 +37,8 @@ import online.vyybandasky.plus365.core.ledger.fold
  */
 data class LedgerBook(
     val members: List<Member> = emptyList(),
+    /** The pockets the pool's cash sits in. Cash-at-hand is their sum. */
+    val accounts: List<Account> = emptyList(),
     val loans: List<Loan> = emptyList(),
     val entries: List<Entry> = emptyList(),
     val nextSeq: Long = 1L,
@@ -60,6 +64,17 @@ data class LedgerBook(
             .sortedByDescending { it.seq ?: Long.MIN_VALUE }
 
     fun displayName(id: MemberId): String = member(id)?.displayName ?: id
+
+    fun account(id: AccountId): Account? = accounts.firstOrNull { it.id == id }
+
+    fun accountLabel(id: AccountId): String = account(id)?.label ?: id
+
+    /** The default pocket — the first one declared. */
+    fun defaultAccount(): AccountId? = accounts.firstOrNull()?.id
+
+    /** Entries recorded as one act, in ledger order. */
+    fun group(groupId: String): List<Entry> =
+        entries.filter { it.groupId == groupId }.sortedBy { it.seq ?: Long.MAX_VALUE }
 }
 
 /** What a successful change produced. */
@@ -82,6 +97,8 @@ fun LedgerBook.record(
     recordedBy: MemberId,
     config: ActorConfig,
     loanId: LoanId? = null,
+    accountId: AccountId? = null,
+    groupId: String? = null,
     note: String? = null,
 ): Decision<Recorded> {
     when (val gate = checkRecord(recordedBy, config)) {
@@ -112,6 +129,8 @@ fun LedgerBook.record(
         amountCents = amountCents,
         memberId = memberId,
         loanId = loanId,
+        accountId = accountId ?: defaultAccount(),
+        groupId = groupId,
         recordedByMemberId = recordedBy,
         state = EntryState.PENDING,
         note = note,
@@ -121,6 +140,85 @@ fun LedgerBook.record(
             copy(entries = entries + appended, nextSeq = nextSeq + 1),
             listOf(appended),
         ),
+    )
+}
+
+/**
+ * Confirm every entry recorded as one act.
+ *
+ * A loan is three facts — principal, interest, transaction cost — but one
+ * decision. This clears them together while still writing a separate
+ * confirmation on each, so the log stays honest about what was agreed and by
+ * whom. The rule is checked per entry; if any is refused, none are applied.
+ */
+fun LedgerBook.confirmGroup(
+    groupId: String,
+    confirmedBy: MemberId,
+    config: ActorConfig,
+    source: ConfirmSource = ConfirmSource.HUMAN,
+): Decision<Recorded> {
+    val members = group(groupId).filter { it.state == EntryState.PENDING }
+    if (members.isEmpty()) {
+        return Decision.Refused(Refusal.Invalid("Nothing pending in group $groupId."))
+    }
+    var book = this
+    val confirmed = mutableListOf<Entry>()
+    for (e in members) {
+        when (val step = book.confirm(e.id, confirmedBy, config, source)) {
+            is Decision.Refused -> return step
+            is Decision.Allowed -> {
+                book = step.value.book
+                confirmed += step.value.entries
+            }
+        }
+    }
+    return Decision.Allowed(Recorded(book, confirmed))
+}
+
+/**
+ * Move cash between the pool's own pockets.
+ *
+ * Cash-at-hand cannot change, only its split. Still pending, still needs a
+ * second person — moving the float is exactly the kind of thing worth two sets
+ * of eyes.
+ */
+fun LedgerBook.transfer(
+    id: EntryId,
+    fromAccount: AccountId,
+    toAccount: AccountId,
+    amountCents: Long,
+    recordedBy: MemberId,
+    config: ActorConfig,
+    note: String? = null,
+): Decision<Recorded> {
+    when (val gate = checkRecord(recordedBy, config)) {
+        is Decision.Refused -> return gate
+        is Decision.Allowed -> Unit
+    }
+    if (account(fromAccount) == null || account(toAccount) == null) {
+        return Decision.Refused(Refusal.Invalid("Unknown account."))
+    }
+    if (fromAccount == toAccount) {
+        return Decision.Refused(Refusal.Invalid("A transfer needs two different accounts."))
+    }
+    if (amountCents <= 0L) {
+        return Decision.Refused(Refusal.Invalid("Amount must be more than zero."))
+    }
+
+    val appended = Entry(
+        id = id,
+        seq = nextSeq,
+        type = EntryType.TRANSFER,
+        amountCents = amountCents,
+        memberId = recordedBy,
+        accountId = toAccount,
+        counterAccountId = fromAccount,
+        recordedByMemberId = recordedBy,
+        state = EntryState.PENDING,
+        note = note,
+    )
+    return Decision.Allowed(
+        Recorded(copy(entries = entries + appended, nextSeq = nextSeq + 1), listOf(appended)),
     )
 }
 
@@ -159,76 +257,89 @@ fun LedgerBook.confirm(
 /**
  * Disburse a loan from the pool to a member at the house rate.
  *
- * Two entries, not one: the principal leaving the pool, and the interest the
- * borrower now owes. They are separate facts and each needs its own
- * confirmation — the interest charge is exactly the kind of thing two people
- * should have to agree on.
+ * Three entries, not one. The pool has always kept a loan in three parts —
+ * principal, interest, and the M-Pesa cost of moving it — and burying the cost
+ * inside the principal would put our running total a few shillings away from
+ * theirs with no way to tell which was right.
+ *
+ * Cash leaves the pool for the principal and the transaction cost. It does not
+ * leave for the interest: that is owed by the borrower, never money the pool
+ * held. The borrower owes all three.
+ *
+ * They share a [groupId] so one decision can clear all three, while each still
+ * records its own confirmation.
  */
 fun LedgerBook.disburseLoan(
     loanId: LoanId,
-    principalEntryId: EntryId,
-    interestEntryId: EntryId,
     borrower: MemberId,
     principalCents: Long,
     recordedBy: MemberId,
     config: ActorConfig,
+    txnCostCents: Long = 0L,
     rateBps: Int = HOUSE_RATE_BPS,
+    fromAccount: AccountId? = null,
     note: String? = null,
 ): Decision<Recorded> {
     if (loan(loanId) != null) {
         return Decision.Refused(Refusal.Invalid("Loan $loanId already exists."))
     }
-    val interest = houseInterestCents(principalCents).takeIf { rateBps == HOUSE_RATE_BPS }
-        ?: online.vyybandasky.plus365.core.interest.interestCents(principalCents, rateBps)
+    if (txnCostCents < 0L) {
+        return Decision.Refused(Refusal.Invalid("Transaction cost cannot be negative."))
+    }
+    val interest = interestCents(principalCents, rateBps)
+    val account = fromAccount ?: defaultAccount()
 
     val loan = Loan(
         id = loanId,
         direction = LoanDirection.POOL_TO_MEMBER,
         counterpartyMemberId = borrower,
         principalCents = principalCents,
+        txnCostCents = txnCostCents,
         rateBps = rateBps,
         period = InterestPeriod.MONTHLY,
     )
-    val withLoan = copy(loans = loans + loan)
 
-    val principalStep = withLoan.record(
-        id = principalEntryId,
-        type = EntryType.LOAN_OUT,
-        amountCents = principalCents,
-        memberId = borrower,
-        recordedBy = recordedBy,
-        config = config,
-        loanId = loanId,
-        note = note,
-    )
-    val afterPrincipal = when (principalStep) {
-        is Decision.Refused -> return principalStep
-        is Decision.Allowed -> principalStep.value
+    // Each leg of the loan, in the order the money is thought about.
+    val legs = buildList {
+        add(Triple(EntryType.LOAN_OUT, principalCents, note))
+        if (interest > 0L) {
+            add(Triple(EntryType.INTEREST_ACCRUAL, interest, "Interest at ${rateBps / 100.0}% flat"))
+        }
+        if (txnCostCents > 0L) {
+            add(Triple(EntryType.TXN_COST, txnCostCents, "M-Pesa cost"))
+        }
     }
 
-    if (interest <= 0L) {
-        return Decision.Allowed(afterPrincipal)
+    var book = copy(loans = loans + loan)
+    val appended = mutableListOf<Entry>()
+    for ((type, amount, legNote) in legs) {
+        val suffix = when (type) {
+            EntryType.LOAN_OUT -> "principal"
+            EntryType.INTEREST_ACCRUAL -> "interest"
+            else -> "txncost"
+        }
+        when (
+            val step = book.record(
+                id = "$loanId-$suffix",
+                type = type,
+                amountCents = amount,
+                memberId = borrower,
+                recordedBy = recordedBy,
+                config = config,
+                loanId = loanId,
+                accountId = account,
+                groupId = loanId,
+                note = legNote,
+            )
+        ) {
+            is Decision.Refused -> return step
+            is Decision.Allowed -> {
+                book = step.value.book
+                appended += step.value.entries
+            }
+        }
     }
-
-    val interestStep = afterPrincipal.book.record(
-        id = interestEntryId,
-        type = EntryType.INTEREST_ACCRUAL,
-        amountCents = interest,
-        memberId = borrower,
-        recordedBy = recordedBy,
-        config = config,
-        loanId = loanId,
-        note = "Interest at ${rateBps / 100.0}% flat",
-    )
-    return when (interestStep) {
-        is Decision.Refused -> interestStep
-        is Decision.Allowed -> Decision.Allowed(
-            Recorded(
-                interestStep.value.book,
-                afterPrincipal.entries + interestStep.value.entries,
-            ),
-        )
-    }
+    return Decision.Allowed(Recorded(book, appended))
 }
 
 /**

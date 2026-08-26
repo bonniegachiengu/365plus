@@ -14,7 +14,10 @@ import online.vyybandasky.plus365.core.governance.Refusal
 
 private val CONFIG = ActorConfig.dev(DevSeed.BONNIE, DevSeed.EVERYONE)
 
-private fun freshBook() = LedgerBook(members = DevSeed.MEMBERS)
+private fun freshBook(withAccounts: Boolean = false) = LedgerBook(
+    members = DevSeed.MEMBERS,
+    accounts = if (withAccounts) DevSeed.ACCOUNTS else emptyList(),
+)
 
 private fun <T> Decision<T>.value(): T = assertIs<Decision.Allowed<T>>(this).value
 
@@ -136,31 +139,68 @@ class LedgerBookTest {
     }
 
     @Test
-    fun a_loan_produces_a_principal_entry_and_an_interest_entry_both_pending() {
+    fun a_loan_produces_principal_interest_and_cost_all_pending_in_one_group() {
         val recorded = freshBook().disburseLoan(
             loanId = "L-1",
-            principalEntryId = "L-1-p",
-            interestEntryId = "L-1-i",
             borrower = DevSeed.KANGIRI,
             principalCents = 200_000, // KSh 2,000
             recordedBy = DevSeed.PINAH,
             config = CONFIG,
+            txnCostCents = 3_300, // KSh 33 M-Pesa cost
         ).value()
 
-        assertEquals(2, recorded.entries.size)
+        assertEquals(3, recorded.entries.size, "principal, interest, transaction cost")
         assertEquals(EntryType.LOAN_OUT, recorded.entries[0].type)
+        assertEquals(200_000L, recorded.entries[0].amountCents)
         assertEquals(EntryType.INTEREST_ACCRUAL, recorded.entries[1].type)
         assertEquals(14_000L, recorded.entries[1].amountCents, "7% of 2,000 is 140")
+        assertEquals(EntryType.TXN_COST, recorded.entries[2].type)
+        assertEquals(3_300L, recorded.entries[2].amountCents)
+
         assertTrue(recorded.entries.all { it.state == EntryState.PENDING })
+        assertTrue(recorded.entries.all { it.groupId == "L-1" }, "one act, one group")
         assertEquals(700, recorded.book.loan("L-1")!!.rateBps)
+        assertEquals(3_300L, recorded.book.loan("L-1")!!.txnCostCents)
+    }
+
+    @Test
+    fun one_confirmation_clears_all_three_legs_of_a_loan() {
+        var b = freshBook(withAccounts = true)
+        b = b.record(
+            id = "c1", type = EntryType.CONTRIBUTION, amountCents = 500_000,
+            memberId = DevSeed.BONNIE, recordedBy = DevSeed.BONNIE, config = CONFIG,
+        ).value().book
+        b = b.confirm("c1", DevSeed.PINAH, CONFIG).value().book
+        b = b.disburseLoan(
+            loanId = "L-1", borrower = DevSeed.KANGIRI, principalCents = 200_000,
+            recordedBy = DevSeed.PINAH, config = CONFIG, txnCostCents = 3_300,
+        ).value().book
+
+        val cleared = b.confirmGroup("L-1", DevSeed.BONNIE, CONFIG).value()
+        assertEquals(3, cleared.entries.size)
+        assertTrue(cleared.book.pending().isEmpty())
+        // Each leg still records its own confirmation, by the same person.
+        assertTrue(cleared.entries.all { it.confirmedByMemberId == DevSeed.BONNIE })
+    }
+
+    @Test
+    fun the_recorder_cannot_clear_a_whole_loan_group_either() {
+        var b = freshBook()
+        b = b.disburseLoan(
+            loanId = "L-1", borrower = DevSeed.KANGIRI, principalCents = 200_000,
+            recordedBy = DevSeed.PINAH, config = CONFIG, txnCostCents = 3_300,
+        ).value().book
+
+        val refused = assertIs<Decision.Refused>(b.confirmGroup("L-1", DevSeed.PINAH, CONFIG))
+        assertIs<Refusal.SelfConfirmation>(refused.refusal)
+        assertEquals(3, b.pending().size, "nothing was cleared")
     }
 
     @Test
     fun an_unconfirmed_loan_has_not_left_the_pool() {
         val b = freshBook().disburseLoan(
-            loanId = "L-1", principalEntryId = "L-1-p", interestEntryId = "L-1-i",
-            borrower = DevSeed.KANGIRI, principalCents = 200_000,
-            recordedBy = DevSeed.PINAH, config = CONFIG,
+            loanId = "L-1", borrower = DevSeed.KANGIRI, principalCents = 200_000,
+            recordedBy = DevSeed.PINAH, config = CONFIG, txnCostCents = 3_300,
         ).value().book
 
         assertEquals(0L, b.state().poolCashCents)
@@ -168,7 +208,7 @@ class LedgerBookTest {
     }
 
     @Test
-    fun a_confirmed_loan_debits_the_pool_and_the_borrower_owes_principal_plus_interest() {
+    fun a_confirmed_loan_debits_principal_and_cost_but_never_the_interest() {
         var b = freshBook()
         b = b.record(
             id = "c1", type = EntryType.CONTRIBUTION, amountCents = 500_000,
@@ -177,17 +217,60 @@ class LedgerBookTest {
         b = b.confirm("c1", DevSeed.PINAH, CONFIG).value().book
 
         val loan = b.disburseLoan(
-            loanId = "L-1", principalEntryId = "L-1-p", interestEntryId = "L-1-i",
-            borrower = DevSeed.KANGIRI, principalCents = 200_000,
-            recordedBy = DevSeed.PINAH, config = CONFIG,
+            loanId = "L-1", borrower = DevSeed.KANGIRI, principalCents = 200_000,
+            recordedBy = DevSeed.PINAH, config = CONFIG, txnCostCents = 3_300,
         ).value()
         b = loan.book
         for (e in loan.entries) b = b.confirm(e.id, DevSeed.BONNIE, CONFIG).value().book
 
-        // Cash out is the principal only — the interest was never cash the pool held.
-        assertEquals(300_000L, b.state().poolCashCents)
+        // Cash leaves for the principal and the M-Pesa cost. NOT for the
+        // interest — that is owed by the borrower, never money the pool held.
+        assertEquals(500_000L - 200_000L - 3_300L, b.state().poolCashCents)
         // Debt is signed from the pool's view: negative means the member owes it.
-        assertEquals(-214_000L, b.state().balanceOf(DevSeed.KANGIRI).debtCents)
+        // All three components are owed: 2,000 + 140 + 33.
+        assertEquals(-217_300L, b.state().balanceOf(DevSeed.KANGIRI).debtCents)
+
+        val position = b.state().loans.getValue("L-1")
+        assertEquals(200_000L, position.principalCents)
+        assertEquals(14_000L, position.interestAccruedCents)
+        assertEquals(3_300L, position.txnCostCents)
+        assertEquals(217_300L, position.totalDueCents)
+        assertEquals(217_300L, position.outstandingCents)
+        assertEquals(217_300L, b.state().totalOutstandingCents)
+    }
+
+    @Test
+    fun cash_at_hand_is_the_sum_of_the_pockets_and_a_transfer_never_changes_it() {
+        var b = freshBook(withAccounts = true)
+        b = b.record(
+            id = "c1", type = EntryType.CONTRIBUTION, amountCents = 500_000,
+            memberId = DevSeed.BONNIE, recordedBy = DevSeed.BONNIE, config = CONFIG,
+            accountId = DevSeed.SAVINGS,
+        ).value().book
+        b = b.confirm("c1", DevSeed.PINAH, CONFIG).value().book
+        assertEquals(500_000L, b.state().cashAtHandCents)
+
+        b = b.transfer("t1", DevSeed.SAVINGS, DevSeed.FLOAT, 200_000, DevSeed.BONNIE, CONFIG)
+            .value().book
+        b = b.confirm("t1", DevSeed.PINAH, CONFIG).value().book
+
+        assertEquals(300_000L, b.state().accountBalance(DevSeed.SAVINGS))
+        assertEquals(200_000L, b.state().accountBalance(DevSeed.FLOAT))
+        assertEquals(500_000L, b.state().cashAtHandCents, "a transfer moves, never creates")
+        assertEquals(
+            b.state().poolCashCents,
+            b.state().cashAtHandCents,
+            "the roll-up must agree with the total",
+        )
+    }
+
+    @Test
+    fun a_transfer_needs_two_different_accounts() {
+        val b = freshBook(withAccounts = true)
+        val refused = assertIs<Decision.Refused>(
+            b.transfer("t1", DevSeed.SAVINGS, DevSeed.SAVINGS, 100, DevSeed.BONNIE, CONFIG),
+        )
+        assertIs<Refusal.Invalid>(refused.refusal)
     }
 
     @Test

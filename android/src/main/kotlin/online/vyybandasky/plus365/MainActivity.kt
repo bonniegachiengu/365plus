@@ -140,10 +140,19 @@ private fun PoolTab(session: Session) {
         item {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), Arrangement.spacedBy(4.dp)) {
-                    Text("Pool cash", style = MaterialTheme.typography.labelMedium)
-                    Text(summary.poolCash, style = MaterialTheme.typography.headlineMedium)
+                    Text("Cash at hand", style = MaterialTheme.typography.labelMedium)
+                    Text(summary.cashAtHand, style = MaterialTheme.typography.headlineMedium)
+                    for (acct in summary.accounts) {
+                        Text(
+                            "  ${acct.label} ${acct.balance}",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                     HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                    Text("Owed to the pool: ${summary.totalOwed}", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "Outstanding: ${summary.totalOutstanding}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                     Text(
                         "Awaiting confirmation: ${summary.pendingCash} " +
                             "(${summary.pendingCount} ${if (summary.pendingCount == 1) "entry" else "entries"})",
@@ -217,6 +226,7 @@ private fun RecordTab(session: Session, onChange: (Session) -> Unit) {
     var type by remember { mutableStateOf(EntryType.CONTRIBUTION) }
     var member by remember { mutableStateOf(session.book.memberIds().first()) }
     var amount by remember { mutableStateOf("") }
+    var txnCost by remember { mutableStateOf("") }
     var lending by remember { mutableStateOf(false) }
 
     val shillings = amount.toLongOrNull()
@@ -293,17 +303,29 @@ private fun RecordTab(session: Session, onChange: (Session) -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+        if (lending) {
+            item {
+                OutlinedTextField(
+                    value = txnCost,
+                    onValueChange = { txnCost = it.filter(Char::isDigit) },
+                    label = { Text("M-Pesa cost (KSh)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
         item {
             Button(
                 onClick = {
                     val cents = (shillings ?: 0L) * 100
                     val next = if (lending) {
-                        session.lend(member, cents)
+                        session.lend(member, cents, (txnCost.toLongOrNull() ?: 0L) * 100)
                     } else {
                         session.record(type, member, cents)
                     }
                     onChange(next)
                     amount = ""
+                    txnCost = ""
                 },
                 enabled = shillings != null && shillings > 0,
                 modifier = Modifier.fillMaxWidth(),
@@ -337,11 +359,19 @@ private fun LoansTab(session: Session) {
                 Column(Modifier.padding(16.dp), Arrangement.spacedBy(2.dp)) {
                     Text("${row.borrower} · ${row.loanId}", fontWeight = FontWeight.SemiBold)
                     Text(
-                        "Principal outstanding ${row.principalOutstanding}",
-                        style = MaterialTheme.typography.bodyMedium,
+                        "Outstanding ${row.outstanding}",
+                        style = MaterialTheme.typography.titleMedium,
                     )
+                    HorizontalDivider(Modifier.padding(vertical = 6.dp))
+                    // The three components, kept apart the way the pool keeps them.
+                    Text("Principal ${row.principal}", style = MaterialTheme.typography.bodySmall)
                     Text(
-                        "Interest ${row.interest} · ${row.rateLabel}",
+                        "Interest ${row.interest} (${row.rateLabel})",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text("M-Pesa cost ${row.txnCost}", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "Total due ${row.totalDue} · repaid ${row.repaid}",
                         style = MaterialTheme.typography.bodySmall,
                     )
                     if (row.settled) {

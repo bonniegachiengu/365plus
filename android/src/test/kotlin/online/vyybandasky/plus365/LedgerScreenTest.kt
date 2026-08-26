@@ -23,7 +23,10 @@ class LedgerScreenTest {
     @Test
     fun the_shell_opens_on_the_seeded_pool() {
         val s = Session.dev()
-        assertEquals("KSh 4,700.00", s.book.summaryView().poolCash)
+        val summary = s.book.summaryView()
+        assertEquals("KSh 4,644.00", summary.cashAtHand)
+        assertEquals("KSh 3,087.00", summary.totalOutstanding)
+        assertEquals(2, summary.accounts.size, "savings and float")
         assertEquals(4, s.book.memberRows().size)
         assertEquals(DevSeed.BONNIE, s.actingAs)
     }
@@ -71,12 +74,42 @@ class LedgerScreenTest {
     }
 
     @Test
-    fun a_loan_recorded_from_the_shell_charges_seven_percent() {
+    fun a_loan_recorded_from_the_shell_charges_seven_percent_and_keeps_the_cost_apart() {
         var s = Session.dev()
-        s = s.actAs(DevSeed.PINAH).lend(DevSeed.BRIAN, 200_000)
+        s = s.actAs(DevSeed.PINAH).lend(DevSeed.BRIAN, 200_000, txnCostCents = 3_300)
 
         val interest = s.book.pending().first { it.type == EntryType.INTEREST_ACCRUAL }
         assertEquals(14_000L, interest.amountCents, "7% of 2,000 is 140")
+        val cost = s.book.pending().first { it.type == EntryType.TXN_COST }
+        assertEquals(3_300L, cost.amountCents, "the M-Pesa cost is its own entry")
+    }
+
+    @Test
+    fun one_tap_clears_a_whole_loan_but_still_not_for_its_recorder() {
+        var s = Session.dev()
+        s = s.actAs(DevSeed.PINAH).lend(DevSeed.BRIAN, 200_000, txnCostCents = 3_300)
+        val loanId = s.book.loans.last().id
+
+        // Pinah recorded it, so Pinah cannot clear it.
+        val refused = s.confirmGroup(loanId, DevSeed.PINAH)
+        assertTrue(refused.notice is Notice.Refused)
+        assertEquals(3, refused.book.group(loanId).size)
+
+        // Bonnie can, and all three legs go at once.
+        s = s.confirmGroup(loanId, DevSeed.BONNIE)
+        assertTrue(s.notice is Notice.Info)
+        assertTrue(s.book.group(loanId).none { it.state.name == "PENDING" })
+    }
+
+    @Test
+    fun cash_at_hand_never_changes_across_a_transfer() {
+        var s = Session.dev()
+        val before = s.book.state().cashAtHandCents
+        s = s.actAs(DevSeed.PINAH).transfer(DevSeed.SAVINGS, DevSeed.FLOAT, 100_000)
+        val moved = s.book.pending().last()
+        s = s.confirm(moved.id, DevSeed.BONNIE)
+
+        assertEquals(before, s.book.state().cashAtHandCents, "a transfer moves, never creates")
     }
 
     @Test
