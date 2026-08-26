@@ -308,6 +308,62 @@ the stronger way.
 
 **Depends on it:** `core/sms/Match.kt`, `ActivityRow.assurance`.
 
+## D17 — The third member settles what the other two cannot
+
+**Decided:** 2026-08-26. **Status:** settled. Detail: `docs/UI_UX.md` §9.
+
+A failed match, a dispute, or a figure needing correction moves the entry to
+`NEEDS_OVERRIDE`. The **overrider must be neither the recorder nor whoever
+raised the conflict** — with three members that leaves exactly one person, and it
+is never a choice.
+
+The two people involved in a transaction are exactly the two with a reason to
+want it settled their way, so neither gets to break the tie. Two-of-three
+arbitration: the involved pair cannot force a disputed entry through, and the
+uninvolved member cannot be kept out of settling it. A test walks every
+(involved member × decision) pair and asserts all of them are refused.
+
+**A reason is required.** An override with no stated reason is an unexplained
+decision about someone else's money, so the book refuses a blank one.
+
+**Every override is written into the log** — who, what they decided, why, when —
+and stays visible on the entry after it is settled, alongside the conflict that
+caused it. Settling a disagreement is the most consequential thing anyone can do
+on this ledger, so it is the last thing that should be quiet.
+
+**A correction appends; it never edits.** The wrong figure is closed as disputed
+and a new entry carries the right one, joined by `correctsEntryId`. Both stay in
+the log so the correction reads as a correction rather than as the truth all
+along.
+
+**An arbitrated entry is never `CODE_MATCHED`** — the codes are exactly what
+failed. It gets `Assurance.OVERRIDDEN` and says so wherever it appears.
+
+Ordinary refusals stay ordinary: a self-confirmation is not a disagreement
+between two people, so it is refused where it stands and never lands on the third
+member's desk.
+
+**Depends on it:** `core/governance/Override.kt`, `core/book/Override.kt`.
+
+## D18 — Everything on screen is tappable into what it is
+
+**Decided:** 2026-08-26. **Status:** settled.
+
+An activity row opens the entry: amount, parties, standing, who recorded and who
+confirmed, both pasted messages with their codes, the conflict, and every
+override. A member row opens their stake, loans and history. The avatar opens
+the profile.
+
+The ledger screen claims nothing is hidden and nothing is editable. The entry
+screen is where a member can actually check that, so it holds **everything the
+app knows about an entry** rather than a readable summary of it.
+
+The profile says there is nothing to sign out of, because there is not: no
+accounts, no server, the ledger lives on the phone. Better than a button that
+does nothing or an invented login.
+
+**Depends on it:** `core/presentation/Detail.kt`, `android/ui/Detail.kt`.
+
 ---
 
 ## Still open

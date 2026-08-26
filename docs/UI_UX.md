@@ -88,3 +88,37 @@ blocked; it is only ever honest about which kind of confirmation it got.
 **Never a secret.** An OTP filter runs before any part of a pasted message is
 kept, and phone numbers are masked out of what is stored. The code is the proof;
 the number is not, and the ledger file travels between phones.
+
+
+---
+
+## 9. Refinement: the third member settles fallouts
+
+*Added 26 Aug 2026.*
+
+When paste-and-match fails, or a member disagrees, or a figure needs correcting,
+the entry does not simply refuse. It moves to **needs settling** and is routed to
+the one member who was neither the recorder nor the one who raised it. With three
+members that is always exactly one person.
+
+**Home** shows it above everything else, in red: a conflict is somebody's money
+stuck, and it outranks a routine confirmation.
+
+**The settling screen** shows both pasted messages side by side with their codes,
+what failed, and names the member whose job it is. Three ways out — confirm it,
+correct the figure, throw it out — and none of them are available until a reason
+is typed.
+
+**The audit trail stays.** After settling, the entry still shows the conflict
+that caused it and every override applied, with who, why and when. A correction
+appends a new entry rather than editing the old one, and both remain.
+
+## 10. Tapping through
+
+- **An activity row** opens that entry in full: amount, parties, standing, who
+  recorded and who confirmed, both messages with their codes, the conflict, and
+  the override history. This is where the ledger's "nothing is hidden" claim is
+  checkable.
+- **A member row** opens their stake, loans and history.
+- **The avatar** opens the profile: who you are, what you have recorded,
+  confirmed and settled, what this build allows, and where the data lives.

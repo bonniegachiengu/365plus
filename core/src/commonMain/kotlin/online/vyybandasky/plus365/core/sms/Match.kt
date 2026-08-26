@@ -28,11 +28,19 @@ enum class Assurance {
      * two-person, but a person's word rather than the network's receipt.
      */
     ATTESTED,
+
+    /**
+     * The two involved members could not settle it and the third one did.
+     * Distinct from the other two on purpose: an arbitrated entry is a fact
+     * about a disagreement, and should never quietly read as an ordinary one.
+     */
+    OVERRIDDEN,
 }
 
 fun Assurance.label(): String = when (this) {
     Assurance.CODE_MATCHED -> "Codes matched"
     Assurance.ATTESTED -> "Confirmed by hand"
+    Assurance.OVERRIDDEN -> "Settled by the third member"
 }
 
 fun Assurance.blurb(): String = when (this) {
@@ -40,6 +48,8 @@ fun Assurance.blurb(): String = when (this) {
         "Both members' messages carry the same transaction code."
     Assurance.ATTESTED ->
         "No matching message — a second member vouched for this. Lower assurance."
+    Assurance.OVERRIDDEN ->
+        "The two involved members disagreed. The third member settled it."
 }
 
 /** What failed when two messages did not line up. */

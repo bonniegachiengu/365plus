@@ -99,6 +99,15 @@ sealed interface Refusal {
 
     /** A pasted message that could not be read, or must not be stored. */
     data class BadEvidence(override val message: String) : Refusal
+
+    /**
+     * Someone already in the argument tried to settle it. The whole reason the
+     * third member exists is that neither of the other two gets to.
+     */
+    data class InvolvedParty(val memberId: MemberId, val how: String) : Refusal {
+        override val message =
+            "You $how, so you cannot be the one to settle it. That is the third member's job."
+    }
 }
 
 /** The result of a governed action. */

@@ -164,6 +164,22 @@ private fun PendingActCard(
                 }
             }
         }
+        if (act.eligibleConfirmers.isNotEmpty() && !act.isGroup) {
+            Box(Modifier.padding(top = 4.dp)) {
+                BigButton(
+                    "I disagree — send to the third member",
+                    filled = false,
+                ) {
+                    onChange(
+                        session.escalateAct(
+                            act.actId,
+                            act.eligibleConfirmers.first().id,
+                            at = now,
+                        ),
+                    )
+                }
+            }
+        }
         if (act.eligibleConfirmers.isNotEmpty()) {
             Box(Modifier.padding(top = 4.dp)) {
                 BigButton(
@@ -199,6 +215,7 @@ fun MemberScreen(
     memberId: String,
     now: Instant,
     onBack: () -> Unit,
+    onOpenEntry: (String) -> Unit = {},
 ) {
     val detail = session.book.memberDetail(memberId, now)
 
@@ -244,7 +261,7 @@ fun MemberScreen(
             if (detail.activity.isEmpty()) {
                 Text("Nothing yet.", style = MaterialTheme.typography.bodyMedium, color = Plus.TextMid)
             }
-            for (row in detail.activity) ActivityLine(row)
+            for (row in detail.activity) ActivityLine(row) { onOpenEntry(row.entryId) }
             Box(Modifier.height(24.dp))
         }
     }
@@ -262,6 +279,7 @@ fun LedgerScreen(
     session: Session,
     now: Instant,
     onBack: () -> Unit,
+    onOpenEntry: (String) -> Unit = {},
 ) {
     val rows = session.book.activity(now)
 
@@ -283,7 +301,7 @@ fun LedgerScreen(
                     color = Plus.TextMid,
                 )
             }
-            for (row in rows) ActivityLine(row)
+            for (row in rows) ActivityLine(row) { onOpenEntry(row.entryId) }
             Box(Modifier.height(24.dp))
         }
     }
