@@ -125,7 +125,10 @@ fun fold(
             EntryState.DRAFT -> includeDrafts
             else -> false
         }
-        val isPending = entry.state == EntryState.PENDING
+        // An entry waiting on the third member is money nobody has agreed to, so
+        // it sits in the pending bucket rather than counting or vanishing.
+        val isPending = entry.state == EntryState.PENDING ||
+            entry.state == EntryState.NEEDS_OVERRIDE
         if (!counts && !isPending) continue
 
         val effect = resolveEffect(entry, byId, loansById, depth = 0)

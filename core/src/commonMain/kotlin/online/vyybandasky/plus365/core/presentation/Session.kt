@@ -4,17 +4,23 @@ import online.vyybandasky.plus365.core.DevSeed
 import online.vyybandasky.plus365.core.book.LedgerBook
 import online.vyybandasky.plus365.core.book.confirm
 import online.vyybandasky.plus365.core.book.confirmGroup
+import online.vyybandasky.plus365.core.book.confirmOrEscalate
+import online.vyybandasky.plus365.core.book.escalate
+import online.vyybandasky.plus365.core.book.override
 import online.vyybandasky.plus365.core.book.reject
 import online.vyybandasky.plus365.core.book.rejectGroup
 import online.vyybandasky.plus365.core.book.disburseLoan
 import online.vyybandasky.plus365.core.book.record
 import online.vyybandasky.plus365.core.book.reverse
 import online.vyybandasky.plus365.core.book.transfer
+import online.vyybandasky.plus365.core.domain.EntryState
 import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.domain.MemberId
 import online.vyybandasky.plus365.core.governance.ActorConfig
 import kotlinx.datetime.Instant
+import online.vyybandasky.plus365.core.governance.ConflictKind
 import online.vyybandasky.plus365.core.governance.Decision
+import online.vyybandasky.plus365.core.governance.OverrideDecision
 import online.vyybandasky.plus365.core.sms.ParseOutcome
 import online.vyybandasky.plus365.core.sms.SmsEvidence
 import online.vyybandasky.plus365.core.sms.message
@@ -180,18 +186,93 @@ data class Session(
         val r = if (grouped) {
             book.confirmGroup(actId, confirmer, config, at = at, evidence = evidence)
         } else {
-            book.confirm(actId, confirmer, config, at = at, evidence = evidence)
+            // Single entries route a failed match to the third member rather
+            // than ending as a refusal nobody sends anywhere.
+            book.confirmOrEscalate(actId, confirmer, config, at = at, evidence = evidence)
         }
         return when (r) {
+            is Decision.Allowed -> {
+                val settled = r.value.entry.state != EntryState.NEEDS_OVERRIDE
+                copy(
+                    book = r.value.book,
+                    notice = if (!settled) {
+                        Notice.Refused(
+                            "The messages do not match. Sent to the third member to settle.",
+                        )
+                    } else {
+                        Notice.Info(
+                            if (evidence == null) {
+                                "Confirmed by ${book.displayName(confirmer)}."
+                            } else {
+                                "Codes matched — ${evidence.reference}. " +
+                                    "Confirmed by ${book.displayName(confirmer)}."
+                            },
+                        )
+                    },
+                )
+            }
+            is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
+        }
+    }
+
+    /** Hand an entry to the third member without attempting a confirmation. */
+    fun escalateAct(
+        actId: String,
+        raisedBy: MemberId,
+        kind: ConflictKind = ConflictKind.DISPUTED,
+        note: String? = null,
+        at: Instant? = null,
+    ): Session = when (
+        val r = book.escalate(actId, raisedBy, kind, config, note = note, at = at)
+    ) {
+        is Decision.Allowed -> copy(
+            book = r.value.book,
+            notice = Notice.Info("Sent to the third member to settle."),
+        )
+        is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
+    }
+
+    /**
+     * Settle a fallout as the third member.
+     *
+     * The book refuses anyone who was involved, so this needs no check of its
+     * own — and must not grow one, or there would be two places to keep in step.
+     */
+    fun overrideAct(
+        entryId: String,
+        overrider: MemberId,
+        decision: OverrideDecision,
+        reason: String,
+        at: Instant? = null,
+        correctedAmountCents: Long? = null,
+    ): Session {
+        val replacementId = if (decision == OverrideDecision.CORRECTED) {
+            "$entryId-fixed-$idCounter"
+        } else {
+            null
+        }
+        return when (
+            val r = book.override(
+                entryId = entryId,
+                overrider = overrider,
+                decision = decision,
+                reason = reason,
+                config = config,
+                at = at,
+                correctedAmountCents = correctedAmountCents,
+                replacementEntryId = replacementId,
+            )
+        ) {
             is Decision.Allowed -> copy(
                 book = r.value.book,
+                idCounter = idCounter + 1,
                 notice = Notice.Info(
-                    if (evidence == null) {
-                        "Confirmed by ${book.displayName(confirmer)}."
-                    } else {
-                        "Codes matched — ${evidence.reference}. " +
-                            "Confirmed by ${book.displayName(confirmer)}."
-                    },
+                    "${book.displayName(overrider)} settled it: " +
+                        when (decision) {
+                            OverrideDecision.CONFIRMED -> "confirmed."
+                            OverrideDecision.REJECTED -> "rejected."
+                            OverrideDecision.CORRECTED -> "corrected and confirmed."
+                        },
                 ),
             )
             is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))

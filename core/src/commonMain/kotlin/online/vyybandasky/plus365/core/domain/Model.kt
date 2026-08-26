@@ -3,6 +3,8 @@ package online.vyybandasky.plus365.core.domain
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
+import online.vyybandasky.plus365.core.governance.Conflict
+import online.vyybandasky.plus365.core.governance.OverrideRecord
 import online.vyybandasky.plus365.core.sms.Assurance
 import online.vyybandasky.plus365.core.sms.SmsEvidence
 
@@ -45,12 +47,23 @@ enum class EntryType {
     REVERSAL,
 }
 
-/** DRAFT -> (sync) -> PENDING -> CONFIRMED | DISPUTED -> (if disputed) VOID via reversal. */
+/**
+ * DRAFT -> (sync) -> PENDING -> CONFIRMED | DISPUTED, or sideways into
+ * NEEDS_OVERRIDE when the usual two cannot settle it and the third member has
+ * to. VOID is reached from DISPUTED via a reversal.
+ */
 @Serializable
-enum class EntryState { DRAFT, PENDING, CONFIRMED, DISPUTED, VOID }
+enum class EntryState { DRAFT, PENDING, CONFIRMED, DISPUTED, NEEDS_OVERRIDE, VOID }
 
 @Serializable
-enum class ConfirmSource { HUMAN, MPESA, SYSTEM }
+/**
+ * What stood in for a confirmation.
+ *
+ * OVERRIDE is its own source rather than a flavour of HUMAN: an entry settled by
+ * the third member is a fact about a disagreement, and flattening that into
+ * "a human confirmed it" would lose the only part worth knowing.
+ */
+enum class ConfirmSource { HUMAN, MPESA, SYSTEM, OVERRIDE }
 
 @Serializable
 enum class LoanDirection {
@@ -198,6 +211,22 @@ data class Entry(
 
     /** The confirmer's own message. Its code must match [recordedEvidence]. */
     val confirmedEvidence: SmsEvidence? = null,
+
+    /**
+     * Why the usual two could not settle this, if they could not. Kept whole,
+     * including the message that failed to match, because the third member
+     * cannot arbitrate on a summary.
+     */
+    val conflict: Conflict? = null,
+
+    /**
+     * Every override ever applied, oldest first. Append-only like everything
+     * else: a settled disagreement leaves its history behind, not a tidy result.
+     */
+    val overrides: List<OverrideRecord> = emptyList(),
+
+    /** Set on a replacement entry: the entry it was written to correct. */
+    val correctsEntryId: EntryId? = null,
 
     /**
      * How well backed this entry is. [Assurance.CODE_MATCHED] means two members'

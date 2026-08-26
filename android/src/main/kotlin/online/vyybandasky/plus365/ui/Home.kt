@@ -40,6 +40,7 @@ import online.vyybandasky.plus365.core.presentation.Session
 import online.vyybandasky.plus365.core.presentation.activity
 import online.vyybandasky.plus365.core.presentation.cashOnHand
 import online.vyybandasky.plus365.core.presentation.memberCards
+import online.vyybandasky.plus365.core.presentation.overrideCount
 import online.vyybandasky.plus365.core.presentation.pendingActs
 
 /**
@@ -55,13 +56,17 @@ fun HomeScreen(
     now: Instant,
     onAction: (PoolAction) -> Unit,
     onOpenConfirm: () -> Unit,
+    onOpenOverride: () -> Unit,
     onOpenMember: (String) -> Unit,
+    onOpenEntry: (String) -> Unit,
     onOpenLedger: () -> Unit,
+    onOpenProfile: () -> Unit,
 ) {
     val cash = session.book.cashOnHand(now)
     val pending = session.book.pendingActs(session.config, now)
     val members = session.book.memberCards()
     val recent = session.book.activity(now, limit = 4)
+    val toSettle = session.book.overrideCount()
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(Plus.Background),
@@ -70,9 +75,15 @@ fun HomeScreen(
         ),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        item { TopBar(session) }
+        item { TopBar(session, onOpenProfile) }
         item { CashOnHandCard(cash.total, cash.memberCountLine, cash.lastUpdated, cash.pendingLine) }
         item { ActionRow(onAction) }
+
+        // The third member's work comes first: a conflict is somebody's money
+        // stuck, and it outranks a routine confirmation.
+        if (toSettle > 0) {
+            item { NeedsSettlingCard(toSettle, onOpenOverride) }
+        }
 
         if (pending.isNotEmpty()) {
             item {
@@ -88,12 +99,12 @@ fun HomeScreen(
         items(members) { m -> MemberRow(m) { onOpenMember(m.id) } }
 
         item { SectionHeading("Recent activity", action = "See all", onAction = onOpenLedger) }
-        items(recent) { row -> ActivityLine(row) }
+        items(recent) { row -> ActivityLine(row) { onOpenEntry(row.entryId) } }
     }
 }
 
 @Composable
-private fun TopBar(session: Session) {
+private fun TopBar(session: Session, onOpenProfile: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -107,7 +118,38 @@ private fun TopBar(session: Session) {
                 color = Plus.TextLow,
             )
         }
-        Avatar(session.actingAsName.take(1).uppercase())
+        Box(Modifier.tappable(onOpenProfile)) {
+            Avatar(session.actingAsName.take(1).uppercase())
+        }
+    }
+}
+
+/** A conflict waiting on the member who was not involved. */
+@Composable
+private fun NeedsSettlingCard(count: Int, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Plus.DebtDim, RoundedCornerShape(Plus.CardCorner))
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.size(9.dp).background(Plus.Debt, CircleShape))
+            Text(
+                if (count == 1) "1 entry needs settling" else "$count entries need settling",
+                style = MaterialTheme.typography.titleMedium,
+                color = Plus.Debt,
+            )
+        }
+        Text(
+            "Two members could not agree. The member who was not involved decides.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Plus.TextMid,
+        )
+        Box(Modifier.padding(top = 8.dp)) {
+            BigButton("Open", danger = true, onClick = onClick)
+        }
     }
 }
 
@@ -257,9 +299,12 @@ fun MemberRow(m: MemberCard, onClick: () -> Unit) {
 }
 
 @Composable
-fun ActivityLine(row: ActivityRow) {
+fun ActivityLine(row: ActivityRow, onClick: (() -> Unit)? = null) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.tappable(onClick) else Modifier)
+            .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -276,6 +321,14 @@ fun ActivityLine(row: ActivityRow) {
             }
         }
         Amount(row.amount, colour = Plus.TextHigh)
+        if (onClick != null) {
+            Icon(
+                Icons.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Plus.TextLow,
+                modifier = Modifier.size(18.dp).padding(start = 4.dp),
+            )
+        }
     }
     HorizontalDivider(color = Plus.Divider, thickness = 1.dp)
 }

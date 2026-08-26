@@ -4,6 +4,7 @@ import online.vyybandasky.plus365.core.book.LedgerBook
 import online.vyybandasky.plus365.core.book.confirm
 import online.vyybandasky.plus365.core.book.confirmGroup
 import online.vyybandasky.plus365.core.book.disburseLoan
+import online.vyybandasky.plus365.core.book.confirmOrEscalate
 import online.vyybandasky.plus365.core.book.record
 import online.vyybandasky.plus365.core.book.transfer
 import online.vyybandasky.plus365.core.domain.Account
@@ -85,6 +86,17 @@ object DevSeed {
         "QGH7X2K9LM Confirmed. You have received Ksh1,500.00 from BRIAN 0700000001 " +
             "on 25/8/26 at 09:30 AM. New M-PESA balance is Ksh1,700.00."
 
+    /**
+     * A pair that does NOT match, so the shell opens showing a real fallout
+     * sitting with the third member. Different codes: two different transfers.
+     */
+    private const val SEED_CLASH_SENT =
+        "RTY4M8N2PQ Confirmed. Ksh800.00 sent to 365 POOL 0700000000 on 26/8/26 " +
+            "at 07:10 AM. New M-PESA balance is Ksh40.00."
+    private const val SEED_CLASH_OTHER =
+        "WXZ7K3J5VB Confirmed. You have received Ksh800.00 from KANGIRI 0700000002 " +
+            "on 26/8/26 at 07:12 AM. New M-PESA balance is Ksh900.00."
+
     private fun evidence(text: String, who: MemberId): SmsEvidence =
         (parseSms(text, who) as ParseOutcome.Parsed).evidence
 
@@ -128,6 +140,10 @@ object DevSeed {
 
         // --- One entry left waiting, so the shell opens with a real pending queue. ---
         b = b.recordOnly("p1", EntryType.CONTRIBUTION, KANGIRI, 500, recordedBy = BRIAN, at = stamp())
+
+        // --- And one fallout: Kang'iri recorded it, Bonnie's message does not
+        // match, so it sits with Brian — the only member not involved. ---
+        b = b.clash("x1", KANGIRI, 800, recordedBy = KANGIRI, attemptedBy = BONNIE, at = stamp())
 
         return b
     }
@@ -181,6 +197,38 @@ object DevSeed {
             at = at,
             evidence = evidence(SEED_RECEIVED, confirmedBy),
         ).orThrow("confirm $id").book
+    }
+
+    /**
+     * Record with one code, attempt to confirm with another. The book routes it
+     * to the third member exactly as it would in life.
+     */
+    private fun LedgerBook.clash(
+        id: String,
+        member: MemberId,
+        amount: Long,
+        recordedBy: MemberId,
+        attemptedBy: MemberId,
+        at: Instant? = null,
+    ): LedgerBook {
+        val recorded = record(
+            id = id,
+            type = EntryType.CONTRIBUTION,
+            amountCents = shillings(amount),
+            memberId = member,
+            recordedBy = recordedBy,
+            config = DEV_CONFIG,
+            accountId = SAVINGS,
+            at = at,
+            evidence = evidence(SEED_CLASH_SENT, recordedBy),
+        ).orThrow("record $id")
+        return recorded.book.confirmOrEscalate(
+            id,
+            attemptedBy,
+            DEV_CONFIG,
+            at = at,
+            evidence = evidence(SEED_CLASH_OTHER, attemptedBy),
+        ).orThrow("escalate $id").book
     }
 
     private fun LedgerBook.move(

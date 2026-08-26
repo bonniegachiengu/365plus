@@ -8,7 +8,9 @@ import kotlin.test.assertTrue
 import online.vyybandasky.plus365.core.book.confirm
 import online.vyybandasky.plus365.core.domain.EntryState
 import online.vyybandasky.plus365.core.governance.Decision
+import online.vyybandasky.plus365.core.book.needingOverride
 import online.vyybandasky.plus365.core.governance.eligibleConfirmers
+import online.vyybandasky.plus365.core.governance.eligibleOverriders
 import online.vyybandasky.plus365.core.governance.Refusal
 import online.vyybandasky.plus365.core.money.formatKes
 
@@ -87,9 +89,33 @@ class DevSeedTest {
 
     @Test
     fun the_pending_entry_is_held_apart_from_the_pool() {
-        assertEquals(1, book.pending().size)
-        assertEquals(50_000L, state.pendingPoolCashCents)
+        assertEquals(1, book.pending().size, "one entry still waiting on a second member")
+        // 500 waiting plus the 800 in conflict: neither is money yet, and both
+        // are held apart rather than quietly ignored.
+        assertEquals(130_000L, state.pendingPoolCashCents)
         assertEquals(464_400L, state.poolCashCents, "pending money is not in the pool")
+    }
+
+    @Test
+    fun the_seed_opens_with_one_fallout_waiting_on_the_uninvolved_member() {
+        val stuck = book.needingOverride().single()
+        assertEquals(EntryState.NEEDS_OVERRIDE, stuck.state)
+        assertEquals(DevSeed.KANGIRI, stuck.recordedByMemberId)
+        assertEquals(DevSeed.BONNIE, stuck.conflict!!.raisedBy)
+        assertTrue(stuck.conflict!!.reasons.isNotEmpty())
+
+        // Both involved are barred; exactly the third member is left.
+        assertEquals(
+            listOf(DevSeed.BRIAN),
+            eligibleOverriders(stuck, book.memberIds(), DevSeed.DEV_CONFIG),
+        )
+    }
+
+    @Test
+    fun the_fallout_keeps_both_messages_so_the_third_member_can_compare_them() {
+        val stuck = book.needingOverride().single()
+        assertEquals("RTY4M8N2PQ", stuck.recordedEvidence!!.reference)
+        assertEquals("WXZ7K3J5VB", stuck.conflict!!.attemptedEvidence!!.reference)
     }
 
     @Test
