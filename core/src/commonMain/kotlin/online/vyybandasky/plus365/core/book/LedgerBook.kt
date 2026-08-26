@@ -26,6 +26,11 @@ import online.vyybandasky.plus365.core.interest.HOUSE_RATE_BPS
 import online.vyybandasky.plus365.core.interest.interestCents
 import online.vyybandasky.plus365.core.ledger.LedgerState
 import online.vyybandasky.plus365.core.ledger.fold
+import online.vyybandasky.plus365.core.sms.Assurance
+import online.vyybandasky.plus365.core.sms.MatchResult
+import online.vyybandasky.plus365.core.sms.SmsEvidence
+import online.vyybandasky.plus365.core.sms.explain
+import online.vyybandasky.plus365.core.sms.matchEvidence
 
 /**
  * The book: members, loans, and the append-only entry log, plus the only two
@@ -123,6 +128,7 @@ fun LedgerBook.record(
     groupId: String? = null,
     note: String? = null,
     at: Instant? = null,
+    evidence: SmsEvidence? = null,
 ): Decision<Recorded> {
     when (val gate = checkRecord(recordedBy, config)) {
         is Decision.Refused -> return gate
@@ -144,6 +150,22 @@ fun LedgerBook.record(
         // Idempotency: the same id twice is the same fact, not a second one.
         return Decision.Allowed(Recorded(this, listOf(entry(id)!!)))
     }
+    if (evidence != null && evidence.pastedBy != recordedBy) {
+        return Decision.Refused(
+            Refusal.BadEvidence("The message must be the one the recorder received."),
+        )
+    }
+    // One transaction, one entry. A code already on the books cannot be reused
+    // to back a second entry — otherwise one real transfer could justify any
+    // number of them.
+    entries.firstOrNull { it.recordedEvidence?.reference.equals(evidence?.reference, ignoreCase = true) && evidence != null }
+        ?.let { existing ->
+            return Decision.Refused(
+                Refusal.BadEvidence(
+                    "Code ${evidence!!.reference} is already on the books against another entry.",
+                ),
+            )
+        }
 
     val appended = Entry(
         id = id,
@@ -158,6 +180,7 @@ fun LedgerBook.record(
         recordedAt = at,
         state = EntryState.PENDING,
         note = note,
+        recordedEvidence = evidence,
     )
     return Decision.Allowed(
         Recorded(
@@ -181,6 +204,7 @@ fun LedgerBook.confirmGroup(
     config: ActorConfig,
     source: ConfirmSource = ConfirmSource.HUMAN,
     at: Instant? = null,
+    evidence: SmsEvidence? = null,
 ): Decision<Recorded> {
     val members = group(groupId).filter { it.state == EntryState.PENDING }
     if (members.isEmpty()) {
@@ -189,7 +213,11 @@ fun LedgerBook.confirmGroup(
     var book = this
     val confirmed = mutableListOf<Entry>()
     for (e in members) {
-        when (val step = book.confirm(e.id, confirmedBy, config, source, at)) {
+        // Only the leg that was recorded with a message needs one to clear it.
+        // The interest and cost legs are consequences of the same act, not
+        // separate transfers, and no SMS exists for them.
+        val forThisLeg = if (e.recordedEvidence != null) evidence else null
+        when (val step = book.confirm(e.id, confirmedBy, config, source, at, forThisLeg)) {
             is Decision.Refused -> return step
             is Decision.Allowed -> {
                 book = step.value.book
@@ -216,6 +244,7 @@ fun LedgerBook.transfer(
     config: ActorConfig,
     note: String? = null,
     at: Instant? = null,
+    evidence: SmsEvidence? = null,
 ): Decision<Recorded> {
     when (val gate = checkRecord(recordedBy, config)) {
         is Decision.Refused -> return gate
@@ -243,6 +272,7 @@ fun LedgerBook.transfer(
         recordedAt = at,
         state = EntryState.PENDING,
         note = note,
+        recordedEvidence = evidence,
     )
     return Decision.Allowed(
         Recorded(copy(entries = entries + appended, nextSeq = nextSeq + 1), listOf(appended)),
@@ -262,6 +292,7 @@ fun LedgerBook.confirm(
     config: ActorConfig,
     source: ConfirmSource = ConfirmSource.HUMAN,
     at: Instant? = null,
+    evidence: SmsEvidence? = null,
 ): Decision<Recorded> {
     val target = entry(entryId)
         ?: return Decision.Refused(Refusal.UnknownEntry(entryId))
@@ -273,7 +304,42 @@ fun LedgerBook.confirm(
         is Decision.Allowed -> Unit
     }
 
-    val confirmed = target.asConfirmedBy(confirmedBy, source, at)
+    // Where the recorder produced a message, the confirmer must produce their
+    // own, and the two must describe one transaction. This is what makes the
+    // control structural rather than procedural: a second member cannot wave an
+    // entry through, because they have nothing to wave it through with.
+    val recorded = target.recordedEvidence
+    val assurance: Assurance
+    if (recorded != null) {
+        if (evidence == null) {
+            return Decision.Refused(
+                Refusal.BadEvidence(
+                    "This entry was recorded with a transaction message, so confirming " +
+                        "it needs yours for the same transaction.",
+                ),
+            )
+        }
+        if (evidence.pastedBy != confirmedBy) {
+            return Decision.Refused(
+                Refusal.BadEvidence("The message must be the one the confirmer received."),
+            )
+        }
+        when (val m = matchEvidence(recorded, evidence)) {
+            is MatchResult.Mismatch ->
+                return Decision.Refused(
+                    Refusal.EvidenceMismatch(m.reasons.map { it.explain(recorded, evidence) }),
+                )
+            MatchResult.Matched -> Unit
+        }
+        assurance = Assurance.CODE_MATCHED
+    } else {
+        // No message on either side: a cash handover, or a transaction where
+        // only one party is texted. Still two people, but a person's word rather
+        // than the network's receipt — and it says so wherever it is shown.
+        assurance = Assurance.ATTESTED
+    }
+
+    val confirmed = target.asConfirmedBy(confirmedBy, source, at, evidence, assurance)
     return Decision.Allowed(
         Recorded(
             copy(entries = entries.map { if (it.id == entryId) confirmed else it }),
@@ -308,6 +374,7 @@ fun LedgerBook.disburseLoan(
     fromAccount: AccountId? = null,
     note: String? = null,
     at: Instant? = null,
+    evidence: SmsEvidence? = null,
 ): Decision<Recorded> {
     if (loan(loanId) != null) {
         return Decision.Refused(Refusal.Invalid("Loan $loanId already exists."))
@@ -360,6 +427,9 @@ fun LedgerBook.disburseLoan(
                 groupId = loanId,
                 note = legNote,
                 at = at,
+                // The money that actually moved is the principal. Interest and
+                // cost are owed, not transferred, so no message backs them.
+                evidence = if (type == EntryType.LOAN_OUT) evidence else null,
             )
         ) {
             is Decision.Refused -> return step
@@ -447,6 +517,7 @@ fun LedgerBook.reverse(
     config: ActorConfig,
     note: String? = null,
     at: Instant? = null,
+    evidence: SmsEvidence? = null,
 ): Decision<Recorded> {
     when (val gate = checkRecord(recordedBy, config)) {
         is Decision.Refused -> return gate

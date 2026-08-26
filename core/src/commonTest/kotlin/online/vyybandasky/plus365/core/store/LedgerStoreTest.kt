@@ -41,13 +41,25 @@ class LedgerStoreTest {
     }
 
     @Test
-    fun no_balance_is_written_to_the_file_at_all() {
-        // If a total were stored it could drift from the log. Assert the words
-        // simply are not there.
+    fun no_derived_total_is_written_to_the_file() {
+        // If a total were stored it could drift from the log. Check for stored
+        // FIELDS rather than bare words: a pasted M-Pesa message legitimately
+        // contains "balance" in its own text, and that is evidence, not a total.
         val text = encodeBook(seeded)
-        for (word in listOf("poolCash", "cashAtHand", "totalOutstanding", "balance")) {
-            assertTrue(!text.contains(word), "the file should hold no derived total, found $word")
+        for (field in listOf("poolCash", "cashAtHand", "totalOutstanding", "stake", "debt")) {
+            assertTrue(
+                !text.contains("\"$field"),
+                "the file should hold no derived total, found a \"$field\" field",
+            )
         }
+    }
+
+    @Test
+    fun a_pasted_message_is_stored_but_its_phone_number_is_not() {
+        val text = encodeBook(seeded)
+        assertTrue(text.contains("QGH7X2K9LM"), "the shared code is the proof and must persist")
+        assertTrue(!text.contains("0700000000"), "a phone number reached the stored file")
+        assertTrue(!text.contains("0700000001"), "a phone number reached the stored file")
     }
 
     @Test

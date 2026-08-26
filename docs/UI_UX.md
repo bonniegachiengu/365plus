@@ -52,3 +52,39 @@ Every action is: pick → amount → review → record. Recording creates a **pe
 ## 7. Not now
 
 Real member data (loads later after processing), live M-Pesa auto-capture, real deploy. Build the experience on sample data first. Keep the model Sustena-shaped (accounts, append-only ledger, fold to totals) so it can be embroidered into a sustain later, but no Sustena dependency today.
+
+
+---
+
+## 8. Refinement: paste-and-match confirmation
+
+*Added 26 Aug 2026, after the first shell. This replaces the plain "another
+member taps confirm" step described in §4 wherever a transaction has messages.*
+
+M-Pesa and KCB print **the same reference code on both parties' messages**. That
+shared code is the mechanism: two different people each holding a message with
+that code, for that amount, seen from opposite sides, is evidence that one real
+transaction happened — and neither of them can produce it alone.
+
+**Recording.** The recorder logs the transaction and pastes the message *they*
+received. The app reads out the code, amount and counterparty as a green tick so
+they can see it was understood before committing.
+
+**Confirming.** The confirmer — a different member, as always — pastes *their
+own* message for the same transaction. The app checks: same code, same amount,
+opposite sides, two different pasters. Match → confirmed and marked **Codes
+matched**. Mismatch → refused, naming exactly what did not line up.
+
+**Why this is stronger than a tap.** A second member can no longer wave an entry
+through, because they have nothing to wave it through with. Fabricating an entry
+would need both members' genuine messages. Forwarding one message so both paste
+the same text fails, because both then read the same side.
+
+**The fallback.** Cash changes hands, and some transactions only text one party.
+An entry with no message falls back to a plain second-member confirmation, marked
+**Confirmed by hand** and stated plainly as lower assurance. The app is never
+blocked; it is only ever honest about which kind of confirmation it got.
+
+**Never a secret.** An OTP filter runs before any part of a pasted message is
+kept, and phone numbers are masked out of what is stored. The code is the proof;
+the number is not, and the ledger file travels between phones.

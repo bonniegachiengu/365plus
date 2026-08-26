@@ -32,6 +32,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.presentation.ActivityRow
+import online.vyybandasky.plus365.core.sms.Assurance
+import online.vyybandasky.plus365.core.sms.label
 import online.vyybandasky.plus365.core.presentation.MemberCard
 import online.vyybandasky.plus365.core.presentation.PoolAction
 import online.vyybandasky.plus365.core.presentation.Session
@@ -265,6 +267,13 @@ fun ActivityLine(row: ActivityRow) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(row.sentence, style = MaterialTheme.typography.bodyLarge, color = Plus.TextHigh)
             Text(row.footnote, style = MaterialTheme.typography.bodySmall, color = Plus.TextLow)
+            row.assurance?.let { a ->
+                Text(
+                    a.label() + (row.reference?.let { " · $it" } ?: ""),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (a == Assurance.CODE_MATCHED) Plus.Money else Plus.TextLow,
+                )
+            }
         }
         Amount(row.amount, colour = Plus.TextHigh)
     }

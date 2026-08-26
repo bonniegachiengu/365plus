@@ -13,6 +13,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -116,10 +120,47 @@ private fun PendingActCard(
             color = Plus.TextMid,
         )
 
+        val needsEvidence = session.actNeedsEvidence(act.actId)
+        val reference = session.actReference(act.actId)
+        var paste by remember(act.actId) { mutableStateOf("") }
+
+        if (needsEvidence) {
+            Box(Modifier.padding(top = 10.dp)) {
+                PasteField(
+                    value = paste,
+                    label = "Your message for this transaction",
+                    hint = "${act.recordedBy} pasted theirs" +
+                        (reference?.let { ", code $it" } ?: "") +
+                        ". Paste the message you received — the codes have to match.",
+                    onValue = { paste = it },
+                )
+            }
+            Box(Modifier.padding(top = 10.dp)) { PasteReadout(paste) }
+        } else {
+            Text(
+                "No transaction message on this one, so confirming it is your word " +
+                    "rather than a matched code. It counts, but counts for less.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Plus.Pending,
+            )
+        }
+
         for (who in act.eligibleConfirmers) {
             Box(Modifier.padding(top = 8.dp)) {
-                BigButton("Confirm as ${who.name}") {
-                    onChange(session.confirmAct(act.actId, who.id, now))
+                BigButton(
+                    "Confirm as ${who.name}",
+                    // Nothing to confirm with, so nothing to press. The rule
+                    // shapes the button rather than rejecting the tap.
+                    enabled = !needsEvidence || paste.isNotBlank(),
+                ) {
+                    onChange(
+                        session.confirmAct(
+                            act.actId,
+                            who.id,
+                            now,
+                            paste.takeIf { it.isNotBlank() },
+                        ),
+                    )
                 }
             }
         }

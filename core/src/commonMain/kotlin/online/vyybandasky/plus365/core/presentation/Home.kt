@@ -11,6 +11,7 @@ import online.vyybandasky.plus365.core.governance.eligibleConfirmers
 import online.vyybandasky.plus365.core.interest.HOUSE_RATE_BPS
 import online.vyybandasky.plus365.core.interest.interestCents
 import online.vyybandasky.plus365.core.money.formatKes
+import online.vyybandasky.plus365.core.sms.Assurance
 
 /**
  * The home screen and its flows, in the words a member reads.
@@ -86,6 +87,8 @@ data class PendingAct(
     /** Members who may clear it. Never contains [recordedById]. */
     val eligibleConfirmers: List<MemberRef>,
     val entryCount: Int,
+    /** The code the confirmer must match, if the recorder supplied one. */
+    val reference: String? = null,
 )
 
 fun LedgerBook.pendingActs(config: ActorConfig, now: Instant? = null): List<PendingAct> =
@@ -105,6 +108,7 @@ fun LedgerBook.pendingActs(config: ActorConfig, now: Instant? = null): List<Pend
             eligibleConfirmers = eligibleConfirmers(lead, memberIds(), config)
                 .map { MemberRef(it, displayName(it)) },
             entryCount = act.size,
+            reference = act.firstNotNullOfOrNull { it.recordedEvidence?.reference },
         )
     }
 
@@ -175,6 +179,10 @@ data class ActivityRow(
     val amount: String,
     val standing: Standing,
     val footnote: String,
+    /** Null until confirmed. Shown so the weaker kind never passes for the stronger. */
+    val assurance: Assurance? = null,
+    /** The shared transaction code, where there is one. */
+    val reference: String? = null,
 )
 
 /**
@@ -204,6 +212,8 @@ fun LedgerBook.activity(now: Instant? = null, limit: Int? = null): List<Activity
                         "$recorder recorded · ${displayName(e.rejectedByMemberId ?: "?")} rejected"
                     else -> "$recorder recorded · waiting for someone else"
                 },
+                assurance = e.assurance,
+                reference = e.recordedEvidence?.reference,
             )
         }
     return if (limit == null) rows else rows.take(limit)
