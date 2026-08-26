@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import java.io.File
 import online.vyybandasky.plus365.core.presentation.Notice
 import online.vyybandasky.plus365.core.presentation.Session
 import online.vyybandasky.plus365.core.presentation.historyRows
@@ -31,8 +32,17 @@ import online.vyybandasky.plus365.core.presentation.loanRows
 import online.vyybandasky.plus365.core.presentation.memberRows
 import online.vyybandasky.plus365.core.presentation.pendingRows
 import online.vyybandasky.plus365.core.presentation.summaryView
+import online.vyybandasky.plus365.core.store.LedgerStore
+import online.vyybandasky.plus365.core.store.save
+import online.vyybandasky.plus365.desktop.store.FileLedgerStore
 
 fun main() {
+    // The master copy. Beside the app's own data, not in Documents — this is a
+    // record the app owns, not a file a person edits by hand.
+    val store = FileLedgerStore(
+        File(System.getProperty("user.home"), ".365plus/ledger.json"),
+    )
+
     // The API comes up first so the phones can reach the master as soon as the
     // window is on screen. Non-blocking — Compose owns the main thread.
     val server = startHealthServer()
@@ -42,7 +52,7 @@ fun main() {
                 onCloseRequest = ::exitApplication,
                 title = "365+ — master ledger",
             ) {
-                App()
+                App(store)
             }
         }
     } finally {
@@ -56,9 +66,15 @@ fun main() {
  * rather than being written once per platform.
  */
 @Composable
-fun App() {
-    var session by remember { mutableStateOf(Session.dev()) }
+fun App(store: LedgerStore) {
+    var session by remember { mutableStateOf(Session.restored(store)) }
     val summary = session.book.summaryView()
+
+    // The single path from a change to disk.
+    val update: (Session) -> Unit = { next ->
+        session = next
+        store.save(next.book)
+    }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
@@ -111,7 +127,7 @@ fun App() {
                             )
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 for (who in row.eligibleConfirmers) {
-                                    Button(onClick = { session = session.confirm(row.entryId, who.id) }) {
+                                    Button(onClick = { update(session.confirm(row.entryId, who.id)) }) {
                                         Text("Confirm as ${who.name}")
                                     }
                                 }

@@ -19,7 +19,8 @@ concerned.
 | Branch | Purpose | Merged | Landed as |
 |---|---|---|---|
 | `shell/recorder-not-confirmer` | The shell: governance spine, book, interest, presentation, both UIs. | 2026-08-26 | `f4f6981`, `cd1672a` |
-| `fix/three-members` | Collapse Pinah and Brian into one member. | 2026-08-26 | see below |
+| `fix/three-members` | Collapse Pinah and Brian into one member. | 2026-08-26 | `9908eef` |
+| `slice/persistence` | The book survives a restart: JSON log store, file-backed on both shells. | 2026-08-26 | see below |
 
 ## Abandoned
 

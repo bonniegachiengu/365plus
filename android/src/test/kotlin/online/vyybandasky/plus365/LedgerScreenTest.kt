@@ -11,6 +11,8 @@ import online.vyybandasky.plus365.core.presentation.Session
 import online.vyybandasky.plus365.core.presentation.memberRows
 import online.vyybandasky.plus365.core.presentation.pendingRows
 import online.vyybandasky.plus365.core.presentation.summaryView
+import online.vyybandasky.plus365.core.store.InMemoryStore
+import online.vyybandasky.plus365.core.store.save
 
 /**
  * The phone shell, exercised through exactly the calls the screens make.
@@ -110,6 +112,39 @@ class LedgerScreenTest {
         s = s.confirm(moved.id, DevSeed.BONNIE)
 
         assertEquals(before, s.book.state().cashAtHandCents, "a transfer moves, never creates")
+    }
+
+    @Test
+    fun the_shell_reopens_on_what_was_stored_not_on_a_fresh_seed() {
+        val store = InMemoryStore()
+        var s = Session.restored(store)
+        s = s.actAs(DevSeed.BRIAN).record(EntryType.CONTRIBUTION, DevSeed.KANGIRI, 700_00)
+        store.save(s.book)
+        val pendingBefore = s.book.pending().size
+
+        // Cold start against the same store.
+        val reopened = Session.restored(store)
+        assertEquals(pendingBefore, reopened.book.pending().size)
+        assertEquals(s.book.entries.size, reopened.book.entries.size)
+        assertEquals(s.book.state().poolCashCents, reopened.book.state().poolCashCents)
+    }
+
+    @Test
+    fun an_entry_recorded_after_a_reopen_does_not_collide_with_a_stored_id() {
+        val store = InMemoryStore()
+        var s = Session.restored(store)
+        s = s.actAs(DevSeed.BRIAN).record(EntryType.CONTRIBUTION, DevSeed.KANGIRI, 100_00)
+        store.save(s.book)
+
+        var reopened = Session.restored(store)
+        val before = reopened.book.entries.size
+        reopened = reopened.actAs(DevSeed.BRIAN).record(EntryType.CONTRIBUTION, DevSeed.KANGIRI, 200_00)
+
+        assertEquals(
+            before + 1,
+            reopened.book.entries.size,
+            "a reused id would be swallowed as a duplicate and lose the entry",
+        )
     }
 
     @Test

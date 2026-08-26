@@ -12,6 +12,8 @@ import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.domain.MemberId
 import online.vyybandasky.plus365.core.governance.ActorConfig
 import online.vyybandasky.plus365.core.governance.Decision
+import online.vyybandasky.plus365.core.store.LedgerStore
+import online.vyybandasky.plus365.core.store.openOrSeed
 
 /**
  * One screen's worth of app state, as a value.
@@ -151,6 +153,23 @@ data class Session(
             config = DevSeed.DEV_CONFIG,
             actingAs = DevSeed.BONNIE,
         )
+
+        /**
+         * Open the stored book, or seed a fresh one if there is nothing readable.
+         *
+         * The id counter is advanced past whatever is already in the book, so a
+         * second run cannot mint an id that collides with a stored entry and be
+         * silently swallowed by record()'s idempotency check.
+         */
+        fun restored(store: LedgerStore): Session {
+            val book = store.openOrSeed { DevSeed.book() }
+            return Session(
+                book = book,
+                config = DevSeed.DEV_CONFIG,
+                actingAs = DevSeed.BONNIE,
+                idCounter = book.nextSeq,
+            )
+        }
     }
 }
 

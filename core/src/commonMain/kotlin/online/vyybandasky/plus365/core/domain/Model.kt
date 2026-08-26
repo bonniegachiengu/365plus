@@ -2,6 +2,7 @@ package online.vyybandasky.plus365.core.domain
 
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
+import kotlinx.serialization.Serializable
 
 typealias MemberId = String
 typealias AccountId = String
@@ -15,6 +16,7 @@ typealias LoanId = String
  * Each has one fixed, unambiguous effect on stake, debt and pool cash. That
  * table is encoded exactly once, in [online.vyybandasky.plus365.core.ledger.effectOf].
  */
+@Serializable
 enum class EntryType {
     CONTRIBUTION,
     PAYOUT,
@@ -42,10 +44,13 @@ enum class EntryType {
 }
 
 /** DRAFT -> (sync) -> PENDING -> CONFIRMED | DISPUTED -> (if disputed) VOID via reversal. */
+@Serializable
 enum class EntryState { DRAFT, PENDING, CONFIRMED, DISPUTED, VOID }
 
+@Serializable
 enum class ConfirmSource { HUMAN, MPESA, SYSTEM }
 
+@Serializable
 enum class LoanDirection {
     /** The pool lent to a member: the member owes the pool. */
     POOL_TO_MEMBER,
@@ -54,10 +59,13 @@ enum class LoanDirection {
     MEMBER_TO_POOL,
 }
 
+@Serializable
 enum class LoanState { ACTIVE, SETTLED, WRITTEN_OFF }
 
+@Serializable
 enum class InterestPeriod { MONTHLY }
 
+@Serializable
 enum class InterestMethod { SIMPLE }
 
 /**
@@ -66,6 +74,7 @@ enum class InterestMethod { SIMPLE }
  * Cash-at-hand is the sum of these and is derived, never stored — the same
  * discipline as every other total in this app.
  */
+@Serializable
 data class Account(
     val id: AccountId,
     val label: String,
@@ -79,6 +88,7 @@ object Accounts {
     const val UNASSIGNED: AccountId = "unassigned"
 }
 
+@Serializable
 data class Member(
     val id: MemberId,
     val displayName: String,
@@ -87,6 +97,7 @@ data class Member(
     val joinedAt: Instant? = null,
 )
 
+@Serializable
 data class Device(
     val id: DeviceId,
     val memberId: MemberId,
@@ -96,6 +107,7 @@ data class Device(
     val revokedAt: Instant? = null,
 )
 
+@Serializable
 data class Loan(
     val id: LoanId,
     val direction: LoanDirection,
@@ -119,6 +131,7 @@ data class Loan(
  * pointing at the original (§1.1). [amountCents] is always a positive magnitude;
  * direction comes from [type], never from the sign of the amount (§1.3).
  */
+@Serializable
 data class Entry(
     /** Client-generated UUID. Doubles as the idempotency key on sync push. */
     val id: EntryId,
