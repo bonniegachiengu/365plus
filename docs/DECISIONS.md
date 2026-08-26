@@ -225,6 +225,25 @@ is against the same instant.
 
 **Depends on it:** `core/presentation/Home.kt`.
 
+## D13 — Flow state is keyed to the action it belongs to
+
+**Decided:** 2026-08-26. **Status:** settled, after a real defect on the device.
+
+Lend and Borrow render from the same call site, so their `remember` state shared
+one slot. Backing out of "lend to Brian" and opening Borrow carried Brian across
+— under a heading reading "New loan to you". Caught by driving the app on the
+phone; it had passed every unit test, because the bug lived in composition
+identity rather than in any function.
+
+On a money screen that is not untidiness. It is offering to record a debt
+against the wrong person. Every `remember` in a flow is now keyed on the action.
+
+The lesson worth keeping: the ledger logic is unit-tested to death, and the
+defect was still in the layer nothing tested. **Drive the built app on the
+device before calling a UI slice done.**
+
+**Depends on it:** `android/ui/Flows.kt`.
+
 ---
 
 ## Still open

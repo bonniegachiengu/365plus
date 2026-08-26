@@ -2,6 +2,7 @@ package online.vyybandasky.plus365
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
@@ -55,8 +56,14 @@ private sealed interface Screen {
  */
 @Composable
 fun Plus365App(store: LedgerStore) {
-    var session by remember { mutableStateOf(Session.restored(store)) }
+    // The clock is read once here and handed to the seed, so a first run has
+    // a history with real times on it rather than entries from nowhere.
+    var session by remember { mutableStateOf(Session.restored(store, Clock.System.now())) }
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
+
+    // Without this the hardware back button closes the app from any screen,
+    // which on a money app feels like being thrown out mid-sentence.
+    BackHandler(enabled = screen != Screen.Home) { screen = Screen.Home }
 
     // The single path from a change to disk. Every callback goes through it, so
     // there is no route that updates the screen without also saving.

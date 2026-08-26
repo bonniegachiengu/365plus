@@ -24,7 +24,8 @@ Nothing else is open right now.
 | `fix/three-members` | Collapse Pinah and Brian into one member. | 2026-08-26 | `9908eef` |
 | `slice/persistence` | The book survives a restart: JSON log store, file-backed on both shells. | 2026-08-26 | `5d794d6` |
 | `docs/state` | Record the branch map and correct a test count. | 2026-08-26 | `da39f21` |
-| `slice/dark-fintech-ux` | The whole experience to `docs/UI_UX.md`: dark fintech theme, home screen, the four flows, confirm/reject, member detail, ledger. | 2026-08-26 | see below |
+| `slice/dark-fintech-ux` | The whole experience to `docs/UI_UX.md`: dark fintech theme, home screen, the four flows, confirm/reject, member detail, ledger. | 2026-08-26 | `982e11c` |
+| `fix/back-nav-and-seed-times` | Three defects found by driving the app on the phone: back exited the app, the seed had no timestamps, and flow state leaked between Lend and Borrow. | 2026-08-26 | see below |
 
 > `5d794d6`'s message says 118 tests. The true count at that commit was **116** —
 > it double-counted two core tests that run on both the jvm and android targets.
