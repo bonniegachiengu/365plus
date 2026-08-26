@@ -244,6 +244,70 @@ device before calling a UI slice done.**
 
 **Depends on it:** `android/ui/Flows.kt`.
 
+## D14 — Confirmation is paste-and-match on a shared transaction code
+
+**Decided:** 2026-08-26. **Status:** settled. Detail: `docs/UI_UX.md` §8.
+
+M-Pesa and KCB print the same reference code on **both** parties' messages. The
+recorder pastes the message they received; the confirmer — a different member —
+pastes their own. The app requires: same code, same amount, opposite sides, two
+different pasters.
+
+This turns the control from procedural into structural. A second member can no
+longer wave an entry through, because they have nothing to wave it through with.
+Fabricating an entry needs both members' genuine messages, and forwarding one
+message so both paste the same text fails on the opposite-sides check — which is
+precisely the shortcut worth closing.
+
+**Evidence does not replace the two-person rule, it stacks on it.** The recorder
+still cannot confirm their own entry even holding both messages. A test pins that.
+
+**One code, one entry.** A reference already on the books cannot back a second
+entry, or one real transfer could justify any number of them.
+
+**On a loan, only the money leg carries a message.** The principal moved; the
+interest and the transaction cost are owed, not transferred, and no SMS exists
+for them. One confirmation still clears all three legs, and if the money leg does
+not match, none of them clear.
+
+**Depends on it:** `core/sms/`, `LedgerBook.record/confirm`.
+
+## D15 — A pasted message is never a secret, and never a phone number
+
+**Decided:** 2026-08-26. **Status:** settled, and a hard safety rule.
+
+An **OTP filter runs first**, before any part of a pasted message is kept. A
+message matching any secret-shaped marker is refused with nothing stored. The
+filter is deliberately broad: a false positive costs a member one confused
+moment, a false negative writes their banking credential into a file that syncs
+between three phones.
+
+**Phone numbers are masked** out of the stored message. The reference code is the
+proof; the number proves nothing and is the one thing worth not keeping.
+
+A parser bug found while testing is worth recording: the first M-Pesa pattern
+matched any ten-character token, so a **ten-digit phone number parsed as a
+transaction code**. Two members who had both texted the same person would have
+appeared to hold matching evidence. A reference must now contain a letter.
+
+**Depends on it:** `core/sms/SmsParser.kt`, and tests asserting no number reaches
+the stored file.
+
+## D16 — Two assurance levels, always visible
+
+**Decided:** 2026-08-26. **Status:** settled.
+
+`CODE_MATCHED` means two members' messages carried the same code. `ATTESTED`
+means a second member vouched for it without one — a cash handover, or a
+transaction that only texts one side.
+
+The fallback exists so the app is **never blocked**. It is labelled wherever the
+entry appears, and the confirm screen says plainly that it "counts, but counts
+for less". Money confirmed the weaker way must never look like money confirmed
+the stronger way.
+
+**Depends on it:** `core/sms/Match.kt`, `ActivityRow.assurance`.
+
 ---
 
 ## Still open

@@ -15,6 +15,9 @@ import online.vyybandasky.plus365.core.governance.ActorConfig
 import kotlin.time.Duration.Companion.hours
 import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.governance.Decision
+import online.vyybandasky.plus365.core.sms.ParseOutcome
+import online.vyybandasky.plus365.core.sms.SmsEvidence
+import online.vyybandasky.plus365.core.sms.parseSms
 
 /**
  * The dev book the shell starts from.
@@ -71,6 +74,21 @@ object DevSeed {
     private fun shillings(n: Long): Long = n * 100
 
     /**
+     * A made-up pair of messages for one made-up transfer, so the shell opens
+     * showing what a code-matched entry looks like beside a hand-confirmed one.
+     * The number in them is fictitious and is masked before storage anyway.
+     */
+    private const val SEED_SENT =
+        "QGH7X2K9LM Confirmed. Ksh1,500.00 sent to 365 POOL 0700000000 on 25/8/26 " +
+            "at 09:30 AM. New M-PESA balance is Ksh200.00."
+    private const val SEED_RECEIVED =
+        "QGH7X2K9LM Confirmed. You have received Ksh1,500.00 from BRIAN 0700000001 " +
+            "on 25/8/26 at 09:30 AM. New M-PESA balance is Ksh1,700.00."
+
+    private fun evidence(text: String, who: MemberId): SmsEvidence =
+        (parseSms(text, who) as ParseOutcome.Parsed).evidence
+
+    /**
      * Build the seed book.
      *
      * Throws if any step is refused — which would mean the governance rule and
@@ -90,7 +108,9 @@ object DevSeed {
         // --- Contributions. Each recorded by one member, confirmed by another. ---
         b = b.contribute("c1", BONNIE, 3_000, recordedBy = BONNIE, confirmedBy = BRIAN, at = stamp())
         b = b.contribute("c2", BRIAN, 2_000, recordedBy = BRIAN, confirmedBy = BONNIE, at = stamp())
-        b = b.contribute("c3", BRIAN, 1_500, recordedBy = BRIAN, confirmedBy = KANGIRI, at = stamp())
+        // The one entry backed by two matching messages, so both kinds of
+        // confirmation are visible side by side from the first launch.
+        b = b.contributeWithCodes("c3", BRIAN, 1_500, recordedBy = BRIAN, confirmedBy = KANGIRI, at = stamp())
         b = b.contribute("c4", KANGIRI, 1_000, recordedBy = KANGIRI, confirmedBy = BRIAN, at = stamp())
 
         // --- Some of it moved to the float pocket it gets lent from. ---
@@ -133,6 +153,34 @@ object DevSeed {
             at = at,
         ).orThrow("record contribution $id")
         return recorded.book.confirmOne(id, confirmedBy, at)
+    }
+
+    private fun LedgerBook.contributeWithCodes(
+        id: String,
+        member: MemberId,
+        amount: Long,
+        recordedBy: MemberId,
+        confirmedBy: MemberId,
+        at: Instant? = null,
+    ): LedgerBook {
+        val recorded = record(
+            id = id,
+            type = EntryType.CONTRIBUTION,
+            amountCents = shillings(amount),
+            memberId = member,
+            recordedBy = recordedBy,
+            config = DEV_CONFIG,
+            accountId = SAVINGS,
+            at = at,
+            evidence = evidence(SEED_SENT, recordedBy),
+        ).orThrow("record $id")
+        return recorded.book.confirm(
+            id,
+            confirmedBy,
+            DEV_CONFIG,
+            at = at,
+            evidence = evidence(SEED_RECEIVED, confirmedBy),
+        ).orThrow("confirm $id").book
     }
 
     private fun LedgerBook.move(

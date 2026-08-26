@@ -3,6 +3,8 @@ package online.vyybandasky.plus365.core.domain
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDate
 import kotlinx.serialization.Serializable
+import online.vyybandasky.plus365.core.sms.Assurance
+import online.vyybandasky.plus365.core.sms.SmsEvidence
 
 typealias MemberId = String
 typealias AccountId = String
@@ -185,6 +187,24 @@ data class Entry(
     val rejectedByMemberId: MemberId? = null,
     val rejectedAt: Instant? = null,
     val rejectionReason: String? = null,
+
+    /**
+     * The recorder's own transaction message, if they had one.
+     *
+     * Kept on the entry rather than alongside it because the message *is* the
+     * evidence for this entry — separating them would let one survive the other.
+     */
+    val recordedEvidence: SmsEvidence? = null,
+
+    /** The confirmer's own message. Its code must match [recordedEvidence]. */
+    val confirmedEvidence: SmsEvidence? = null,
+
+    /**
+     * How well backed this entry is. [Assurance.CODE_MATCHED] means two members'
+     * messages carried the same transaction code; [Assurance.ATTESTED] means a
+     * second member vouched for it without one.
+     */
+    val assurance: Assurance? = null,
 
     /** UNIQUE where not null — the duplicate-entry defence (§2b). */
     val mpesaRef: String? = null,

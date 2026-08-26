@@ -15,6 +15,10 @@ import online.vyybandasky.plus365.core.domain.MemberId
 import online.vyybandasky.plus365.core.governance.ActorConfig
 import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.governance.Decision
+import online.vyybandasky.plus365.core.sms.ParseOutcome
+import online.vyybandasky.plus365.core.sms.SmsEvidence
+import online.vyybandasky.plus365.core.sms.message
+import online.vyybandasky.plus365.core.sms.parseSms
 import online.vyybandasky.plus365.core.store.LedgerStore
 import online.vyybandasky.plus365.core.store.openOrSeed
 
@@ -58,7 +62,9 @@ data class Session(
         amountCents: Long,
         loanId: String? = null,
         at: Instant? = null,
+        smsText: String? = null,
     ): Session {
+        val evidence = readPaste(smsText, actingAs).getOrElse { return refuse(it) }
         val id = nextId("e")
         return when (val r = book.record(
             id = id,
@@ -69,12 +75,18 @@ data class Session(
             config = config,
             loanId = loanId,
             at = at,
+            evidence = evidence,
         )) {
             is Decision.Allowed -> copy(
                 book = r.value.book,
                 idCounter = idCounter + 1,
                 notice = Notice.Info(
-                    "Recorded by $actingAsName. Waiting for someone else to confirm.",
+                    if (evidence == null) {
+                        "Recorded by $actingAsName. Waiting for someone else to confirm."
+                    } else {
+                        "Recorded with code ${evidence.reference}. " +
+                            "Waiting for the other member's message."
+                    },
                 ),
             )
             is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
@@ -92,7 +104,9 @@ data class Session(
         principalCents: Long,
         txnCostCents: Long = 0L,
         at: Instant? = null,
+        smsText: String? = null,
     ): Session {
+        val evidence = readPaste(smsText, actingAs).getOrElse { return refuse(it) }
         val loanId = "L-${idCounter.toString().padStart(3, '0')}-ui"
         return when (val r = book.disburseLoan(
             loanId = loanId,
@@ -102,6 +116,7 @@ data class Session(
             config = config,
             txnCostCents = txnCostCents,
             at = at,
+            evidence = evidence,
         )) {
             is Decision.Allowed -> copy(
                 book = r.value.book,
@@ -154,9 +169,48 @@ data class Session(
      * Clear one waiting decision, whether it is a single entry or a loan's three
      * legs. The confirm screen asks once, so this is what it calls.
      */
-    fun confirmAct(actId: String, confirmer: MemberId, at: Instant? = null): Session {
+    fun confirmAct(
+        actId: String,
+        confirmer: MemberId,
+        at: Instant? = null,
+        smsText: String? = null,
+    ): Session {
+        val evidence = readPaste(smsText, confirmer).getOrElse { return refuse(it) }
         val grouped = book.group(actId).isNotEmpty()
-        return if (grouped) confirmGroup(actId, confirmer, at) else confirm(actId, confirmer, at)
+        val r = if (grouped) {
+            book.confirmGroup(actId, confirmer, config, at = at, evidence = evidence)
+        } else {
+            book.confirm(actId, confirmer, config, at = at, evidence = evidence)
+        }
+        return when (r) {
+            is Decision.Allowed -> copy(
+                book = r.value.book,
+                notice = Notice.Info(
+                    if (evidence == null) {
+                        "Confirmed by ${book.displayName(confirmer)}."
+                    } else {
+                        "Codes matched — ${evidence.reference}. " +
+                            "Confirmed by ${book.displayName(confirmer)}."
+                    },
+                ),
+            )
+            is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
+        }
+    }
+
+    /**
+     * Does this act need a matching message to clear, or will a second member's
+     * word do? The confirm screen asks so it can show the right field.
+     */
+    fun actNeedsEvidence(actId: String): Boolean {
+        val act = book.group(actId).ifEmpty { listOfNotNull(book.entry(actId)) }
+        return act.any { it.recordedEvidence != null }
+    }
+
+    /** The code the confirmer has to match, for the screen to name it. */
+    fun actReference(actId: String): String? {
+        val act = book.group(actId).ifEmpty { listOfNotNull(book.entry(actId)) }
+        return act.firstNotNullOfOrNull { it.recordedEvidence?.reference }
     }
 
     /** Throw out one waiting decision. Same gate as confirming it. */
@@ -194,7 +248,8 @@ data class Session(
         principalCents: Long,
         txnCostCents: Long = 0L,
         at: Instant? = null,
-    ): Session = lend(borrower, principalCents, txnCostCents, at)
+        smsText: String? = null,
+    ): Session = lend(borrower, principalCents, txnCostCents, at, smsText)
 
     /** Pay back against a specific loan. */
     fun repay(
@@ -202,11 +257,35 @@ data class Session(
         memberId: MemberId,
         amountCents: Long,
         at: Instant? = null,
-    ): Session = record(EntryType.LOAN_REPAYMENT, memberId, amountCents, loanId, at)
+        smsText: String? = null,
+    ): Session = record(EntryType.LOAN_REPAYMENT, memberId, amountCents, loanId, at, smsText)
 
     /** Add money to the pool. */
-    fun contribute(memberId: MemberId, amountCents: Long, at: Instant? = null): Session =
-        record(EntryType.CONTRIBUTION, memberId, amountCents, null, at)
+    fun contribute(
+        memberId: MemberId,
+        amountCents: Long,
+        at: Instant? = null,
+        smsText: String? = null,
+    ): Session = record(EntryType.CONTRIBUTION, memberId, amountCents, null, at, smsText)
+
+    /**
+     * Read a pasted message, or decide there isn't one.
+     *
+     * Blank is a legitimate answer — a cash handover has no message, and the app
+     * must not be blocked by that. Anything non-blank has to parse: a member who
+     * meant to paste evidence and pasted something unreadable should be told,
+     * not silently dropped onto the weaker path.
+     */
+    private fun readPaste(text: String?, who: MemberId): Result<SmsEvidence?> {
+        if (text.isNullOrBlank()) return Result.success(null)
+        return when (val outcome = parseSms(text, who)) {
+            is ParseOutcome.Parsed -> Result.success(outcome.evidence)
+            is ParseOutcome.Rejected -> Result.failure(IllegalArgumentException(outcome.reason.message()))
+        }
+    }
+
+    private fun refuse(t: Throwable): Session =
+        copy(notice = Notice.Refused(t.message ?: "That could not be read."))
 
     /** Append the inverse of a confirmed entry. Also needs confirming. */
     fun reverse(entryId: String): Session {

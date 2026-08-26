@@ -72,6 +72,7 @@ fun FlowScreen(
     var member by remember(action) { mutableStateOf(session.actingAs) }
     var loan by remember(action) { mutableStateOf<RepayableLoan?>(null) }
     var amount by remember(action) { mutableStateOf("") }
+    var sms by remember(action) { mutableStateOf("") }
 
     val members = session.book.memberCards()
     val loans = session.book.repayableLoans()
@@ -122,6 +123,8 @@ fun FlowScreen(
                     member = member,
                     loan = loan,
                     cents = cents,
+                    sms = sms,
+                    onSms = { sms = it },
                     onRecord = { onCommit(it) },
                 )
             }
@@ -297,6 +300,8 @@ private fun ReviewStep(
     member: String,
     loan: RepayableLoan?,
     cents: Long,
+    sms: String,
+    onSms: (String) -> Unit,
     onRecord: (Session) -> Unit,
 ) {
     val who = session.book.displayName(member)
@@ -349,6 +354,18 @@ private fun ReviewStep(
         }
     }
 
+    // Your own half of the proof.
+    Card {
+        PasteField(
+            value = sms,
+            label = "Your message for this",
+            hint = "Paste the M-Pesa or KCB message you received. The other member " +
+                "will paste theirs, and the codes have to match.",
+            onValue = onSms,
+        )
+        Box(Modifier.padding(top = 10.dp)) { PasteReadout(sms) }
+    }
+
     // The whole point of the app, said plainly at the moment it matters.
     Card(colour = Plus.PendingDim) {
         Text(
@@ -357,19 +374,27 @@ private fun ReviewStep(
             color = Plus.Pending,
         )
         Text(
-            "Recording it does not move any money. Another member has to confirm " +
-                "it first — and it cannot be you, because you are recording it.",
+            if (sms.isBlank()) {
+                "Recording it does not move any money. Without a message, another " +
+                    "member has to vouch for it by hand — which counts, but counts " +
+                    "for less than two matching codes."
+            } else {
+                "Recording it does not move any money. Another member has to paste " +
+                    "their own message for the same transaction, and it cannot be " +
+                    "you, because you are recording it."
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = Plus.TextMid,
         )
     }
 
     BigButton("Record it") {
+        val paste = sms.takeIf { it.isNotBlank() }
         val next = when (action) {
-            PoolAction.CONTRIBUTE -> session.contribute(member, cents, at = now)
-            PoolAction.LEND -> session.lend(member, cents, at = now)
-            PoolAction.BORROW -> session.borrow(member, cents, at = now)
-            PoolAction.REPAY -> session.repay(loan!!.loanId, member, cents, at = now)
+            PoolAction.CONTRIBUTE -> session.contribute(member, cents, now, paste)
+            PoolAction.LEND -> session.lend(member, cents, at = now, smsText = paste)
+            PoolAction.BORROW -> session.borrow(member, cents, at = now, smsText = paste)
+            PoolAction.REPAY -> session.repay(loan!!.loanId, member, cents, now, paste)
         }
         onRecord(next)
     }

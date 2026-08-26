@@ -5,6 +5,8 @@ import online.vyybandasky.plus365.core.domain.ConfirmSource
 import online.vyybandasky.plus365.core.domain.Entry
 import online.vyybandasky.plus365.core.domain.EntryState
 import online.vyybandasky.plus365.core.domain.MemberId
+import online.vyybandasky.plus365.core.sms.Assurance
+import online.vyybandasky.plus365.core.sms.SmsEvidence
 
 /**
  * Two-person control: whoever records a transaction may not confirm it.
@@ -82,6 +84,21 @@ sealed interface Refusal {
     }
 
     data class Invalid(override val message: String) : Refusal
+
+    /**
+     * Two messages that do not describe one transaction. Carries what did not
+     * line up, so the screen can say exactly which part failed rather than a
+     * bare "rejected".
+     */
+    data class EvidenceMismatch(
+        val reasons: List<String>,
+    ) : Refusal {
+        override val message: String =
+            "These two messages are not the same transaction. " + reasons.joinToString(" ")
+    }
+
+    /** A pasted message that could not be read, or must not be stored. */
+    data class BadEvidence(override val message: String) : Refusal
 }
 
 /** The result of a governed action. */
@@ -177,9 +194,13 @@ internal fun Entry.asConfirmedBy(
     confirmer: MemberId,
     source: ConfirmSource,
     at: Instant? = null,
+    evidence: SmsEvidence? = null,
+    assurance: Assurance = Assurance.ATTESTED,
 ): Entry = copy(
     state = EntryState.CONFIRMED,
     confirmedByMemberId = confirmer,
     confirmedAt = at,
     confirmSource = source,
+    confirmedEvidence = evidence,
+    assurance = assurance,
 )

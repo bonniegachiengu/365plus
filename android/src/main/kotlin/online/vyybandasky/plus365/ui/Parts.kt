@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,7 +25,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import online.vyybandasky.plus365.core.money.formatKes
 import online.vyybandasky.plus365.core.presentation.Standing
+import online.vyybandasky.plus365.core.sms.ParseOutcome
+import online.vyybandasky.plus365.core.sms.message
+import online.vyybandasky.plus365.core.sms.parseSms
 
 /** Every surface in the app is one of these, so nothing looks borrowed. */
 @Composable
@@ -201,5 +207,106 @@ fun NoticeBanner(text: String, isRefusal: Boolean) {
             style = MaterialTheme.typography.bodyMedium,
             color = if (isRefusal) Plus.Debt else Plus.Money,
         )
+    }
+}
+
+/**
+ * Where a member pastes the transaction message they received.
+ *
+ * Optional on purpose. A cash handover has no message, and a member stuck
+ * without one must still be able to get their entry onto the books — the app
+ * says plainly that it will be the weaker kind of confirmation rather than
+ * refusing to move.
+ */
+@Composable
+fun PasteField(
+    value: String,
+    label: String,
+    hint: String,
+    onValue: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(label, style = MaterialTheme.typography.titleMedium, color = Plus.TextHigh)
+        Text(hint, style = MaterialTheme.typography.bodySmall, color = Plus.TextMid)
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValue,
+            placeholder = {
+                Text(
+                    "Paste the M-Pesa or KCB message",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Plus.TextLow,
+                )
+            },
+            minLines = 3,
+            maxLines = 6,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            textStyle = MaterialTheme.typography.bodyMedium,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Plus.Money,
+                unfocusedBorderColor = Plus.Divider,
+                focusedTextColor = Plus.TextHigh,
+                unfocusedTextColor = Plus.TextHigh,
+                cursorColor = Plus.Money,
+            ),
+        )
+        Text(
+            "Never paste a one-time PIN or verification code. Only transaction messages.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Plus.Pending,
+        )
+    }
+}
+
+/** The result of reading a paste, shown the moment there is something to say. */
+@Composable
+fun PasteReadout(text: String) {
+    if (text.isBlank()) return
+    when (val outcome = parseSms(text, "preview")) {
+        is ParseOutcome.Parsed -> {
+            val e = outcome.evidence
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Plus.MoneyDim, RoundedCornerShape(14.dp))
+                    .padding(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("\u2713", style = MaterialTheme.typography.titleLarge, color = Plus.Money)
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        "Code ${e.reference}",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Plus.Money,
+                    )
+                    Text(
+                        formatKes(e.amountCents) +
+                            (e.counterparty?.let { " \u00b7 $it" } ?: ""),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Plus.TextMid,
+                    )
+                }
+            }
+        }
+
+        is ParseOutcome.Rejected -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Plus.DebtDim, RoundedCornerShape(14.dp))
+                    .padding(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("\u2717", style = MaterialTheme.typography.titleLarge, color = Plus.Debt)
+                Text(
+                    outcome.reason.message(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Plus.Debt,
+                )
+            }
+        }
     }
 }
