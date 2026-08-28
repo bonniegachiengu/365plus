@@ -6,12 +6,13 @@ import online.vyybandasky.plus365.core.domain.LoanId
 import online.vyybandasky.plus365.core.domain.MemberId
 
 /**
- * What one member has put in, and what they owe.
+ * What one member has put into the pool, and what they still have out on loan.
  *
- * [debtCents] is signed from the pool's point of view: negative means the member
- * owes the pool, positive means the pool owes the member.
+ * [debtCents] is signed from the pool's point of view: negative means there is a
+ * pending loan amount against them, positive means the pool owes them.
  */
 data class MemberBalance(
+    /** Their pool contribution. */
     val stakeCents: Long = 0L,
     val debtCents: Long = 0L,
 )
@@ -31,16 +32,21 @@ data class LoanOutstanding(
     val principalCents: Long,
     /** Interest charged. Flat, at disbursement — not an accruing balance. */
     val interestAccruedCents: Long,
-    /** The M-Pesa cost of moving it, kept apart from principal. */
-    val txnCostCents: Long,
+    /** The M-Pesa fee for moving it, kept apart from principal. */
+    val mpesaChargeCents: Long,
+    /** The bank's fee, once there is a bank account. Kept apart again. */
+    val bankChargeCents: Long,
     /** Everything repaid against this loan. */
     val repaidCents: Long,
 ) {
-    /** What the loan cost the borrower in total: principal + interest + txn. */
+    /** Both fees together. What it cost to move the money, whoever charged it. */
+    val txnCostCents: Long get() = mpesaChargeCents + bankChargeCents
+
+    /** What the loan cost the borrower: principal + interest + transaction cost. */
     val totalDueCents: Long
         get() = principalCents + interestAccruedCents + txnCostCents
 
-    /** What is still owed. Never negative — an overpayment clamps at zero. */
+    /** The pending loan amount. Never negative — an overpayment clamps at zero. */
     val outstandingCents: Long
         get() = (totalDueCents - repaidCents).coerceAtLeast(0L)
 
@@ -93,7 +99,7 @@ data class LedgerState(
 
     fun accountBalance(accountId: AccountId): Long = perAccount[accountId] ?: 0L
 
-    /** Everything still owed to the pool, across every loan. */
+    /** Every pending loan amount owed to the pool, added up. */
     val totalOutstandingCents: Long
         get() = loans.values
             .filter { it.direction == LoanDirection.POOL_TO_MEMBER }

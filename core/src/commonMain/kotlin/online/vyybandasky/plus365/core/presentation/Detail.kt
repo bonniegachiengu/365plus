@@ -239,7 +239,7 @@ fun LedgerBook.profile(actingAs: MemberId, config: ActorConfig): ProfileView {
         name = card.name,
         initial = card.initial,
         memberId = actingAs,
-        roleLine = "Member of a ${members.size}-person pool",
+        roleLine = "Member of a ${founders().size}-person pool",
         stake = card.stake,
         standingLine = card.standingLine,
         modeLine = when (config.mode.name) {

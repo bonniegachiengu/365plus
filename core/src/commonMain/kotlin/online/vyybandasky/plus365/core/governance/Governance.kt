@@ -79,6 +79,18 @@ sealed interface Refusal {
         override val message = "No member $memberId in the book."
     }
 
+    /**
+     * Someone the pool lends to tried to act as though they governed it.
+     *
+     * A Keshflo beneficiary borrows and nothing else. Confirming, rejecting and
+     * settling are all a say in the members' money, and an outside borrower has
+     * no stake to back one.
+     */
+    data class NotAMember(val memberId: MemberId) : Refusal {
+        override val message =
+            "Only the pool's own members can record, confirm or settle entries."
+    }
+
     data class NotPending(val state: EntryState) : Refusal {
         override val message = "Only a PENDING entry can be confirmed; this one is $state."
     }

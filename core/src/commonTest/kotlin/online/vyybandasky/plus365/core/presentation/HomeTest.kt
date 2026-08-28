@@ -41,7 +41,7 @@ class HomeTest {
     @Test
     fun the_hero_shows_the_roll_up_and_says_how_many_members() {
         val cash = book.cashOnHand(T0)
-        assertEquals("KSh 4,644.00", cash.total)
+        assertEquals("KSh 3,616.00", cash.total)
         assertEquals("across 3 members", cash.memberCountLine)
     }
 
@@ -97,7 +97,7 @@ class HomeTest {
 
         assertEquals(2, loanAct.entryCount, "principal and interest")
         assertEquals("Brian recorded: lend to Kang'iri", loanAct.sentence)
-        assertEquals("They repay KSh 2,140.00 in total", loanAct.detail)
+        assertEquals("They repay KSh 2,100.00 in total", loanAct.detail)
     }
 
     @Test
@@ -106,7 +106,7 @@ class HomeTest {
         val loanAct = s.book.pendingActs(s.config, T0).first { it.isGroup }
 
         assertEquals(3, loanAct.entryCount, "principal, interest and cost")
-        assertEquals("They repay KSh 2,173.00 in total", loanAct.detail)
+        assertEquals("They repay KSh 2,133.00 in total", loanAct.detail)
         assertEquals(1, s.book.pendingActs(s.config, T0).count { it.isGroup })
     }
 
@@ -129,11 +129,11 @@ class HomeTest {
     @Test
     fun a_member_in_debt_reads_as_owing_shillings() {
         val kangiri = book.memberCards().first { it.id == DevSeed.KANGIRI }
-        assertEquals("owes KSh 1,673.00", kangiri.standingLine)
+        assertEquals("pending loan amount KSh 1,633.00", kangiri.standingLine)
         assertTrue(kangiri.inDebt)
 
         val bonnie = book.memberCards().first { it.id == DevSeed.BONNIE }
-        assertEquals("clear", bonnie.standingLine)
+        assertEquals("no pending loan", bonnie.standingLine)
         assertFalse(bonnie.inDebt)
     }
 
@@ -150,7 +150,7 @@ class HomeTest {
         // disagreement are different situations, and the list must say so.
         val stuck = book.activity(T0).first { it.entryId == "x1" }
         assertEquals(Standing.NEEDS_SETTLING, stuck.standing)
-        assertTrue(stuck.footnote.contains("disagreed"), stuck.footnote)
+        assertTrue(stuck.footnote.contains("disapproved"), stuck.footnote)
         assertTrue(stuck.footnote.contains("third member"), stuck.footnote)
 
         val queued = book.activity(T0).first { it.entryId == "p1" }
@@ -189,9 +189,9 @@ class HomeTest {
     fun the_loan_quote_spells_out_the_total_repayable() {
         val q = quoteLoan(200_000)
         assertEquals("KSh 2,000.00", q.principal)
-        assertEquals("KSh 140.00", q.interest)
-        assertEquals("KSh 2,140.00", q.totalRepayable)
-        assertEquals("7.0% one-off charge", q.rateLabel)
+        assertEquals("KSh 100.00", q.interest)
+        assertEquals("KSh 2,100.00", q.totalRepayable)
+        assertEquals("5.0% one-off interest", q.rateLabel)
     }
 
     // ── reject ───────────────────────────────────────────────────────────────

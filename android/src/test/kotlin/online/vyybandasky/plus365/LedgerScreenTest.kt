@@ -8,6 +8,7 @@ import online.vyybandasky.plus365.core.DevSeed
 import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.presentation.Notice
 import online.vyybandasky.plus365.core.presentation.Session
+import online.vyybandasky.plus365.core.presentation.founderCards
 import online.vyybandasky.plus365.core.presentation.memberRows
 import online.vyybandasky.plus365.core.presentation.pendingRows
 import online.vyybandasky.plus365.core.presentation.summaryView
@@ -26,10 +27,10 @@ class LedgerScreenTest {
     fun the_shell_opens_on_the_seeded_pool() {
         val s = Session.dev()
         val summary = s.book.summaryView()
-        assertEquals("KSh 4,644.00", summary.cashAtHand)
-        assertEquals("KSh 3,087.00", summary.totalOutstanding)
+        assertEquals("KSh 3,616.00", summary.cashAtHand)
+        assertEquals("KSh 4,149.00", summary.totalOutstanding)
         assertEquals(2, summary.accounts.size, "savings and float")
-        assertEquals(3, s.book.memberRows().size, "Bonnie, Brian, Kang'iri")
+        assertEquals(3, s.book.founderCards().size, "Bonnie, Brian, Kang'iri")
         assertEquals(DevSeed.BONNIE, s.actingAs)
     }
 
@@ -76,12 +77,12 @@ class LedgerScreenTest {
     }
 
     @Test
-    fun a_loan_recorded_from_the_shell_charges_seven_percent_and_keeps_the_cost_apart() {
+    fun a_loan_from_the_shell_charges_the_founder_rate_and_keeps_the_cost_apart() {
         var s = Session.dev()
-        s = s.actAs(DevSeed.BRIAN).lend(DevSeed.KANGIRI, 200_000, txnCostCents = 3_300)
+        s = s.actAs(DevSeed.BRIAN).lend(DevSeed.KANGIRI, 200_000, mpesaChargeCents = 3_300)
 
         val interest = s.book.pending().first { it.type == EntryType.INTEREST_ACCRUAL }
-        assertEquals(14_000L, interest.amountCents, "7% of 2,000 is 140")
+        assertEquals(10_000L, interest.amountCents, "5% founder rate on 2,000 is 100")
         val cost = s.book.pending().first { it.type == EntryType.TXN_COST }
         assertEquals(3_300L, cost.amountCents, "the M-Pesa cost is its own entry")
     }
@@ -89,7 +90,7 @@ class LedgerScreenTest {
     @Test
     fun one_tap_clears_a_whole_loan_but_still_not_for_its_recorder() {
         var s = Session.dev()
-        s = s.actAs(DevSeed.BRIAN).lend(DevSeed.KANGIRI, 200_000, txnCostCents = 3_300)
+        s = s.actAs(DevSeed.BRIAN).lend(DevSeed.KANGIRI, 200_000, mpesaChargeCents = 3_300)
         val loanId = s.book.loans.last().id
 
         // Brian recorded it, so Brian cannot clear it.

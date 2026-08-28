@@ -33,10 +33,14 @@ enum class EntryType {
     INTEREST_ACCRUAL,
 
     /**
-     * The M-Pesa cost of moving a loan. Kept as its own component rather than
-     * folded into principal: the pool has always tracked it separately, and
-     * burying it would put our running total a few shillings off theirs with no
-     * way to tell which was right.
+     * What it cost to move the money — the M-Pesa fee, or the bank's. Kept as its
+     * own component rather than folded into principal: the pool has always
+     * tracked it separately, and burying it would put our running total a few
+     * shillings off theirs with no way to tell which was right.
+     *
+     * Which kind of charge it was lives in [Entry.chargeKind]. One entry type
+     * rather than two, because the effect on the books is identical and the
+     * effect table is deliberately written exactly once.
      */
     TXN_COST,
 
@@ -77,7 +81,12 @@ enum class LoanDirection {
 @Serializable
 enum class LoanState { ACTIVE, SETTLED, WRITTEN_OFF }
 
+/** Whose fee this was. Set on [EntryType.TXN_COST]. */
 @Serializable
+enum class ChargeKind { MPESA, BANK }
+
+@Serializable
+
 enum class InterestPeriod { MONTHLY }
 
 @Serializable
@@ -103,14 +112,37 @@ object Accounts {
     const val UNASSIGNED: AccountId = "unassigned"
 }
 
+/**
+ * Who a party to the ledger is.
+ *
+ * This is not a label. A founder owns a share of the pool and governs it —
+ * records, confirms, settles. A Keshflo beneficiary is someone the pool lends
+ * to and nothing else: they hold no contribution, they cannot confirm anybody's
+ * entry, and they can never settle a disagreement. Letting an outside borrower
+ * near the two-person control would hand a say in the members' money to someone
+ * with no stake in it.
+ */
+@Serializable
+enum class MemberKind {
+    /** One of the three. Contributes, borrows, and governs. */
+    FOUNDER,
+
+    /** Someone Keshflo lends to. Borrows only. */
+    KESHFLO_BENEFICIARY,
+}
+
 @Serializable
 data class Member(
     val id: MemberId,
     val displayName: String,
     val phoneE164: String,
+    val kind: MemberKind = MemberKind.FOUNDER,
     val active: Boolean = true,
     val joinedAt: Instant? = null,
-)
+) {
+    val isFounder: Boolean get() = kind == MemberKind.FOUNDER
+    val isBeneficiary: Boolean get() = kind == MemberKind.KESHFLO_BENEFICIARY
+}
 
 @Serializable
 data class Device(
@@ -128,9 +160,18 @@ data class Loan(
     val direction: LoanDirection,
     val counterpartyMemberId: MemberId,
     val principalCents: Long,
-    /** The M-Pesa cost of disbursing this loan. Tracked apart from principal. */
-    val txnCostCents: Long = 0L,
+    /** The M-Pesa fee for disbursing this loan. Tracked apart from principal. */
+    val mpesaChargeCents: Long = 0L,
+    /** The bank's fee, once there is a bank account. Tracked apart again. */
+    val bankChargeCents: Long = 0L,
+    /**
+     * The rate this loan was actually written at. Founders borrow at one rate
+     * and Keshflo beneficiaries at another, and a loan keeps whichever applied
+     * when it was made — never a rate looked up later.
+     */
     val rateBps: Int = 0,
+    /** What the borrower was when this was written. Kept for the same reason. */
+    val borrowerKind: MemberKind = MemberKind.FOUNDER,
     val period: InterestPeriod = InterestPeriod.MONTHLY,
     val interestMethod: InterestMethod = InterestMethod.SIMPLE,
     val startDate: LocalDate? = null,
@@ -227,6 +268,13 @@ data class Entry(
 
     /** Set on a replacement entry: the entry it was written to correct. */
     val correctsEntryId: EntryId? = null,
+
+    /**
+     * Which fee this was, on a TXN_COST entry. M-Pesa today; the bank once the
+     * account is open. Split so the two can be told apart in the books rather
+     * than added into one number nobody can take back apart.
+     */
+    val chargeKind: ChargeKind? = null,
 
     /**
      * How well backed this entry is. [Assurance.CODE_MATCHED] means two members'

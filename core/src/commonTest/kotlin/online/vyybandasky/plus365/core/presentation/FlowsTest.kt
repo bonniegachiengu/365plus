@@ -68,19 +68,19 @@ class FlowsTest {
     // ── lend ─────────────────────────────────────────────────────────────────
 
     @Test
-    fun lend_charges_seven_percent_and_confirms_as_one_act() {
+    fun lend_charges_the_founder_rate_and_confirms_as_one_act() {
         var s = funded().actAs(DevSeed.BRIAN)
             .lend(DevSeed.KANGIRI, 200_000, at = T0, smsText = sent("LEND111AAA", 2_000))
 
         val act = s.book.pendingActs(s.config, T0).single { it.isGroup }
         assertEquals(2, act.entryCount, "principal and interest")
-        assertEquals("They repay KSh 2,140.00 in total", act.detail)
+        assertEquals("They repay KSh 2,100.00 in total", act.detail)
 
         s = s.confirmAct(act.actId, DevSeed.BONNIE, T0, received("LEND111AAA", 2_000))
 
         assertTrue(s.book.pending().isEmpty(), "one decision cleared the whole loan")
-        assertEquals(-214_000L, s.book.state().balanceOf(DevSeed.KANGIRI).debtCents)
-        assertEquals(214_000L, s.book.state().totalOutstandingCents)
+        assertEquals(-210_000L, s.book.state().balanceOf(DevSeed.KANGIRI).debtCents)
+        assertEquals(210_000L, s.book.state().totalOutstandingCents)
         // Cash leaves for the principal only — the interest was never held.
         assertEquals(1_000_000L - 200_000L, s.book.state().poolCashCents)
     }
@@ -95,8 +95,8 @@ class FlowsTest {
         val act = s.book.pendingActs(s.config, T0).single { it.isGroup }
         s = s.confirmAct(act.actId, DevSeed.BRIAN, T0, received("BORR111AAA", 1_000))
 
-        // 1,000 + 70 interest owed by the person who borrowed it.
-        assertEquals(-107_000L, s.book.state().balanceOf(DevSeed.KANGIRI).debtCents)
+        // 1,000 + 50 interest at the founder rate.
+        assertEquals(-105_000L, s.book.state().balanceOf(DevSeed.KANGIRI).debtCents)
     }
 
     // ── repay ────────────────────────────────────────────────────────────────
@@ -109,15 +109,15 @@ class FlowsTest {
         s = s.confirmAct(loan.actId, DevSeed.BONNIE, T0, received("LEND222AAA", 2_000))
 
         val repayable = s.book.repayableLoans().single()
-        assertEquals("KSh 2,140.00", repayable.remaining)
+        assertEquals("KSh 2,100.00", repayable.remaining)
 
         s = s.actAs(DevSeed.KANGIRI)
             .repay(repayable.loanId, DevSeed.KANGIRI, 50_000, T0, sent("REPY111AAA", 500))
         val id = s.book.pending().single().id
         s = s.confirmAct(id, DevSeed.BRIAN, T0, received("REPY111AAA", 500))
 
-        assertEquals("KSh 1,640.00", s.book.repayableLoans().single().remaining)
-        assertEquals(-164_000L, s.book.state().balanceOf(DevSeed.KANGIRI).debtCents)
+        assertEquals("KSh 1,600.00", s.book.repayableLoans().single().remaining)
+        assertEquals(-160_000L, s.book.state().balanceOf(DevSeed.KANGIRI).debtCents)
     }
 
     @Test
@@ -128,9 +128,9 @@ class FlowsTest {
         s = s.confirmAct(loan.actId, DevSeed.BONNIE, T0, received("LEND333AAA", 1_000))
 
         val id0 = s.book.repayableLoans().single().loanId
-        s = s.actAs(DevSeed.KANGIRI).repay(id0, DevSeed.KANGIRI, 107_000, T0, sent("REPY222AAA", 1_070))
+        s = s.actAs(DevSeed.KANGIRI).repay(id0, DevSeed.KANGIRI, 105_000, T0, sent("REPY222AAA", 1_050))
         val rid = s.book.pending().single().id
-        s = s.confirmAct(rid, DevSeed.BRIAN, T0, received("REPY222AAA", 1_070))
+        s = s.confirmAct(rid, DevSeed.BRIAN, T0, received("REPY222AAA", 1_050))
 
         assertTrue(s.book.repayableLoans().isEmpty(), "nothing left owing on it")
         assertEquals(0L, s.book.state().totalOutstandingCents)
@@ -189,7 +189,7 @@ class FlowsTest {
 
         s = s.overrideAct(task.entryId, DevSeed.KANGIRI, OverrideDecision.CONFIRMED, "verified", T0)
         assertTrue(s.book.needingOverride().isEmpty())
-        assertEquals(-214_000L, s.book.state().balanceOf(DevSeed.KANGIRI).debtCents)
+        assertEquals(-210_000L, s.book.state().balanceOf(DevSeed.KANGIRI).debtCents)
     }
 
     @Test

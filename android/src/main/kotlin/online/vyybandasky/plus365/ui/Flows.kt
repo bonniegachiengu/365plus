@@ -28,10 +28,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.datetime.Instant
+import online.vyybandasky.plus365.core.domain.MemberKind
 import online.vyybandasky.plus365.core.presentation.MemberCard
 import online.vyybandasky.plus365.core.presentation.PoolAction
 import online.vyybandasky.plus365.core.presentation.RepayableLoan
 import online.vyybandasky.plus365.core.presentation.Session
+import online.vyybandasky.plus365.core.presentation.founderCards
 import online.vyybandasky.plus365.core.presentation.memberCards
 import online.vyybandasky.plus365.core.presentation.quoteLoan
 import online.vyybandasky.plus365.core.presentation.repayableLoans
@@ -74,7 +76,12 @@ fun FlowScreen(
     var amount by remember(action) { mutableStateOf("") }
     var sms by remember(action) { mutableStateOf("") }
 
-    val members = session.book.memberCards()
+    // Lending can go to a Keshflo borrower; contributing cannot.
+    val members = if (action == PoolAction.LEND) {
+        session.book.memberCards()
+    } else {
+        session.book.founderCards()
+    }
     val loans = session.book.repayableLoans()
     val shillings = amount.toLongOrNull() ?: 0L
     val cents = shillings * 100
@@ -179,7 +186,11 @@ private fun PickStep(
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(l.borrower, style = MaterialTheme.typography.titleMedium, color = Plus.TextHigh)
-                        Text("still owes", style = MaterialTheme.typography.bodySmall, color = Plus.TextLow)
+                        Text(
+                            if (l.borrowerIsBeneficiary) "Keshflo · pending" else "pending loan amount",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Plus.TextLow,
+                        )
                     }
                     Amount(l.remaining, colour = Plus.Debt)
                 }
@@ -239,7 +250,7 @@ private fun AmountStep(
 
     if (loan != null) {
         Text(
-            "They still owe ${loan.remaining}.",
+            "Pending loan amount ${loan.remaining}.",
             style = MaterialTheme.typography.bodyMedium,
             color = Plus.TextMid,
         )
@@ -306,7 +317,12 @@ private fun ReviewStep(
 ) {
     val who = session.book.displayName(member)
     val isLoan = action == PoolAction.LEND || action == PoolAction.BORROW
-    val quote = if (isLoan) quoteLoan(cents) else null
+    val borrower = session.book.member(member)
+    val quote = if (isLoan) {
+        quoteLoan(cents, borrower?.kind ?: MemberKind.FOUNDER)
+    } else {
+        null
+    }
 
     Text("Check this over", style = MaterialTheme.typography.titleLarge, color = Plus.TextHigh)
 
@@ -331,7 +347,8 @@ private fun ReviewStep(
             PoolAction.LEND, PoolAction.BORROW -> {
                 ReviewLine("Borrower", who)
                 ReviewLine("Amount borrowed", quote!!.principal)
-                ReviewLine("Charge (${quote.rateLabel})", quote.interest)
+                ReviewLine("Interest (${quote.rateLabel})", quote.interest)
+                ReviewLine("Rate applied", quote.tierLabel)
                 HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 8.dp))
                 // "They" is wrong when the borrower is the person reading it.
                 ReviewLine(
@@ -343,7 +360,7 @@ private fun ReviewStep(
 
             PoolAction.REPAY -> {
                 ReviewLine("Who", who)
-                ReviewLine("Owed before", loan?.remaining ?: "—")
+                ReviewLine("Pending loan amount", loan?.remaining ?: "—")
                 val after = ((loan?.remainingCents ?: 0L) - cents).coerceAtLeast(0L)
                 ReviewLine(
                     "Left after this",

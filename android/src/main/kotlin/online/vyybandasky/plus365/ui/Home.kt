@@ -39,7 +39,8 @@ import online.vyybandasky.plus365.core.presentation.PoolAction
 import online.vyybandasky.plus365.core.presentation.Session
 import online.vyybandasky.plus365.core.presentation.activity
 import online.vyybandasky.plus365.core.presentation.cashOnHand
-import online.vyybandasky.plus365.core.presentation.memberCards
+import online.vyybandasky.plus365.core.presentation.beneficiaryCards
+import online.vyybandasky.plus365.core.presentation.founderCards
 import online.vyybandasky.plus365.core.presentation.overrideCount
 import online.vyybandasky.plus365.core.presentation.pendingActs
 
@@ -64,7 +65,8 @@ fun HomeScreen(
 ) {
     val cash = session.book.cashOnHand(now)
     val pending = session.book.pendingActs(session.config, now)
-    val members = session.book.memberCards()
+    val members = session.book.founderCards()
+    val beneficiaries = session.book.beneficiaryCards()
     val recent = session.book.activity(now, limit = 4)
     val toSettle = session.book.overrideCount()
 
@@ -97,6 +99,13 @@ fun HomeScreen(
 
         item { SectionHeading("Members") }
         items(members) { m -> MemberRow(m) { onOpenMember(m.id) } }
+
+        // Kept apart from the members on purpose: these are people the pool
+        // lends to, not people who own a share of it or govern it.
+        if (beneficiaries.isNotEmpty()) {
+            item { SectionHeading("Keshflo borrowers") }
+            items(beneficiaries) { m -> MemberRow(m) { onOpenMember(m.id) } }
+        }
 
         item { SectionHeading("Recent activity", action = "See all", onAction = onOpenLedger) }
         items(recent) { row -> ActivityLine(row) { onOpenEntry(row.entryId) } }
@@ -286,8 +295,21 @@ fun MemberRow(m: MemberCard, onClick: () -> Unit) {
             )
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Amount(m.stake)
-            Text("stake", style = MaterialTheme.typography.labelSmall, color = Plus.TextLow)
+            if (m.isBeneficiary) {
+                Amount(m.standingLine.substringAfterLast(' '), colour = Plus.Debt)
+                Text(
+                    "Keshflo loan",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Plus.TextLow,
+                )
+            } else {
+                Amount(m.stake)
+                Text(
+                    "pool contribution",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Plus.TextLow,
+                )
+            }
         }
         Icon(
             Icons.Filled.KeyboardArrowRight,

@@ -409,6 +409,101 @@ and that the summary is the one doing the hiding.
 
 **Depends on it:** `activity(everything = )`.
 
+## D22 - Two interest tiers, set by who is borrowing
+
+**Decided:** 2026-08-26, from Brian. **Status:** settled. Replaces the single 7%
+in D4, which is otherwise unchanged.
+
+**5% for founders. 10% for Keshflo beneficiaries.**
+
+A founder borrowing the pool is borrowing their own money, so the rate is the
+lower one. A Keshflo beneficiary is an outsider borrowing the members' savings,
+which carries a risk the members did not have to take, and the rate says so.
+
+**The rate follows the borrower, not the recorder.** Brian records most entries
+and is a founder; if the rate came from whoever typed it in, Keshflo lending
+would quietly get the cheap rate. A test pins this.
+
+**A loan keeps the rate it was written at.** Changing the tiers must never reach
+backwards into a loan already on the books - the loan stores its own rate and its
+own borrower kind, and neither is looked up again.
+
+**Depends on it:** `core/interest/Interest.kt`, `disburseLoan`.
+
+## D23 - A Keshflo beneficiary borrows and nothing else
+
+**Decided:** 2026-08-26. **Status:** settled, and a governance rule.
+
+Keshflo lends the pool's money to people outside the three. Those people are on
+the books as `MemberKind.KESHFLO_BENEFICIARY`, and that is not a label - it is a
+capability.
+
+A beneficiary **cannot record, confirm, reject, escalate or settle**. Every one
+of those is a say in the members' money, and someone the pool lends to has no
+stake to back one. Letting an outside borrower near the two-person control would
+hand a vote on three people's savings to a fourth with nothing at risk.
+
+Enforced in the book rather than the UI, on all five doors - a gap on `override`
+was caught by a test that expected a refusal and got an allow.
+
+They hold no pool contribution, never appear in `founderIds()`, are never offered
+as a confirmer, and a dev device cannot stand in for one. Home lists them under
+"Keshflo borrowers", apart from the members.
+
+**Depends on it:** `MemberKind`, `LedgerBook.isFounder`, `Refusal.NotAMember`.
+
+## D24 - Brian's wording, throughout
+
+**Decided:** 2026-08-26, from Brian. **Status:** settled.
+
+The old system's words, because the members already think in them:
+
+| was | is |
+|---|---|
+| stake | pool contribution |
+| owes / owed | pending loan amount |
+| charge | interest |
+| disagreed | disapproved |
+| M-Pesa cost | transaction cost (M-Pesa charge + bank charge) |
+
+Not cosmetic. "Stake" and "owes" are the app's words; "pool contribution" and
+"pending loan amount" are the pool's, and the people reading these screens are
+not the ones who wrote them.
+
+## D25 - Transaction cost splits into M-Pesa and bank
+
+**Decided:** 2026-08-26, from Brian. **Status:** settled.
+
+One transaction cost, two components, tallied apart. Today every charge is
+M-Pesa; once the bank account opens the two must be tellable apart rather than
+added into one number nobody can take back apart.
+
+**One entry type, not two.** Both are `TXN_COST` with a `chargeKind`, because the
+effect on the books is identical and this codebase writes the effect table
+exactly once. The split lives in the reporting, which is where it is wanted.
+
+## D26 - Bank and ATM messages parse like any other
+
+**Decided:** 2026-08-26. **Status:** built ahead of the account existing.
+
+The parser reads bank SMS - ATM withdrawals, debits, credits - the same way it
+reads M-Pesa. An ATM cash-out is exactly the movement that would otherwise leave
+an unexplained gap: the money genuinely left, and the only record is the text the
+bank sent.
+
+**A bank account number is masked exactly as a phone number is.** A bank message
+carries one the way an M-Pesa message carries the other, and the ledger file
+travels between three phones. The reference is the proof; the account number is
+not.
+
+The bank markers are deliberately generous and **untested against a real
+message** - the account is not open. Anything they miss falls through to
+`UNKNOWN`, which still parses given a code and an amount. Guessing the provider
+wrong costs a label; refusing to read the message would cost the entry.
+
+A bank message and an M-Pesa message **still match on their shared code**, which
+is the whole point surviving a change of provider.
+
 ---
 
 ## Still open

@@ -146,21 +146,22 @@ class LedgerBookTest {
             principalCents = 200_000, // KSh 2,000
             recordedBy = DevSeed.BRIAN,
             config = CONFIG,
-            txnCostCents = 3_300, // KSh 33 M-Pesa cost
+            mpesaChargeCents = 3_300, // KSh 33 M-Pesa cost
         ).value()
 
         assertEquals(3, recorded.entries.size, "principal, interest, transaction cost")
         assertEquals(EntryType.LOAN_OUT, recorded.entries[0].type)
         assertEquals(200_000L, recorded.entries[0].amountCents)
         assertEquals(EntryType.INTEREST_ACCRUAL, recorded.entries[1].type)
-        assertEquals(14_000L, recorded.entries[1].amountCents, "7% of 2,000 is 140")
+        assertEquals(10_000L, recorded.entries[1].amountCents, "5% founder rate on 2,000 is 100")
         assertEquals(EntryType.TXN_COST, recorded.entries[2].type)
         assertEquals(3_300L, recorded.entries[2].amountCents)
 
         assertTrue(recorded.entries.all { it.state == EntryState.PENDING })
         assertTrue(recorded.entries.all { it.groupId == "L-1" }, "one act, one group")
-        assertEquals(700, recorded.book.loan("L-1")!!.rateBps)
-        assertEquals(3_300L, recorded.book.loan("L-1")!!.txnCostCents)
+        assertEquals(500, recorded.book.loan("L-1")!!.rateBps, "Kang'iri is a founder")
+        assertEquals(3_300L, recorded.book.loan("L-1")!!.mpesaChargeCents)
+        assertEquals(0L, recorded.book.loan("L-1")!!.bankChargeCents)
     }
 
     @Test
@@ -173,7 +174,7 @@ class LedgerBookTest {
         b = b.confirm("c1", DevSeed.BRIAN, CONFIG).value().book
         b = b.disburseLoan(
             loanId = "L-1", borrower = DevSeed.KANGIRI, principalCents = 200_000,
-            recordedBy = DevSeed.BRIAN, config = CONFIG, txnCostCents = 3_300,
+            recordedBy = DevSeed.BRIAN, config = CONFIG, mpesaChargeCents = 3_300,
         ).value().book
 
         val cleared = b.confirmGroup("L-1", DevSeed.BONNIE, CONFIG).value()
@@ -188,7 +189,7 @@ class LedgerBookTest {
         var b = freshBook()
         b = b.disburseLoan(
             loanId = "L-1", borrower = DevSeed.KANGIRI, principalCents = 200_000,
-            recordedBy = DevSeed.BRIAN, config = CONFIG, txnCostCents = 3_300,
+            recordedBy = DevSeed.BRIAN, config = CONFIG, mpesaChargeCents = 3_300,
         ).value().book
 
         val refused = assertIs<Decision.Refused>(b.confirmGroup("L-1", DevSeed.BRIAN, CONFIG))
@@ -200,7 +201,7 @@ class LedgerBookTest {
     fun an_unconfirmed_loan_has_not_left_the_pool() {
         val b = freshBook().disburseLoan(
             loanId = "L-1", borrower = DevSeed.KANGIRI, principalCents = 200_000,
-            recordedBy = DevSeed.BRIAN, config = CONFIG, txnCostCents = 3_300,
+            recordedBy = DevSeed.BRIAN, config = CONFIG, mpesaChargeCents = 3_300,
         ).value().book
 
         assertEquals(0L, b.state().poolCashCents)
@@ -218,7 +219,7 @@ class LedgerBookTest {
 
         val loan = b.disburseLoan(
             loanId = "L-1", borrower = DevSeed.KANGIRI, principalCents = 200_000,
-            recordedBy = DevSeed.BRIAN, config = CONFIG, txnCostCents = 3_300,
+            recordedBy = DevSeed.BRIAN, config = CONFIG, mpesaChargeCents = 3_300,
         ).value()
         b = loan.book
         for (e in loan.entries) b = b.confirm(e.id, DevSeed.BONNIE, CONFIG).value().book
@@ -227,16 +228,18 @@ class LedgerBookTest {
         // interest — that is owed by the borrower, never money the pool held.
         assertEquals(500_000L - 200_000L - 3_300L, b.state().poolCashCents)
         // Debt is signed from the pool's view: negative means the member owes it.
-        // All three components are owed: 2,000 + 140 + 33.
-        assertEquals(-217_300L, b.state().balanceOf(DevSeed.KANGIRI).debtCents)
+        // All three components are owed: 2,000 + 100 interest + 33 cost.
+        assertEquals(-213_300L, b.state().balanceOf(DevSeed.KANGIRI).debtCents)
 
         val position = b.state().loans.getValue("L-1")
         assertEquals(200_000L, position.principalCents)
-        assertEquals(14_000L, position.interestAccruedCents)
-        assertEquals(3_300L, position.txnCostCents)
-        assertEquals(217_300L, position.totalDueCents)
-        assertEquals(217_300L, position.outstandingCents)
-        assertEquals(217_300L, b.state().totalOutstandingCents)
+        assertEquals(10_000L, position.interestAccruedCents)
+        assertEquals(3_300L, position.mpesaChargeCents)
+        assertEquals(0L, position.bankChargeCents)
+        assertEquals(3_300L, position.txnCostCents, "both fees together")
+        assertEquals(213_300L, position.totalDueCents)
+        assertEquals(213_300L, position.outstandingCents)
+        assertEquals(213_300L, b.state().totalOutstandingCents)
     }
 
     @Test

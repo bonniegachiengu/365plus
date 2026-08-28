@@ -241,7 +241,7 @@ fun ProfileScreen(
                     }
                 }
                 HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 10.dp))
-                ReviewLine("Your stake", p.stake, emphasis = true)
+                ReviewLine("Your pool contribution", p.stake, emphasis = true)
                 ReviewLine("Standing", p.standingLine)
             }
 

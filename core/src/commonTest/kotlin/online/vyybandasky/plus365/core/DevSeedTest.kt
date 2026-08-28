@@ -23,8 +23,9 @@ class DevSeedTest {
     fun the_seed_builds_at_all() {
         // DevSeed goes through record() and confirm(), so if two-person control
         // were broken this would throw rather than silently seed something wrong.
-        assertEquals(3, book.members.size, "Bonnie, Brian, Kang'iri — Brian keeps the book")
-        assertEquals(2, book.loans.size)
+        assertEquals(3, book.founders().size, "Bonnie, Brian, Kang'iri")
+        assertEquals(1, book.beneficiaries().size, "one Keshflo borrower")
+        assertEquals(3, book.loans.size)
         assertTrue(book.entries.isNotEmpty())
     }
 
@@ -43,20 +44,20 @@ class DevSeedTest {
 
     @Test
     fun the_pool_holds_what_the_confirmed_entries_add_up_to() {
-        // In:  3,000 + 2,000 + 1,500 + 1,000            = 7,500
-        // Out: (2,000 + 33) + (1,300 + 23)              = 3,356   principal + cost
-        // In:  500 repaid                               =   500
-        //                                          cash = 4,644
-        // The two interest charges never touch cash — they are owed, not held.
-        assertEquals(464_400L, state.poolCashCents)
-        assertEquals("KSh 4,644.00", formatKes(state.poolCashCents))
+        // In:  3,000 + 2,000 + 1,500 + 1,000                 = 7,500
+        // Out: (2,000+33) + (1,300+23) + (1,000+28)          = 4,384
+        // In:  500 repaid                                    =   500
+        //                                               cash = 3,616
+        // No interest touches cash — it is owed, never held.
+        assertEquals(361_600L, state.poolCashCents)
+        assertEquals("KSh 3,616.00", formatKes(state.poolCashCents))
     }
 
     @Test
     fun cash_at_hand_is_the_roll_up_over_the_pockets() {
         assertEquals(350_000L, state.accountBalance(DevSeed.SAVINGS))
-        assertEquals(114_400L, state.accountBalance(DevSeed.FLOAT))
-        assertEquals(464_400L, state.cashAtHandCents)
+        assertEquals(11_600L, state.accountBalance(DevSeed.FLOAT))
+        assertEquals(361_600L, state.cashAtHandCents)
         assertEquals(
             state.poolCashCents,
             state.cashAtHandCents,
@@ -66,25 +67,55 @@ class DevSeedTest {
 
     @Test
     fun the_running_outstanding_is_every_loan_added_up() {
-        // Kang'iri 2,173 due less 500 repaid = 1,673; Brian 1,414 due.
-        assertEquals(308_700L, state.totalOutstandingCents)
-        assertEquals("KSh 3,087.00", formatKes(state.totalOutstandingCents))
+        // Kang'iri 2,133 due less 500 repaid = 1,633; Brian 1,388; Wanjiku 1,128.
+        assertEquals(414_900L, state.totalOutstandingCents)
+        assertEquals("KSh 4,149.00", formatKes(state.totalOutstandingCents))
     }
 
     @Test
-    fun a_loan_keeps_its_three_components_apart() {
+    fun a_founder_borrows_at_five_and_keshflo_lends_out_at_ten() {
+        assertEquals(500, book.loan("L-001")!!.rateBps, "Kang'iri is a founder")
+        assertEquals(500, book.loan("L-002")!!.rateBps, "Brian is a founder")
+        assertEquals(1_000, book.loan("L-003")!!.rateBps, "Wanjiku borrows through Keshflo")
+
+        assertEquals(10_000L, state.loans["L-001"]!!.interestAccruedCents, "5% of 2,000")
+        assertEquals(6_500L, state.loans["L-002"]!!.interestAccruedCents, "5% of 1,300")
+        assertEquals(10_000L, state.loans["L-003"]!!.interestAccruedCents, "10% of 1,000")
+    }
+
+    @Test
+    fun a_keshflo_beneficiary_governs_nothing() {
+        // They borrow and nothing else: no contribution, and no say in anyone's
+        // entry. Letting an outside borrower confirm would hand a vote on the
+        // members' money to someone with no stake in it.
+        assertEquals(0L, state.balanceOf(DevSeed.WANJIKU).stakeCents)
+        assertTrue(DevSeed.WANJIKU !in DevSeed.EVERYONE, "a dev device cannot act as them")
+        for (e in book.entries) {
+            assertTrue(e.recordedByMemberId != DevSeed.WANJIKU)
+            assertTrue(e.confirmedByMemberId != DevSeed.WANJIKU)
+        }
+        for (e in book.entries.filter { it.state == EntryState.PENDING }) {
+            assertTrue(
+                DevSeed.WANJIKU !in eligibleConfirmers(e, book.memberIds(), DevSeed.DEV_CONFIG),
+            )
+        }
+    }
+
+    @Test
+    fun a_loan_keeps_its_components_apart() {
         val k = state.loans.getValue("L-001")
         assertEquals(200_000L, k.principalCents)
-        assertEquals(14_000L, k.interestAccruedCents, "7% of 2,000")
-        assertEquals(3_300L, k.txnCostCents, "M-Pesa cost, never folded into principal")
+        assertEquals(10_000L, k.interestAccruedCents, "5% of 2,000")
+        assertEquals(3_300L, k.mpesaChargeCents, "the M-Pesa fee, never folded into principal")
+        assertEquals(0L, k.bankChargeCents, "no bank account yet")
         assertEquals(50_000L, k.repaidCents)
-        assertEquals(217_300L, k.totalDueCents)
-        assertEquals(167_300L, k.outstandingCents)
+        assertEquals(213_300L, k.totalDueCents)
+        assertEquals(163_300L, k.outstandingCents)
 
         val b = state.loans.getValue("L-002")
-        assertEquals(9_100L, b.interestAccruedCents, "7% of 1,300 is 91")
-        assertEquals(2_300L, b.txnCostCents)
-        assertEquals(141_400L, b.totalDueCents)
+        assertEquals(6_500L, b.interestAccruedCents, "5% of 1,300 is 65")
+        assertEquals(2_300L, b.mpesaChargeCents)
+        assertEquals(138_800L, b.totalDueCents)
     }
 
     @Test
@@ -93,7 +124,7 @@ class DevSeedTest {
         // 500 waiting plus the 800 in conflict: neither is money yet, and both
         // are held apart rather than quietly ignored.
         assertEquals(130_000L, state.pendingPoolCashCents)
-        assertEquals(464_400L, state.poolCashCents, "pending money is not in the pool")
+        assertEquals(361_600L, state.poolCashCents, "pending money is not in the pool")
     }
 
     @Test
@@ -127,19 +158,17 @@ class DevSeedTest {
     }
 
     @Test
-    fun borrowers_owe_principal_plus_seven_percent_less_what_they_have_repaid() {
-        // Kang'iri: 2,000 + 140 interest + 33 cost - 500 repaid = 1,673 owed.
-        assertEquals(-167_300L, state.balanceOf(DevSeed.KANGIRI).debtCents)
-        // Brian: 1,300 + 91 interest + 23 cost = 1,414 owed.
-        assertEquals(-141_400L, state.balanceOf(DevSeed.BRIAN).debtCents)
+    fun a_pending_loan_amount_is_principal_plus_interest_plus_cost_less_repayments() {
+        // Kang'iri: 2,000 + 100 interest + 33 cost - 500 repaid = 1,633.
+        assertEquals(-163_300L, state.balanceOf(DevSeed.KANGIRI).debtCents)
+        // Brian: 1,300 + 65 + 23 = 1,388.
+        assertEquals(-138_800L, state.balanceOf(DevSeed.BRIAN).debtCents)
+        // Wanjiku, through Keshflo at 10%: 1,000 + 100 + 28 = 1,128.
+        assertEquals(-112_800L, state.balanceOf(DevSeed.WANJIKU).debtCents)
     }
 
     @Test
-    fun the_loans_carry_the_house_rate_and_the_interest_it_implies() {
-        assertEquals(700, book.loan("L-001")!!.rateBps)
-        assertEquals(700, book.loan("L-002")!!.rateBps)
-        assertEquals(14_000L, state.loans["L-001"]!!.interestAccruedCents)
-        assertEquals(9_100L, state.loans["L-002"]!!.interestAccruedCents)
+    fun the_pool_keeps_two_pockets() {
         assertEquals(2, book.accounts.size)
     }
 
@@ -165,7 +194,7 @@ class DevSeedTest {
         // "Brian"; this pins the correction so it cannot drift back.
         assertEquals(
             listOf("bonnie", "brian", "kangiri"),
-            book.members.map { it.id }.sorted(),
+            book.founderIds().sorted(),
         )
         assertTrue(
             book.members.none { it.displayName.equals("pinah", ignoreCase = true) },
@@ -180,7 +209,7 @@ class DevSeedTest {
         for (e in book.entries) {
             val eligible = eligibleConfirmers(
                 e.copy(state = EntryState.PENDING),
-                book.memberIds(),
+                book.founderIds(),
                 DevSeed.DEV_CONFIG,
             )
             assertEquals(2, eligible.size, "${e.id} should have two possible confirmers")
