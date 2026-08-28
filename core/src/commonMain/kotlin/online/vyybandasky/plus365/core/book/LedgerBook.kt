@@ -13,6 +13,8 @@ import online.vyybandasky.plus365.core.domain.Loan
 import online.vyybandasky.plus365.core.domain.LoanDirection
 import online.vyybandasky.plus365.core.domain.LoanId
 import online.vyybandasky.plus365.core.domain.Member
+import online.vyybandasky.plus365.core.domain.Pocket
+import online.vyybandasky.plus365.core.domain.PocketId
 import online.vyybandasky.plus365.core.domain.MemberId
 import online.vyybandasky.plus365.core.governance.ActorConfig
 import online.vyybandasky.plus365.core.governance.Decision
@@ -47,8 +49,13 @@ import online.vyybandasky.plus365.core.sms.matchEvidence
  */
 data class LedgerBook(
     val members: List<Member> = emptyList(),
-    /** The pockets the pool's cash sits in. Cash-at-hand is their sum. */
+    /** Where the pool's cash sits. Cash-at-hand is their sum. */
     val accounts: List<Account> = emptyList(),
+    /**
+     * What the cash is earmarked for. Sums to cash-at-hand as well — the same
+     * money seen from the other side.
+     */
+    val pockets: List<Pocket> = emptyList(),
     val loans: List<Loan> = emptyList(),
     val entries: List<Entry> = emptyList(),
     val nextSeq: Long = 1L,
@@ -96,8 +103,11 @@ data class LedgerBook(
 
     fun accountLabel(id: AccountId): String = account(id)?.label ?: id
 
-    /** The default pocket — the first one declared. */
+    /** The default account — the first one declared. */
     fun defaultAccount(): AccountId? = accounts.firstOrNull()?.id
+
+    /** The default earmark — the first pocket declared. */
+    fun defaultPocket(): PocketId? = pockets.firstOrNull()?.id
 
     /** Entries recorded as one act, in ledger order. */
     fun group(groupId: String): List<Entry> =
@@ -144,6 +154,7 @@ fun LedgerBook.record(
     config: ActorConfig,
     loanId: LoanId? = null,
     accountId: AccountId? = null,
+    pocketId: PocketId? = null,
     groupId: String? = null,
     note: String? = null,
     at: Instant? = null,
@@ -198,6 +209,7 @@ fun LedgerBook.record(
         memberId = memberId,
         loanId = loanId,
         accountId = accountId ?: defaultAccount(),
+        pocketId = pocketId ?: defaultPocket(),
         groupId = groupId,
         recordedByMemberId = recordedBy,
         recordedAt = at,

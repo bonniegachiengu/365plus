@@ -374,6 +374,10 @@ data class Session(
         if (text.isNullOrBlank()) return Result.success(null)
         return when (val outcome = parseSms(text, who)) {
             is ParseOutcome.Parsed -> Result.success(outcome.evidence)
+            // Recognised but unreadable. Not the member's fault and not a
+            // refusal — the entry goes through on the hand-confirmed path, and
+            // the screen says why rather than pretending the paste worked.
+            is ParseOutcome.Unmapped -> Result.success(null)
             is ParseOutcome.Rejected -> Result.failure(IllegalArgumentException(outcome.reason.message()))
         }
     }

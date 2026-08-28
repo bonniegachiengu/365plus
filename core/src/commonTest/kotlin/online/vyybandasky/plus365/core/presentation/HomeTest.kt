@@ -41,7 +41,7 @@ class HomeTest {
     @Test
     fun the_hero_shows_the_roll_up_and_says_how_many_members() {
         val cash = book.cashOnHand(T0)
-        assertEquals("KSh 3,616.00", cash.total)
+        assertEquals("KSh 3,658.00", cash.total)
         assertEquals("across 3 members", cash.memberCountLine)
     }
 
@@ -165,8 +165,8 @@ class HomeTest {
             everything.size > summary.size,
             "the ledger must not quietly drop a loan's interest and cost",
         )
-        assertTrue(everything.any { it.sentence.startsWith("Interest") })
-        assertTrue(summary.none { it.sentence.startsWith("Interest") })
+        assertTrue(everything.any { it.sentence.contains("interest on", true) })
+        assertTrue(summary.none { it.sentence.contains("interest on", true) })
     }
 
     @Test
@@ -179,8 +179,15 @@ class HomeTest {
     @Test
     fun activity_hides_the_interest_and_cost_legs_that_would_only_be_noise() {
         val s = session.actAs(DevSeed.BRIAN).lend(DevSeed.KANGIRI, 200_000, at = T0)
+        // Loan interest and transaction costs are hidden on the summary. Account
+        // interest is not: that is real money arriving and belongs on the front.
         val sentences = s.book.activity(T0).map { it.sentence }
-        assertFalse(sentences.any { it.startsWith("Interest") || it.startsWith("M-Pesa") })
+        assertFalse(
+            sentences.any {
+                it.contains("interest on", true) || it.contains("transaction cost on", true)
+            },
+        )
+        assertTrue(sentences.any { it.contains("Interest earned") }, "the fund paying out is real cash")
     }
 
     // ── the quote shown before anyone commits ────────────────────────────────

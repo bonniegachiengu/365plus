@@ -10,6 +10,7 @@ import online.vyybandasky.plus365.core.sms.SmsEvidence
 
 typealias MemberId = String
 typealias AccountId = String
+typealias PocketId = String
 typealias DeviceId = String
 typealias EntryId = String
 typealias LoanId = String
@@ -46,6 +47,23 @@ enum class EntryType {
 
     /** Cash moved between the pool's own accounts. Cash-at-hand is unchanged. */
     TRANSFER,
+
+    /**
+     * Money the pool did not put there — a money-market fund paying out.
+     *
+     * Its own type rather than a contribution: nobody's pool contribution rises
+     * when Ziidi pays, and calling it a contribution would credit a member with
+     * money they did not put in.
+     */
+    ACCOUNT_INTEREST,
+
+    /**
+     * The earmarking changed, the money did not.
+     *
+     * Moves a sum from one pocket to another. Cash-at-hand and every account
+     * balance are untouched — only what the money is *for* has changed.
+     */
+    POCKET_TRANSFER,
 
     /** Cancels a prior entry by applying the exact inverse of its effect. */
     REVERSAL,
@@ -98,11 +116,76 @@ enum class InterestMethod { SIMPLE }
  * Cash-at-hand is the sum of these and is derived, never stored — the same
  * discipline as every other total in this app.
  */
+/**
+ * What kind of thing an account is.
+ *
+ * This decides how it behaves, not just what it is called: a money-market fund
+ * grows on its own and a wallet does not, so only some accounts can receive
+ * money the pool did not put there.
+ */
+@Serializable
+enum class AccountKind {
+    /** The M-Pesa wallet. Pochi today; a paybill or till later. */
+    MPESA,
+
+    /** Safaricom's money-market fund. Earns, moves instantly, charges nothing. */
+    ZIIDI,
+
+    /** Safaricom's savings product. Also earns. */
+    MSHWARI,
+
+    /** A bank account. Not open yet. */
+    BANK,
+
+    /** Notes and coins. Earns nothing and sends no message. */
+    CASH,
+}
+
+/**
+ * An account answers **where** the money is. A [Pocket] answers **what for**.
+ *
+ * The two are orthogonal: every shilling sits in exactly one account and is
+ * earmarked to exactly one pocket, and moving it between accounts changes
+ * nothing about what it is for.
+ */
 @Serializable
 data class Account(
     val id: AccountId,
     val label: String,
+    val kind: AccountKind = AccountKind.MPESA,
+) {
+    /** Whether money left here grows by itself. */
+    val earnsInterest: Boolean
+        get() = kind == AccountKind.ZIIDI || kind == AccountKind.MSHWARI
+
+    /** Ziidi moves in and out through M-Pesa without a transaction charge. */
+    val zeroRated: Boolean get() = kind == AccountKind.ZIIDI
+
+    /** Whether this account tells you when it moves. Cash never does. */
+    val sendsMessages: Boolean get() = kind != AccountKind.CASH
+}
+
+/**
+ * What the money is earmarked for.
+ *
+ * A virtual split that sits *over* the total rather than inside it. The Keshflo
+ * fund and the members' pool are not separate accounts — they are two claims on
+ * one balance, and the split has to be able to move without any money moving.
+ *
+ * Pockets sum to cash-at-hand, exactly as accounts do. Two views of the same
+ * money, from different sides.
+ */
+@Serializable
+data class Pocket(
+    val id: PocketId,
+    val label: String,
+    val blurb: String = "",
 )
+
+object Pockets {
+    /** Money nobody has earmarked yet. The counterpart of [Accounts.UNASSIGNED]. */
+    const val UNALLOCATED: PocketId = "unallocated"
+}
 
 object Accounts {
     /**
@@ -143,6 +226,20 @@ data class Member(
     val isFounder: Boolean get() = kind == MemberKind.FOUNDER
     val isBeneficiary: Boolean get() = kind == MemberKind.KESHFLO_BENEFICIARY
 }
+
+/**
+ * A provider's message we know the shape of but not the grammar.
+ *
+ * Kept whole so it can be re-read when the format lands, and labelled so nobody
+ * mistakes it for a matched code.
+ */
+@Serializable
+data class UnmappedMessage(
+    val provider: String,
+    /** Redacted the same way real evidence is: no numbers survive. */
+    val raw: String,
+    val pastedBy: MemberId,
+)
 
 @Serializable
 data class Device(
@@ -215,6 +312,15 @@ data class Entry(
     val counterAccountId: AccountId? = null,
 
     /**
+     * What this money is earmarked for. Null means [Pockets.UNALLOCATED].
+     * On a POCKET_TRANSFER this is the destination.
+     */
+    val pocketId: PocketId? = null,
+
+    /** The source pocket. POCKET_TRANSFER only. */
+    val counterPocketId: PocketId? = null,
+
+    /**
      * Entries that describe one act and are confirmed together — a loan's
      * principal, its interest and its transaction cost are three facts but one
      * decision. Each still records its own confirmation.
@@ -270,6 +376,17 @@ data class Entry(
     val correctsEntryId: EntryId? = null,
 
     /**
+     * A message the app recognised but cannot yet read.
+     *
+     * Ziidi and M-Shwari send confirmations, but their exact wording is not
+     * known here yet, so there is no code to match against. The text is kept —
+     * redacted — so it can be re-read once the format is known, and it is
+     * deliberately NOT [recordedEvidence]: it proves nothing today and must
+     * never be counted as though it did.
+     */
+    val unmappedMessage: UnmappedMessage? = null,
+
+    /**
      * Which fee this was, on a TXN_COST entry. M-Pesa today; the bank once the
      * account is open. Split so the two can be told apart in the books rather
      * than added into one number nobody can take back apart.
@@ -309,6 +426,12 @@ data class Entry(
         }
         require(type == EntryType.TRANSFER || counterAccountId == null) {
             "only a TRANSFER may carry counterAccountId"
+        }
+        require(type != EntryType.POCKET_TRANSFER || counterPocketId != null) {
+            "a POCKET_TRANSFER must name the pocket the money came from"
+        }
+        require(type == EntryType.POCKET_TRANSFER || counterPocketId == null) {
+            "only a POCKET_TRANSFER may carry counterPocketId"
         }
     }
 }

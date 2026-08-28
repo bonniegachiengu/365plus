@@ -26,7 +26,19 @@ data class SummaryView(
     /** Every pending loan amount, added up. */
     val totalOutstanding: String,
     val pendingCount: Int,
+    /** Where the money is. */
     val accounts: List<AccountRow>,
+    /** What it is earmarked for. Sums to the same total. */
+    val pockets: List<PocketRow>,
+)
+
+/** One earmark: what a slice of the total is set aside for. */
+data class PocketRow(
+    val id: String,
+    val label: String,
+    val blurb: String,
+    val balance: String,
+    val balanceCents: Long,
 )
 
 data class AccountRow(
@@ -34,6 +46,8 @@ data class AccountRow(
     val label: String,
     val balance: String,
     val balanceCents: Long,
+    /** Ziidi and M-Shwari grow on their own; a wallet does not. */
+    val earns: Boolean = false,
 )
 
 data class MemberRow(
@@ -96,6 +110,8 @@ fun EntryType.label(): String = when (this) {
     EntryType.INTEREST_ACCRUAL -> "Interest"
     EntryType.TXN_COST -> "Transaction cost"
     EntryType.TRANSFER -> "Transfer"
+    EntryType.ACCOUNT_INTEREST -> "Interest earned"
+    EntryType.POCKET_TRANSFER -> "Re-earmarked"
     EntryType.REVERSAL -> "Reversal"
 }
 
@@ -115,6 +131,16 @@ fun LedgerBook.summaryView(): SummaryView {
                 label = a.label,
                 balance = formatKes(s.accountBalance(a.id)),
                 balanceCents = s.accountBalance(a.id),
+                earns = a.earnsInterest,
+            )
+        },
+        pockets = pockets.map { p ->
+            PocketRow(
+                id = p.id,
+                label = p.label,
+                blurb = p.blurb,
+                balance = formatKes(s.pocketBalance(p.id)),
+                balanceCents = s.pocketBalance(p.id),
             )
         },
     )

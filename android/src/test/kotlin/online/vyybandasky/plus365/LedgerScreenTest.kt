@@ -27,9 +27,9 @@ class LedgerScreenTest {
     fun the_shell_opens_on_the_seeded_pool() {
         val s = Session.dev()
         val summary = s.book.summaryView()
-        assertEquals("KSh 3,616.00", summary.cashAtHand)
+        assertEquals("KSh 3,658.00", summary.cashAtHand)
         assertEquals("KSh 4,149.00", summary.totalOutstanding)
-        assertEquals(2, summary.accounts.size, "savings and float")
+        assertEquals(3, summary.accounts.size, "Pochi, Ziidi, M-Shwari")
         assertEquals(3, s.book.founderCards().size, "Bonnie, Brian, Kang'iri")
         assertEquals(DevSeed.BONNIE, s.actingAs)
     }
@@ -108,7 +108,7 @@ class LedgerScreenTest {
     fun cash_at_hand_never_changes_across_a_transfer() {
         var s = Session.dev()
         val before = s.book.state().cashAtHandCents
-        s = s.actAs(DevSeed.BRIAN).transfer(DevSeed.SAVINGS, DevSeed.FLOAT, 100_000)
+        s = s.actAs(DevSeed.BRIAN).transfer(DevSeed.POCHI, DevSeed.ZIIDI, 100_000)
         val moved = s.book.pending().last()
         s = s.confirm(moved.id, DevSeed.BONNIE)
 

@@ -46,18 +46,20 @@ class DevSeedTest {
     fun the_pool_holds_what_the_confirmed_entries_add_up_to() {
         // In:  3,000 + 2,000 + 1,500 + 1,000                 = 7,500
         // Out: (2,000+33) + (1,300+23) + (1,000+28)          = 4,384
-        // In:  500 repaid                                    =   500
-        //                                               cash = 3,616
-        // No interest touches cash — it is owed, never held.
-        assertEquals(361_600L, state.poolCashCents)
-        assertEquals("KSh 3,616.00", formatKes(state.poolCashCents))
+        // In:  500 repaid, and 42 Ziidi paid out             =   542
+        //                                               cash = 3,658
+        // Loan interest never touches cash — it is owed, never held. Account
+        // interest does: that is real money arriving.
+        assertEquals(365_800L, state.poolCashCents)
+        assertEquals("KSh 3,658.00", formatKes(state.poolCashCents))
     }
 
     @Test
     fun cash_at_hand_is_the_roll_up_over_the_pockets() {
-        assertEquals(350_000L, state.accountBalance(DevSeed.SAVINGS))
-        assertEquals(11_600L, state.accountBalance(DevSeed.FLOAT))
-        assertEquals(361_600L, state.cashAtHandCents)
+        // Most of it parked in Ziidi, which is where the earning happens.
+        assertEquals(-38_400L, state.accountBalance(DevSeed.POCHI))
+        assertEquals(404_200L, state.accountBalance(DevSeed.ZIIDI))
+        assertEquals(365_800L, state.cashAtHandCents)
         assertEquals(
             state.poolCashCents,
             state.cashAtHandCents,
@@ -124,7 +126,7 @@ class DevSeedTest {
         // 500 waiting plus the 800 in conflict: neither is money yet, and both
         // are held apart rather than quietly ignored.
         assertEquals(130_000L, state.pendingPoolCashCents)
-        assertEquals(361_600L, state.poolCashCents, "pending money is not in the pool")
+        assertEquals(365_800L, state.poolCashCents, "pending money is not in the pool")
     }
 
     @Test
@@ -168,8 +170,36 @@ class DevSeedTest {
     }
 
     @Test
-    fun the_pool_keeps_two_pockets() {
-        assertEquals(2, book.accounts.size)
+    fun the_pool_keeps_three_accounts_and_two_pockets() {
+        assertEquals(3, book.accounts.size, "Pochi, Ziidi, M-Shwari")
+        assertEquals(2, book.pockets.size, "the members' pool and the Keshflo fund")
+    }
+
+    @Test
+    fun where_the_money_is_and_what_it_is_for_agree_with_the_total() {
+        // Three routes to the same number, computed separately. If they ever
+        // disagree the fold has a hole in it.
+        assertTrue(state.balances, "accounts, pockets and the total must agree")
+        assertEquals(state.poolCashCents, state.cashAtHandCents)
+        assertEquals(state.poolCashCents, state.allocatedCents)
+    }
+
+    @Test
+    fun the_keshflo_split_sits_over_the_total_without_moving_any_money() {
+        assertEquals(150_000L, state.pocketBalance(DevSeed.KESHFLO))
+        assertEquals(215_800L, state.pocketBalance(DevSeed.POOL))
+        assertEquals(365_800L, state.allocatedCents)
+    }
+
+    @Test
+    fun ziidi_earns_and_the_wallet_does_not() {
+        assertTrue(book.account(DevSeed.ZIIDI)!!.earnsInterest)
+        assertTrue(book.account(DevSeed.ZIIDI)!!.zeroRated, "Ziidi is zero-rated")
+        assertTrue(!book.account(DevSeed.POCHI)!!.earnsInterest)
+        // The interest that arrived lifted the pool without lifting any member's
+        // contribution — nobody put it in.
+        assertEquals(4_200L, book.entries.first { it.id == "i1" }.amountCents)
+        assertEquals(0L, state.balanceOf(DevSeed.BRIAN).stakeCents - 350_000L)
     }
 
     @Test

@@ -292,6 +292,26 @@ fun PasteReadout(text: String) {
             }
         }
 
+        // Recognised, unreadable. Amber rather than red: the member did nothing
+        // wrong, and their entry still goes through on the hand-confirmed path.
+        is ParseOutcome.Unmapped -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Plus.PendingDim, RoundedCornerShape(14.dp))
+                    .padding(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("!", style = MaterialTheme.typography.titleLarge, color = Plus.Pending)
+                Text(
+                    outcome.message(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Plus.Pending,
+                )
+            }
+        }
+
         is ParseOutcome.Rejected -> {
             Row(
                 modifier = Modifier

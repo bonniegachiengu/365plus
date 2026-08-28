@@ -40,6 +40,7 @@ data class CashOnHand(
     val lastUpdated: String,
     val pendingLine: String?,
     val accounts: List<AccountRow>,
+    val pockets: List<PocketRow>,
 )
 
 fun LedgerBook.cashOnHand(now: Instant? = null): CashOnHand {
@@ -55,6 +56,7 @@ fun LedgerBook.cashOnHand(now: Instant? = null): CashOnHand {
             else -> "$pendingCount entries waiting to be confirmed"
         },
         accounts = summaryView().accounts,
+        pockets = summaryView().pockets,
     )
 }
 
@@ -131,6 +133,8 @@ private fun LedgerBook.actPhrase(lead: Entry): String {
         EntryType.MEMBER_LOAN_IN -> "$who lends to the pool"
         EntryType.POOL_REPAY_MEMBER -> "pay $who back"
         EntryType.TRANSFER -> "move money between pool accounts"
+        EntryType.ACCOUNT_INTEREST -> "interest earned on the pool's savings"
+        EntryType.POCKET_TRANSFER -> "change what money is set aside for"
         EntryType.INTEREST_ACCRUAL -> "interest on $who's loan"
         EntryType.TXN_COST -> "transaction cost on $who's loan"
         EntryType.REVERSAL -> "cancel an earlier entry"

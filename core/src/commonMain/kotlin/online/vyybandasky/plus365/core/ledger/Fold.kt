@@ -11,6 +11,8 @@ import online.vyybandasky.plus365.core.domain.Loan
 import online.vyybandasky.plus365.core.domain.LoanDirection
 import online.vyybandasky.plus365.core.domain.LoanId
 import online.vyybandasky.plus365.core.domain.MemberId
+import online.vyybandasky.plus365.core.domain.PocketId
+import online.vyybandasky.plus365.core.domain.Pockets
 
 /** The effect of one entry on the three quantities the ledger tracks. */
 data class Effect(
@@ -73,9 +75,19 @@ fun effectOf(
             )
         }
 
-        // Between the pool's own pockets. Cash-at-hand cannot change, so the
+        // Between the pool's own accounts. Cash-at-hand cannot change, so the
         // net effect is zero — the movement is in the per-account split alone.
         EntryType.TRANSFER -> Effect()
+
+        /**
+         * A fund paying out. Real cash arriving that nobody contributed, so it
+         * lifts the pool without lifting anyone's pool contribution.
+         */
+        EntryType.ACCOUNT_INTEREST -> Effect(poolCashCents = amt)
+
+        // Re-earmarking. Neither cash nor any account moves; only the pocket
+        // split does, and that is applied outside the effect table.
+        EntryType.POCKET_TRANSFER -> Effect()
 
         EntryType.REVERSAL -> throw IllegalArgumentException(
             "a REVERSAL effect is the inverse of its target and is resolved by fold()"
@@ -114,6 +126,7 @@ fun fold(
     val confirmedMembers = mutableMapOf<MemberId, MemberBalance>()
     val pendingMembers = mutableMapOf<MemberId, MemberBalance>()
     val confirmedAccounts = mutableMapOf<AccountId, Long>()
+    val confirmedPockets = mutableMapOf<PocketId, Long>()
     var confirmedCash = 0L
     var pendingCash = 0L
     var draftCount = 0
@@ -139,6 +152,7 @@ fun fold(
             confirmedMembers.accumulate(entry.memberId, effect)
             confirmedCash += effect.poolCashCents
             routeToAccounts(entry, byId, effect, confirmedAccounts)
+            routeToPockets(entry, byId, effect, confirmedPockets)
             tallyLoan(entry, byId, loansById, loanTallies)
         } else {
             pendingMembers.accumulate(entry.memberId, effect)
@@ -150,6 +164,7 @@ fun fold(
         perMember = confirmedMembers.toMap(),
         poolCashCents = confirmedCash,
         perAccount = confirmedAccounts.filterValues { it != 0L }.toMap(),
+        perPocket = confirmedPockets.filterValues { it != 0L }.toMap(),
         loans = loanTallies.mapValues { (_, tally) -> tally.toOutstanding() },
         pendingPerMember = pendingMembers.toMap(),
         pendingPoolCashCents = pendingCash,
@@ -218,6 +233,44 @@ private fun routeToAccounts(
     if (effect.poolCashCents == 0L) return
     val account = subject.accountId ?: Accounts.UNASSIGNED
     into[account] = (into[account] ?: 0L) + effect.poolCashCents
+}
+
+/**
+ * Put an entry's cash into the right pocket — the *what for*, not the *where*.
+ *
+ * The same movement is routed twice, once by account and once by pocket, from
+ * the same effect. That is what keeps the two views summing to the same number:
+ * they are not computed from each other, they are computed from the same source,
+ * so neither can quietly drift.
+ */
+private fun routeToPockets(
+    entry: Entry,
+    byId: Map<EntryId, Entry>,
+    effect: Effect,
+    into: MutableMap<PocketId, Long>,
+) {
+    val subject: Entry
+    val sign: Long
+    if (entry.type == EntryType.REVERSAL) {
+        subject = byId[entry.reversesEntryId] ?: return
+        sign = -1L
+    } else {
+        subject = entry
+        sign = 1L
+    }
+
+    if (subject.type == EntryType.POCKET_TRANSFER) {
+        val from = subject.counterPocketId ?: Pockets.UNALLOCATED
+        val to = subject.pocketId ?: Pockets.UNALLOCATED
+        val amt = subject.amountCents * sign
+        into[from] = (into[from] ?: 0L) - amt
+        into[to] = (into[to] ?: 0L) + amt
+        return
+    }
+
+    if (effect.poolCashCents == 0L) return
+    val pocket = subject.pocketId ?: Pockets.UNALLOCATED
+    into[pocket] = (into[pocket] ?: 0L) + effect.poolCashCents
 }
 
 private fun MutableMap<MemberId, MemberBalance>.accumulate(memberId: MemberId, effect: Effect) {

@@ -5,13 +5,18 @@ import online.vyybandasky.plus365.core.book.confirm
 import online.vyybandasky.plus365.core.book.confirmGroup
 import online.vyybandasky.plus365.core.book.disburseLoan
 import online.vyybandasky.plus365.core.book.confirmOrEscalate
+import online.vyybandasky.plus365.core.book.reallocate
 import online.vyybandasky.plus365.core.book.record
+import online.vyybandasky.plus365.core.book.recordAccountInterest
 import online.vyybandasky.plus365.core.book.transfer
 import online.vyybandasky.plus365.core.domain.Account
+import online.vyybandasky.plus365.core.domain.AccountKind
 import online.vyybandasky.plus365.core.domain.AccountId
 import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.domain.Member
 import online.vyybandasky.plus365.core.domain.MemberKind
+import online.vyybandasky.plus365.core.domain.Pocket
+import online.vyybandasky.plus365.core.domain.PocketId
 import online.vyybandasky.plus365.core.domain.MemberId
 import online.vyybandasky.plus365.core.governance.ActorConfig
 import kotlin.time.Duration.Companion.hours
@@ -52,9 +57,22 @@ object DevSeed {
      */
     const val WANJIKU: MemberId = "wanjiku"
 
-    /** The pool's two pockets. Cash-at-hand is their sum, derived never stored. */
-    const val SAVINGS: AccountId = "savings"
-    const val FLOAT: AccountId = "float"
+    // ── where the money sits ────────────────────────────────────────────────
+    /** The M-Pesa wallet money moves through. */
+    const val POCHI: AccountId = "pochi"
+
+    /** Safaricom's money-market fund: earns, zero-rated, instant via M-Pesa. */
+    const val ZIIDI: AccountId = "ziidi"
+
+    /** Safaricom's savings product. Also earns. */
+    const val MSHWARI: AccountId = "mshwari"
+
+    // ── what it is earmarked for ────────────────────────────────────────────
+    /** The members' own savings. */
+    const val POOL: PocketId = "pool"
+
+    /** Set aside for lending outward. */
+    const val KESHFLO: PocketId = "keshflo"
 
     /**
      * The three members. Three is the smallest set that makes two-person control
@@ -73,8 +91,18 @@ object DevSeed {
     )
 
     val ACCOUNTS: List<Account> = listOf(
-        Account(id = SAVINGS, label = "Savings"),
-        Account(id = FLOAT, label = "Float"),
+        Account(id = POCHI, label = "M-Pesa Pochi", kind = AccountKind.MPESA),
+        Account(id = ZIIDI, label = "Ziidi", kind = AccountKind.ZIIDI),
+        Account(id = MSHWARI, label = "M-Shwari", kind = AccountKind.MSHWARI),
+    )
+
+    /**
+     * The split over the total. Not accounts — two claims on one balance, which
+     * is why moving money between accounts leaves these untouched.
+     */
+    val POCKETS: List<Pocket> = listOf(
+        Pocket(POOL, "Members' pool", "The three members' own savings."),
+        Pocket(KESHFLO, "Keshflo fund", "Set aside for lending outward."),
     )
 
     /**
@@ -90,7 +118,7 @@ object DevSeed {
     val DEV_CONFIG: ActorConfig = ActorConfig.dev(owner = BONNIE, everyone = EVERYONE)
 
     /** How many stamped steps the seed lays down. Keep ahead of the call count. */
-    private const val SEED_STEPS = 16
+    private const val SEED_STEPS = 20
 
     private fun shillings(n: Long): Long = n * 100
 
@@ -128,7 +156,7 @@ object DevSeed {
      * quietly seeding an empty book.
      */
     fun book(now: Instant? = null): LedgerBook {
-        var b = LedgerBook(members = MEMBERS, accounts = ACCOUNTS)
+        var b = LedgerBook(members = MEMBERS, accounts = ACCOUNTS, pockets = POCKETS)
         // Space the seeded history backwards from [now] so the screens can say
         // "3 h ago" honestly. Without this every seeded entry has no time at all
         // and the home screen has to fall back to "no activity yet" while
@@ -149,7 +177,8 @@ object DevSeed {
         b = b.contribute("c4", KANGIRI, 1_000, recordedBy = KANGIRI, confirmedBy = BRIAN, at = stamp())
 
         // --- Some of it moved to the float pocket it gets lent from. ---
-        b = b.move("t1", SAVINGS, FLOAT, 4_000, recordedBy = BONNIE, confirmedBy = BRIAN, at = stamp())
+        // Most of it parked in Ziidi, which earns and costs nothing to move.
+        b = b.move("t1", POCHI, ZIIDI, 4_000, recordedBy = BONNIE, confirmedBy = BRIAN, at = stamp())
 
         // --- Two loans at 7%, each principal + interest + M-Pesa cost. ---
         // Brian keeps the book, so Brian records them; Bonnie clears them.
@@ -157,6 +186,12 @@ object DevSeed {
         // Brian borrowing from the pool. Recording his own loan is fine —
         // confirming it is not, which is exactly what the rule is for.
         b = b.lend("L-002", BRIAN, principal = 1_300, txnCost = 23, recordedBy = BRIAN, confirmedBy = BONNIE, at = stamp())
+
+        // --- Ziidi paying out. Money nobody contributed. ---
+        b = b.earn("i1", ZIIDI, 42, recordedBy = BRIAN, confirmedBy = BONNIE, at = stamp())
+
+        // --- Setting part of the total aside for lending outward. ---
+        b = b.earmark("k1", POOL, KESHFLO, 1_500, recordedBy = BONNIE, confirmedBy = BRIAN, at = stamp())
 
         // --- Keshflo lending outward, at the higher rate. ---
         b = b.lend("L-003", WANJIKU, principal = 1_000, txnCost = 28, recordedBy = BRIAN, confirmedBy = KANGIRI, at = stamp())
@@ -191,7 +226,8 @@ object DevSeed {
             memberId = member,
             recordedBy = recordedBy,
             config = DEV_CONFIG,
-            accountId = SAVINGS,
+            accountId = POCHI,
+            pocketId = POOL,
             at = at,
         ).orThrow("record contribution $id")
         return recorded.book.confirmOne(id, confirmedBy, at)
@@ -212,7 +248,8 @@ object DevSeed {
             memberId = member,
             recordedBy = recordedBy,
             config = DEV_CONFIG,
-            accountId = SAVINGS,
+            accountId = POCHI,
+            pocketId = POOL,
             at = at,
             evidence = evidence(SEED_SENT, recordedBy),
         ).orThrow("record $id")
@@ -244,7 +281,8 @@ object DevSeed {
             memberId = member,
             recordedBy = recordedBy,
             config = DEV_CONFIG,
-            accountId = SAVINGS,
+            accountId = POCHI,
+            pocketId = POOL,
             at = at,
             evidence = evidence(SEED_CLASH_SENT, recordedBy),
         ).orThrow("record $id")
@@ -255,6 +293,47 @@ object DevSeed {
             at = at,
             evidence = evidence(SEED_CLASH_OTHER, attemptedBy),
         ).orThrow("escalate $id").book
+    }
+
+    private fun LedgerBook.earn(
+        id: String,
+        account: AccountId,
+        amount: Long,
+        recordedBy: MemberId,
+        confirmedBy: MemberId,
+        at: Instant? = null,
+    ): LedgerBook {
+        val recorded = recordAccountInterest(
+            id = id,
+            accountId = account,
+            amountCents = shillings(amount),
+            recordedBy = recordedBy,
+            config = DEV_CONFIG,
+            pocketId = POOL,
+            at = at,
+        ).orThrow("record interest $id")
+        return recorded.book.confirmOne(id, confirmedBy, at)
+    }
+
+    private fun LedgerBook.earmark(
+        id: String,
+        from: PocketId,
+        to: PocketId,
+        amount: Long,
+        recordedBy: MemberId,
+        confirmedBy: MemberId,
+        at: Instant? = null,
+    ): LedgerBook {
+        val recorded = reallocate(
+            id = id,
+            fromPocket = from,
+            toPocket = to,
+            amountCents = shillings(amount),
+            recordedBy = recordedBy,
+            config = DEV_CONFIG,
+            at = at,
+        ).orThrow("earmark $id")
+        return recorded.book.confirmOne(id, confirmedBy, at)
     }
 
     private fun LedgerBook.move(
@@ -294,7 +373,7 @@ object DevSeed {
             recordedBy = recordedBy,
             config = DEV_CONFIG,
             mpesaChargeCents = shillings(txnCost),
-            fromAccount = FLOAT,
+            fromAccount = POCHI,
             at = at,
         ).orThrow("disburse $loanId")
         // Three facts, one decision — cleared together, each confirmed on its own.
@@ -319,7 +398,8 @@ object DevSeed {
             recordedBy = recordedBy,
             config = DEV_CONFIG,
             loanId = loanId,
-            accountId = FLOAT,
+            accountId = POCHI,
+            pocketId = POOL,
             at = at,
         ).orThrow("record repayment $id")
         return recorded.book.confirmOne(id, confirmedBy, at)
@@ -339,7 +419,8 @@ object DevSeed {
         memberId = member,
         recordedBy = recordedBy,
         config = DEV_CONFIG,
-        accountId = SAVINGS,
+        accountId = POCHI,
+            pocketId = POOL,
         at = at,
     ).orThrow("record $id").book
 
