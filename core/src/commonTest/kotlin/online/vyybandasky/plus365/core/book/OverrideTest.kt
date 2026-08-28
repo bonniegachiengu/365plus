@@ -334,7 +334,7 @@ class OverrideTest {
         assertTrue(b.needingOverride().isEmpty())
         assertEquals(EntryState.CONFIRMED, b.entry("L-9-principal")!!.state)
         assertEquals(EntryState.CONFIRMED, b.entry("L-9-interest")!!.state)
-        assertEquals(-214_000L, b.state().balanceOf(DevSeed.KANGIRI).debtCents)
+        assertEquals(-210_000L, b.state().balanceOf(DevSeed.KANGIRI).debtCents)
     }
 
     @Test

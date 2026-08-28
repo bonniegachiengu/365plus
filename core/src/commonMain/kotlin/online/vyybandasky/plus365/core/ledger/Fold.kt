@@ -1,6 +1,7 @@
 package online.vyybandasky.plus365.core.ledger
 
 import online.vyybandasky.plus365.core.domain.AccountId
+import online.vyybandasky.plus365.core.domain.ChargeKind
 import online.vyybandasky.plus365.core.domain.Accounts
 import online.vyybandasky.plus365.core.domain.Entry
 import online.vyybandasky.plus365.core.domain.EntryId
@@ -238,7 +239,8 @@ private fun MutableMap<MemberId, MemberBalance>.accumulate(memberId: MemberId, e
 private class MutableLoanTally(val loanId: LoanId, val direction: LoanDirection) {
     var principal = 0L
     var interest = 0L
-    var txnCost = 0L
+    var mpesaCharge = 0L
+    var bankCharge = 0L
     var repaid = 0L
 
     fun toOutstanding() = LoanOutstanding(
@@ -246,7 +248,8 @@ private class MutableLoanTally(val loanId: LoanId, val direction: LoanDirection)
         direction = direction,
         principalCents = principal,
         interestAccruedCents = interest,
-        txnCostCents = txnCost,
+        mpesaChargeCents = mpesaCharge,
+        bankChargeCents = bankCharge,
         repaidCents = repaid,
     )
 }
@@ -285,7 +288,12 @@ private fun tallyLoan(
         EntryType.LOAN_OUT, EntryType.MEMBER_LOAN_IN -> tally.principal += amt
         EntryType.LOAN_REPAYMENT, EntryType.POOL_REPAY_MEMBER -> tally.repaid += amt
         EntryType.INTEREST_ACCRUAL -> tally.interest += amt
-        EntryType.TXN_COST -> tally.txnCost += amt
+        EntryType.TXN_COST ->
+            if (subject.chargeKind == ChargeKind.BANK) {
+                tally.bankCharge += amt
+            } else {
+                tally.mpesaCharge += amt
+            }
         else -> Unit
     }
 }

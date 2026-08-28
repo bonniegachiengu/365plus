@@ -1,7 +1,9 @@
 package online.vyybandasky.plus365.core.interest
 
+import online.vyybandasky.plus365.core.domain.MemberKind
+
 /**
- * Loan interest: 7% flat on principal, charged once at disbursement.
+ * Loan interest: flat on principal, charged once at disbursement.
  *
  * Flat, not annualised and not a monthly accrual — one charge, at the moment the
  * money goes out. That matches how the pool has always been run.
@@ -11,8 +13,27 @@ package online.vyybandasky.plus365.core.interest
  * charged to a borrower, the other is earned by the pool.
  */
 
-/** The house rate for NEW loans, in basis points. */
-const val HOUSE_RATE_BPS: Int = 700
+/**
+ * Two rates, because there are two kinds of borrower.
+ *
+ * A founder is lending to themselves — the pool is their own money, so the rate
+ * is the lower one. A Keshflo beneficiary is an outsider borrowing the members'
+ * savings, which carries a risk the members did not have to take, and the rate
+ * says so.
+ *
+ * These are the rates for NEW loans. A loan stores the rate it was written at
+ * and never picks one up later; changing these must not reach backwards.
+ */
+const val FOUNDER_RATE_BPS: Int = 500
+
+/** Keshflo lending to someone outside the three. */
+const val BENEFICIARY_RATE_BPS: Int = 1_000
+
+/** The rate that applies to a borrower of [kind], for a new loan. */
+fun rateFor(kind: MemberKind): Int = when (kind) {
+    MemberKind.FOUNDER -> FOUNDER_RATE_BPS
+    MemberKind.KESHFLO_BENEFICIARY -> BENEFICIARY_RATE_BPS
+}
 
 /** Interest rounds to the nearest whole shilling, halves up. */
 const val CENTS_PER_SHILLING: Long = 100
@@ -41,9 +62,9 @@ fun interestCents(principalCents: Long, rateBps: Int): Long {
     return shillings * CENTS_PER_SHILLING
 }
 
-/** Interest on a new loan at the house rate. */
-fun houseInterestCents(principalCents: Long): Long =
-    interestCents(principalCents, HOUSE_RATE_BPS)
+/** Interest on a new loan, at whichever rate this borrower attracts. */
+fun interestFor(principalCents: Long, kind: MemberKind): Long =
+    interestCents(principalCents, rateFor(kind))
 
 /**
  * The rate a loan was actually written at, in basis points, derived from its

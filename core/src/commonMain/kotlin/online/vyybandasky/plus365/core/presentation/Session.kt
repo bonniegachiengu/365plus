@@ -110,7 +110,8 @@ data class Session(
     fun lend(
         borrower: MemberId,
         principalCents: Long,
-        txnCostCents: Long = 0L,
+        mpesaChargeCents: Long = 0L,
+        bankChargeCents: Long = 0L,
         at: Instant? = null,
         smsText: String? = null,
     ): Session {
@@ -122,7 +123,8 @@ data class Session(
             principalCents = principalCents,
             recordedBy = actingAs,
             config = config,
-            txnCostCents = txnCostCents,
+            mpesaChargeCents = mpesaChargeCents,
+            bankChargeCents = bankChargeCents,
             at = at,
             evidence = evidence,
         )) {
@@ -337,10 +339,11 @@ data class Session(
     fun borrow(
         borrower: MemberId,
         principalCents: Long,
-        txnCostCents: Long = 0L,
+        mpesaChargeCents: Long = 0L,
+        bankChargeCents: Long = 0L,
         at: Instant? = null,
         smsText: String? = null,
-    ): Session = lend(borrower, principalCents, txnCostCents, at, smsText)
+    ): Session = lend(borrower, principalCents, mpesaChargeCents, bankChargeCents, at, smsText)
 
     /** Pay back against a specific loan. */
     fun repay(

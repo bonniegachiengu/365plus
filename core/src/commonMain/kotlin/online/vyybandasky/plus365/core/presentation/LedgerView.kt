@@ -23,7 +23,7 @@ data class SummaryView(
     /** The roll-up: every account added together. */
     val cashAtHand: String,
     val pendingCash: String,
-    /** Still owed to the pool across every loan. */
+    /** Every pending loan amount, added up. */
     val totalOutstanding: String,
     val pendingCount: Int,
     val accounts: List<AccountRow>,
@@ -45,17 +45,23 @@ data class MemberRow(
     val owesCents: Long,
 )
 
-/** A loan in the four parts the pool keeps it in, plus the two roll-ups. */
+/** A loan in the parts the pool keeps it in, plus the roll-ups. */
 data class LoanRow(
     val loanId: String,
     val borrower: String,
     val principal: String,
     val interest: String,
+    /** Both fees together. */
     val txnCost: String,
+    val mpesaCharge: String,
+    val bankCharge: String,
+    val hasBankCharge: Boolean,
     val repaid: String,
     val totalDue: String,
+    /** The pending loan amount. */
     val outstanding: String,
     val rateLabel: String,
+    val borrowerIsBeneficiary: Boolean,
     val settled: Boolean,
 )
 
@@ -143,10 +149,14 @@ fun LedgerBook.loanRows(): List<LoanRow> {
             principal = formatKes(o?.principalCents ?: 0L),
             interest = formatKes(interest),
             txnCost = formatKes(o?.txnCostCents ?: 0L),
+            mpesaCharge = formatKes(o?.mpesaChargeCents ?: 0L),
+            bankCharge = formatKes(o?.bankChargeCents ?: 0L),
+            hasBankCharge = (o?.bankChargeCents ?: 0L) > 0L,
             repaid = formatKes(o?.repaidCents ?: 0L),
             totalDue = formatKes(o?.totalDueCents ?: 0L),
             outstanding = formatKes(o?.outstandingCents ?: 0L),
             rateLabel = "${actualRateBps(loan.principalCents, interest) / 100.0}% flat",
+            borrowerIsBeneficiary = member(loan.counterpartyMemberId)?.isBeneficiary == true,
             settled = o?.settled ?: false,
         )
     }

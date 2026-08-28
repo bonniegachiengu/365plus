@@ -22,8 +22,10 @@ import online.vyybandasky.plus365.core.governance.asRejectedBy
 import online.vyybandasky.plus365.core.governance.checkConfirm
 import online.vyybandasky.plus365.core.governance.checkRecord
 import online.vyybandasky.plus365.core.governance.checkReject
-import online.vyybandasky.plus365.core.interest.HOUSE_RATE_BPS
+import online.vyybandasky.plus365.core.domain.ChargeKind
+import online.vyybandasky.plus365.core.domain.MemberKind
 import online.vyybandasky.plus365.core.interest.interestCents
+import online.vyybandasky.plus365.core.interest.rateFor
 import online.vyybandasky.plus365.core.ledger.LedgerState
 import online.vyybandasky.plus365.core.ledger.fold
 import online.vyybandasky.plus365.core.sms.Assurance
@@ -57,6 +59,23 @@ data class LedgerBook(
     fun member(id: MemberId): Member? = members.firstOrNull { it.id == id }
 
     fun memberIds(): List<MemberId> = members.map { it.id }
+
+    /** The three. Everyone who governs the pool. */
+    fun founders(): List<Member> = members.filter { it.isFounder }
+
+    /**
+     * Whose ids may appear anywhere governance is decided.
+     *
+     * A Keshflo beneficiary borrows and nothing else. They never confirm, never
+     * reject, never settle — every one of those is a say in the members' money,
+     * and an outside borrower has no stake to back it.
+     */
+    fun founderIds(): List<MemberId> = founders().map { it.id }
+
+    /** People Keshflo lends to. Not members of the pool. */
+    fun beneficiaries(): List<Member> = members.filter { it.isBeneficiary }
+
+    fun isFounder(id: MemberId): Boolean = member(id)?.isFounder == true
 
     fun entry(id: EntryId): Entry? = entries.firstOrNull { it.id == id }
 
@@ -129,6 +148,7 @@ fun LedgerBook.record(
     note: String? = null,
     at: Instant? = null,
     evidence: SmsEvidence? = null,
+    chargeKind: ChargeKind? = null,
 ): Decision<Recorded> {
     when (val gate = checkRecord(recordedBy, config)) {
         is Decision.Refused -> return gate
@@ -139,6 +159,9 @@ fun LedgerBook.record(
     }
     if (member(recordedBy) == null) {
         return Decision.Refused(Refusal.UnknownMember(recordedBy))
+    }
+    if (!isFounder(recordedBy)) {
+        return Decision.Refused(Refusal.NotAMember(recordedBy))
     }
     if (amountCents <= 0L) {
         return Decision.Refused(Refusal.Invalid("Amount must be more than zero."))
@@ -181,6 +204,7 @@ fun LedgerBook.record(
         state = EntryState.PENDING,
         note = note,
         recordedEvidence = evidence,
+        chargeKind = chargeKind,
     )
     return Decision.Allowed(
         Recorded(
@@ -245,6 +269,7 @@ fun LedgerBook.transfer(
     note: String? = null,
     at: Instant? = null,
     evidence: SmsEvidence? = null,
+    chargeKind: ChargeKind? = null,
 ): Decision<Recorded> {
     when (val gate = checkRecord(recordedBy, config)) {
         is Decision.Refused -> return gate
@@ -273,6 +298,7 @@ fun LedgerBook.transfer(
         state = EntryState.PENDING,
         note = note,
         recordedEvidence = evidence,
+        chargeKind = chargeKind,
     )
     return Decision.Allowed(
         Recorded(copy(entries = entries + appended, nextSeq = nextSeq + 1), listOf(appended)),
@@ -298,6 +324,9 @@ fun LedgerBook.confirm(
         ?: return Decision.Refused(Refusal.UnknownEntry(entryId))
     if (member(confirmedBy) == null) {
         return Decision.Refused(Refusal.UnknownMember(confirmedBy))
+    }
+    if (!isFounder(confirmedBy)) {
+        return Decision.Refused(Refusal.NotAMember(confirmedBy))
     }
     when (val gate = checkConfirm(target, confirmedBy, config)) {
         is Decision.Refused -> return gate
@@ -369,8 +398,9 @@ fun LedgerBook.disburseLoan(
     principalCents: Long,
     recordedBy: MemberId,
     config: ActorConfig,
-    txnCostCents: Long = 0L,
-    rateBps: Int = HOUSE_RATE_BPS,
+    mpesaChargeCents: Long = 0L,
+    bankChargeCents: Long = 0L,
+    rateBps: Int? = null,
     fromAccount: AccountId? = null,
     note: String? = null,
     at: Instant? = null,
@@ -379,10 +409,16 @@ fun LedgerBook.disburseLoan(
     if (loan(loanId) != null) {
         return Decision.Refused(Refusal.Invalid("Loan $loanId already exists."))
     }
-    if (txnCostCents < 0L) {
-        return Decision.Refused(Refusal.Invalid("Transaction cost cannot be negative."))
+    if (mpesaChargeCents < 0L || bankChargeCents < 0L) {
+        return Decision.Refused(Refusal.Invalid("A transaction cost cannot be negative."))
     }
-    val interest = interestCents(principalCents, rateBps)
+    val borrowerKind = member(borrower)?.kind
+        ?: return Decision.Refused(Refusal.UnknownMember(borrower))
+
+    // The rate follows who is borrowing, not who is recording. A founder borrows
+    // their own pool at the founder rate; Keshflo lends outward at the other.
+    val rate = rateBps ?: rateFor(borrowerKind)
+    val interest = interestCents(principalCents, rate)
     val account = fromAccount ?: defaultAccount()
 
     val loan = Loan(
@@ -390,29 +426,35 @@ fun LedgerBook.disburseLoan(
         direction = LoanDirection.POOL_TO_MEMBER,
         counterpartyMemberId = borrower,
         principalCents = principalCents,
-        txnCostCents = txnCostCents,
-        rateBps = rateBps,
+        mpesaChargeCents = mpesaChargeCents,
+        bankChargeCents = bankChargeCents,
+        rateBps = rate,
+        borrowerKind = borrowerKind,
         period = InterestPeriod.MONTHLY,
     )
 
     // Each leg of the loan, in the order the money is thought about.
     val legs = buildList {
-        add(Triple(EntryType.LOAN_OUT, principalCents, note))
+        add(LoanLeg(EntryType.LOAN_OUT, principalCents, note, null))
         if (interest > 0L) {
-            add(Triple(EntryType.INTEREST_ACCRUAL, interest, "Interest at ${rateBps / 100.0}% flat"))
+            add(LoanLeg(EntryType.INTEREST_ACCRUAL, interest, "Interest at ${rate / 100.0}% flat", null))
         }
-        if (txnCostCents > 0L) {
-            add(Triple(EntryType.TXN_COST, txnCostCents, "M-Pesa cost"))
+        if (mpesaChargeCents > 0L) {
+            add(LoanLeg(EntryType.TXN_COST, mpesaChargeCents, "M-Pesa charge", ChargeKind.MPESA))
+        }
+        if (bankChargeCents > 0L) {
+            add(LoanLeg(EntryType.TXN_COST, bankChargeCents, "Bank charge", ChargeKind.BANK))
         }
     }
 
     var book = copy(loans = loans + loan)
     val appended = mutableListOf<Entry>()
-    for ((type, amount, legNote) in legs) {
-        val suffix = when (type) {
-            EntryType.LOAN_OUT -> "principal"
-            EntryType.INTEREST_ACCRUAL -> "interest"
-            else -> "txncost"
+    for ((type, amount, legNote, charge) in legs) {
+        val suffix = when {
+            type == EntryType.LOAN_OUT -> "principal"
+            type == EntryType.INTEREST_ACCRUAL -> "interest"
+            charge == ChargeKind.BANK -> "bankcharge"
+            else -> "mpesacharge"
         }
         when (
             val step = book.record(
@@ -427,6 +469,7 @@ fun LedgerBook.disburseLoan(
                 groupId = loanId,
                 note = legNote,
                 at = at,
+                chargeKind = charge,
                 // The money that actually moved is the principal. Interest and
                 // cost are owed, not transferred, so no message backs them.
                 evidence = if (type == EntryType.LOAN_OUT) evidence else null,
@@ -462,6 +505,9 @@ fun LedgerBook.reject(
         ?: return Decision.Refused(Refusal.UnknownEntry(entryId))
     if (member(rejectedBy) == null) {
         return Decision.Refused(Refusal.UnknownMember(rejectedBy))
+    }
+    if (!isFounder(rejectedBy)) {
+        return Decision.Refused(Refusal.NotAMember(rejectedBy))
     }
     when (val gate = checkReject(target, rejectedBy, config)) {
         is Decision.Refused -> return gate
@@ -518,6 +564,7 @@ fun LedgerBook.reverse(
     note: String? = null,
     at: Instant? = null,
     evidence: SmsEvidence? = null,
+    chargeKind: ChargeKind? = null,
 ): Decision<Recorded> {
     when (val gate = checkRecord(recordedBy, config)) {
         is Decision.Refused -> return gate
@@ -550,3 +597,12 @@ fun LedgerBook.reverse(
         ),
     )
 }
+
+
+/** One line of a loan, before it becomes an entry. */
+private data class LoanLeg(
+    val type: EntryType,
+    val amountCents: Long,
+    val note: String?,
+    val charge: ChargeKind?,
+)

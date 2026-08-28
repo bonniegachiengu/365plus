@@ -226,13 +226,13 @@ class EvidenceTest {
             principalCents = 200_000,
             recordedBy = DevSeed.BONNIE,
             config = CONFIG,
-            txnCostCents = 3_300,
+            mpesaChargeCents = 3_300,
             evidence = ev(SENT, DevSeed.BONNIE),
         ).value().book
 
         assertEquals("SK34H7T8QW", b.entry("L-9-principal")!!.recordedEvidence!!.reference)
         assertNull(b.entry("L-9-interest")!!.recordedEvidence, "interest is owed, not transferred")
-        assertNull(b.entry("L-9-txncost")!!.recordedEvidence)
+        assertNull(b.entry("L-9-mpesacharge")!!.recordedEvidence)
 
         b = b.confirmGroup("L-9", DevSeed.BRIAN, CONFIG, evidence = ev(RECEIVED, DevSeed.BRIAN)).value().book
 

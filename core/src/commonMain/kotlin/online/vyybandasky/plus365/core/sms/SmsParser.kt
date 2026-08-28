@@ -23,7 +23,16 @@ import online.vyybandasky.plus365.core.domain.MemberId
  *    An unreadable message is an outcome to explain, not a crash.
  */
 
-enum class SmsProvider { MPESA, KCB, UNKNOWN }
+/**
+ * Who sent the message.
+ *
+ * BANK covers a plain bank account — ATM withdrawals, card purchases, direct
+ * debits and credits. It is here ahead of the account existing, because an ATM
+ * cash-out is exactly the kind of movement that would otherwise leave the books
+ * with an unexplained gap: money genuinely left, and the only record of it is
+ * the text the bank sent.
+ */
+enum class SmsProvider { MPESA, KCB, BANK, UNKNOWN }
 
 /** Which way the money moved, from the point of view of whoever got this SMS. */
 enum class SmsDirection { SENT, RECEIVED }
@@ -107,13 +116,42 @@ private val OTP_MARKERS = listOf(
 private val MPESA_REF = Regex("""\b([A-Za-z0-9]{10})\b""")
 private val KCB_REF = Regex("""(?:ref|reference|txn|transaction)[\s:.#]*([A-Z0-9]{4,20})\b""", RegexOption.IGNORE_CASE)
 
-private val AMOUNT = Regex("""(?:ksh|kes)\s*\.?\s*([\d,]+(?:\.\d{1,2})?)""", RegexOption.IGNORE_CASE)
+private val AMOUNT = Regex("""(?:ksh|kes|kshs)\s*\.?\s*([\d,]+(?:\.\d{1,2})?)""", RegexOption.IGNORE_CASE)
 
-/** Kenyan mobile numbers in the shapes that appear in these messages. */
-private val PHONE = Regex("""(?:\+?254|0)7\d{8}|\b\d{9,12}\b""")
+/** Some banks put the currency after the figure: "2,000.00 KES has been ...". */
+private val AMOUNT_TRAILING = Regex("""([\d,]+\.\d{2})\s*(?:ksh|kes|kshs)\b""", RegexOption.IGNORE_CASE)
 
-private val SENT_MARKERS = listOf("sent to", "paid to", "you have sent", "debited", "withdrawn", "buy goods")
-private val RECEIVED_MARKERS = listOf("you have received", "received from", "credited", "deposited")
+/**
+ * Numbers worth masking: mobile numbers, and bank account or card numbers.
+ *
+ * A bank message carries an account number the way an M-Pesa one carries a phone
+ * number, and neither belongs in a file that syncs between three phones. The
+ * reference code is the proof; the account number proves nothing.
+ */
+private val PHONE = Regex("""(?:\+?254|0)7\d{8}|\b\d{6,16}\b|\b(?:x|\*){2,}\d{2,6}\b""")
+
+private val SENT_MARKERS = listOf(
+    "sent to", "paid to", "you have sent", "debited", "withdrawn", "withdrawal",
+    "buy goods", "atm", "cash withdrawal", "purchase at", "has been debited",
+)
+private val RECEIVED_MARKERS = listOf(
+    "you have received", "received from", "credited", "deposited",
+    "has been credited", "deposit of",
+)
+
+/**
+ * Words that mean this came from a bank rather than a wallet.
+ *
+ * Deliberately generous — the account is not open yet, so this cannot be tuned
+ * against a real message. Whatever it misses falls through to UNKNOWN, which
+ * still parses if a code and an amount are there. Guessing the provider wrong
+ * costs a label; refusing to read the message would cost the entry.
+ */
+private val BANK_MARKERS = listOf(
+    "atm", "account ending", "a/c ", "acct", "account number", "available balance",
+    "avail bal", "card ending", "your account", "bank", "current account",
+    "savings account", "cash withdrawal",
+)
 
 private val COUNTERPARTY_TO = Regex("""(?:sent to|paid to)\s+([A-Za-z][A-Za-z .'\-]{1,40}?)(?=\s+(?:\+?254|0)7|\s+on\b|\s+for\b|[.,])""", RegexOption.IGNORE_CASE)
 private val COUNTERPARTY_FROM = Regex("""(?:received)\s+(?:ksh|kes)?\s*[\d,.]*\s*from\s+([A-Za-z][A-Za-z .'\-]{1,40}?)(?=\s+(?:\+?254|0)7|\s+on\b|[.,])""", RegexOption.IGNORE_CASE)
@@ -139,7 +177,10 @@ fun parseSms(text: String, pastedBy: MemberId): ParseOutcome {
 
     val provider = detectProvider(lower)
 
-    val amountCents = AMOUNT.find(trimmed)?.groupValues?.get(1)?.let(::parseAmountToCents)
+    val amountCents = (
+        AMOUNT.find(trimmed)?.groupValues?.get(1)
+            ?: AMOUNT_TRAILING.find(trimmed)?.groupValues?.get(1)
+        )?.let(::parseAmountToCents)
         ?: return ParseOutcome.Rejected(RejectReason.NO_AMOUNT)
 
     val reference = findReference(trimmed, provider)
@@ -166,10 +207,19 @@ fun parseSms(text: String, pastedBy: MemberId): ParseOutcome {
 }
 
 private fun detectProvider(lower: String): SmsProvider = when {
-    "m-pesa" in lower || "mpesa" in lower -> SmsProvider.MPESA
+    // KCB first: a KCB M-Pesa message mentions both, and the bank is the one
+    // that actually holds the money and prints the reference.
     "kcb" in lower -> SmsProvider.KCB
+    "m-pesa" in lower || "mpesa" in lower -> SmsProvider.MPESA
+    BANK_MARKERS.any { it in lower } -> SmsProvider.BANK
     else -> SmsProvider.UNKNOWN
 }
+
+/** Whether this message describes cash coming out of a machine. */
+fun SmsEvidence.isAtmWithdrawal(): Boolean =
+    provider != SmsProvider.MPESA &&
+        direction == SmsDirection.SENT &&
+        raw.contains("atm", ignoreCase = true)
 
 private fun detectDirection(lower: String): SmsDirection? = when {
     RECEIVED_MARKERS.any { it in lower } -> SmsDirection.RECEIVED
@@ -182,7 +232,7 @@ private fun detectDirection(lower: String): SmsDirection? = when {
  * reference, so look for the label before falling back to the M-Pesa shape.
  */
 private fun findReference(text: String, provider: SmsProvider): String? {
-    if (provider == SmsProvider.KCB) {
+    if (provider == SmsProvider.KCB || provider == SmsProvider.BANK) {
         KCB_REF.find(text)?.groupValues?.get(1)?.takeIf(::hasLetter)?.let { return it.uppercase() }
     }
     MPESA_REF.findAll(text).map { it.groupValues[1] }.firstOrNull(::hasLetter)

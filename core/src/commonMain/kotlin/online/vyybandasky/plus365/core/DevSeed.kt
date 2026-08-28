@@ -11,6 +11,7 @@ import online.vyybandasky.plus365.core.domain.Account
 import online.vyybandasky.plus365.core.domain.AccountId
 import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.domain.Member
+import online.vyybandasky.plus365.core.domain.MemberKind
 import online.vyybandasky.plus365.core.domain.MemberId
 import online.vyybandasky.plus365.core.governance.ActorConfig
 import kotlin.time.Duration.Companion.hours
@@ -45,6 +46,12 @@ object DevSeed {
     const val BRIAN: MemberId = "brian"
     const val KANGIRI: MemberId = "kangiri"
 
+    /**
+     * Someone Keshflo lends to. Not a member: no pool contribution, no vote, and
+     * no part in confirming anybody's entry.
+     */
+    const val WANJIKU: MemberId = "wanjiku"
+
     /** The pool's two pockets. Cash-at-hand is their sum, derived never stored. */
     const val SAVINGS: AccountId = "savings"
     const val FLOAT: AccountId = "float"
@@ -57,6 +64,12 @@ object DevSeed {
         Member(id = BONNIE, displayName = "Bonnie", phoneE164 = ""),
         Member(id = BRIAN, displayName = "Brian", phoneE164 = ""),
         Member(id = KANGIRI, displayName = "Kang'iri", phoneE164 = ""),
+        Member(
+            id = WANJIKU,
+            displayName = "Wanjiku",
+            phoneE164 = "",
+            kind = MemberKind.KESHFLO_BENEFICIARY,
+        ),
     )
 
     val ACCOUNTS: List<Account> = listOf(
@@ -64,13 +77,20 @@ object DevSeed {
         Account(id = FLOAT, label = "Float"),
     )
 
-    val EVERYONE: Set<MemberId> = MEMBERS.map { it.id }.toSet()
+    /**
+     * Only founders. A dev device may stand in for the three who govern the
+     * pool — never for someone it lends to.
+     */
+    val EVERYONE: Set<MemberId> = MEMBERS.filter { it.isFounder }.map { it.id }.toSet()
 
     /**
      * Bonnie's own device, testing alone: he may stand in for the others, and the
      * recorder-is-not-the-confirmer rule still applies to every entry below.
      */
     val DEV_CONFIG: ActorConfig = ActorConfig.dev(owner = BONNIE, everyone = EVERYONE)
+
+    /** How many stamped steps the seed lays down. Keep ahead of the call count. */
+    private const val SEED_STEPS = 16
 
     private fun shillings(n: Long): Long = n * 100
 
@@ -114,8 +134,11 @@ object DevSeed {
         // and the home screen has to fall back to "no activity yet" while
         // plainly showing a pool full of money — which reads as a bug, because
         // it is one.
+        // Count backwards from the oldest, clamped at zero. A fixed base was a
+        // trap: adding a seeded entry pushed the last stamps past `now` and gave
+        // the book entries dated in the future.
         var step = 0
-        fun stamp(): Instant? = now?.minus((36 - step++ * 4).hours)
+        fun stamp(): Instant? = now?.minus(((SEED_STEPS - step++).coerceAtLeast(0) * 4).hours)
 
         // --- Contributions. Each recorded by one member, confirmed by another. ---
         b = b.contribute("c1", BONNIE, 3_000, recordedBy = BONNIE, confirmedBy = BRIAN, at = stamp())
@@ -134,6 +157,9 @@ object DevSeed {
         // Brian borrowing from the pool. Recording his own loan is fine —
         // confirming it is not, which is exactly what the rule is for.
         b = b.lend("L-002", BRIAN, principal = 1_300, txnCost = 23, recordedBy = BRIAN, confirmedBy = BONNIE, at = stamp())
+
+        // --- Keshflo lending outward, at the higher rate. ---
+        b = b.lend("L-003", WANJIKU, principal = 1_000, txnCost = 28, recordedBy = BRIAN, confirmedBy = KANGIRI, at = stamp())
 
         // --- A repayment, back into the float. ---
         b = b.repay("r1", KANGIRI, "L-001", 500, recordedBy = KANGIRI, confirmedBy = BRIAN, at = stamp())
@@ -267,7 +293,7 @@ object DevSeed {
             principalCents = shillings(principal),
             recordedBy = recordedBy,
             config = DEV_CONFIG,
-            txnCostCents = shillings(txnCost),
+            mpesaChargeCents = shillings(txnCost),
             fromAccount = FLOAT,
             at = at,
         ).orThrow("disburse $loanId")

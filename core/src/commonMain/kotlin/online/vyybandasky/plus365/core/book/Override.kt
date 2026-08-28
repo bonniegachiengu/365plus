@@ -44,6 +44,9 @@ fun LedgerBook.escalate(
         is Decision.Refused -> return gate
         is Decision.Allowed -> Unit
     }
+    if (!isFounder(raisedBy)) {
+        return Decision.Refused(Refusal.NotAMember(raisedBy))
+    }
     if (target.state != EntryState.PENDING) {
         return Decision.Refused(
             Refusal.Invalid("Only an entry still waiting can be sent to the third member."),
@@ -79,6 +82,11 @@ fun LedgerBook.override(
         ?: return Decision.Refused(Refusal.UnknownEntry(entryId))
     if (member(overrider) == null) {
         return Decision.Refused(Refusal.UnknownMember(overrider))
+    }
+    // Settling a disagreement about the members' money is the strongest thing
+    // anyone does here. Someone the pool lends to has no stake to back it.
+    if (!isFounder(overrider)) {
+        return Decision.Refused(Refusal.NotAMember(overrider))
     }
     if (reason.isBlank()) {
         return Decision.Refused(

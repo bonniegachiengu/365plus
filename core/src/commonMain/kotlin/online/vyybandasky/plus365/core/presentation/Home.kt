@@ -8,7 +8,8 @@ import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.domain.MemberId
 import online.vyybandasky.plus365.core.governance.ActorConfig
 import online.vyybandasky.plus365.core.governance.eligibleConfirmers
-import online.vyybandasky.plus365.core.interest.HOUSE_RATE_BPS
+import online.vyybandasky.plus365.core.domain.MemberKind
+import online.vyybandasky.plus365.core.interest.rateFor
 import online.vyybandasky.plus365.core.interest.interestCents
 import online.vyybandasky.plus365.core.money.formatKes
 import online.vyybandasky.plus365.core.sms.Assurance
@@ -46,7 +47,7 @@ fun LedgerBook.cashOnHand(now: Instant? = null): CashOnHand {
     val pendingCount = pendingActs().size
     return CashOnHand(
         total = formatKes(s.cashAtHandCents),
-        memberCountLine = "across ${members.size} members",
+        memberCountLine = "across ${founders().size} members",
         lastUpdated = lastActivityAt()?.let { "updated ${relativeTime(it, now)}" } ?: "no activity yet",
         pendingLine = when (pendingCount) {
             0 -> null
@@ -131,7 +132,7 @@ private fun LedgerBook.actPhrase(lead: Entry): String {
         EntryType.POOL_REPAY_MEMBER -> "pay $who back"
         EntryType.TRANSFER -> "move money between pool accounts"
         EntryType.INTEREST_ACCRUAL -> "interest on $who's loan"
-        EntryType.TXN_COST -> "M-Pesa cost on $who's loan"
+        EntryType.TXN_COST -> "transaction cost on $who's loan"
         EntryType.REVERSAL -> "cancel an earlier entry"
     }
 }
@@ -151,11 +152,14 @@ data class MemberCard(
     val id: MemberId,
     val name: String,
     val initial: String,
+    /** Their pool contribution. */
     val stake: String,
     /** "owes KSh 1,673" / "clear" / "the pool owes them KSh 400" */
     val standingLine: String,
     val owesCents: Long,
     val inDebt: Boolean,
+    /** Someone Keshflo lends to, not a member of the pool. */
+    val isBeneficiary: Boolean = false,
 )
 
 fun LedgerBook.memberCards(): List<MemberCard> {
@@ -168,15 +172,22 @@ fun LedgerBook.memberCards(): List<MemberCard> {
             initial = m.displayName.take(1).uppercase(),
             stake = formatKes(b.stakeCents),
             standingLine = when {
-                b.debtCents < 0L -> "owes ${formatKes(-b.debtCents)}"
+                b.debtCents < 0L -> "pending loan amount ${formatKes(-b.debtCents)}"
                 b.debtCents > 0L -> "the pool owes them ${formatKes(b.debtCents)}"
-                else -> "clear"
+                else -> "no pending loan"
             },
             owesCents = b.debtCents,
             inDebt = b.debtCents < 0L,
+            isBeneficiary = m.isBeneficiary,
         )
     }
 }
+
+/** The three. The Members list on the home screen shows these. */
+fun LedgerBook.founderCards(): List<MemberCard> = memberCards().filter { !it.isBeneficiary }
+
+/** People Keshflo has lent to. Shown apart — they are borrowers, not members. */
+fun LedgerBook.beneficiaryCards(): List<MemberCard> = memberCards().filter { it.isBeneficiary }
 
 // ── activity ─────────────────────────────────────────────────────────────────
 
@@ -231,7 +242,7 @@ fun LedgerBook.activity(
                     EntryState.DISPUTED ->
                         "$recorder recorded · ${displayName(e.rejectedByMemberId ?: "?")} rejected"
                     EntryState.NEEDS_OVERRIDE ->
-                        "$recorder recorded · ${displayName(e.conflict?.raisedBy ?: "?")} disagreed " +
+                        "$recorder recorded · ${displayName(e.conflict?.raisedBy ?: "?")} disapproved " +
                             "· with the third member"
                     else -> "$recorder recorded · waiting for someone else"
                 },
@@ -250,7 +261,7 @@ data class MemberDetail(
     val stake: String,
     val standingLine: String,
     val inDebt: Boolean,
-    /** Everything they have owed, still owing. */
+    /** Their pending loan amount. */
     val owes: String,
     val contributionCount: Int,
     val activeLoanCount: Int,
@@ -297,6 +308,8 @@ data class LoanQuote(
     val txnCost: String,
     val totalRepayable: String,
     val rateLabel: String,
+    /** "Founder rate" or "Keshflo rate", so nobody has to work out which applied. */
+    val tierLabel: String,
     val principalCents: Long,
     val interestCents: Long,
     val txnCostCents: Long,
@@ -304,14 +317,30 @@ data class LoanQuote(
     val totalRepayableCents: Long get() = principalCents + interestCents + txnCostCents
 }
 
-fun quoteLoan(principalCents: Long, txnCostCents: Long = 0L, rateBps: Int = HOUSE_RATE_BPS): LoanQuote {
-    val interest = interestCents(principalCents, rateBps)
+/**
+ * What a loan will cost, at the rate this borrower attracts.
+ *
+ * The tier is shown, not just the number. A member seeing "10%" without being
+ * told why would reasonably think it a mistake.
+ */
+fun quoteLoan(
+    principalCents: Long,
+    kind: MemberKind = MemberKind.FOUNDER,
+    txnCostCents: Long = 0L,
+    rateBps: Int? = null,
+): LoanQuote {
+    val rate = rateBps ?: rateFor(kind)
+    val interest = interestCents(principalCents, rate)
     return LoanQuote(
         principal = formatKes(principalCents),
         interest = formatKes(interest),
         txnCost = formatKes(txnCostCents),
         totalRepayable = formatKes(principalCents + interest + txnCostCents),
-        rateLabel = "${rateBps / 100.0}% one-off charge",
+        rateLabel = "${rate / 100.0}% one-off interest",
+        tierLabel = when (kind) {
+            MemberKind.FOUNDER -> "Founder rate"
+            MemberKind.KESHFLO_BENEFICIARY -> "Keshflo rate"
+        },
         principalCents = principalCents,
         interestCents = interest,
         txnCostCents = txnCostCents,
@@ -323,8 +352,10 @@ data class RepayableLoan(
     val loanId: String,
     val borrower: String,
     val borrowerId: MemberId,
+    /** The pending loan amount. */
     val remaining: String,
     val remainingCents: Long,
+    val borrowerIsBeneficiary: Boolean = false,
 )
 
 fun LedgerBook.repayableLoans(): List<RepayableLoan> {
@@ -338,6 +369,7 @@ fun LedgerBook.repayableLoans(): List<RepayableLoan> {
             borrowerId = loan.counterpartyMemberId,
             remaining = formatKes(position.outstandingCents),
             remainingCents = position.outstandingCents,
+            borrowerIsBeneficiary = member(loan.counterpartyMemberId)?.isBeneficiary == true,
         )
     }
 }

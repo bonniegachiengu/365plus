@@ -242,7 +242,7 @@ fun MemberScreen(
                 ) {
                     Avatar(detail.initial, detail.inDebt)
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Label("Stake in the pool")
+                        Label("Pool contribution")
                         Amount(detail.stake, style = BigAmount)
                     }
                 }
@@ -269,7 +269,7 @@ fun MemberScreen(
                             Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
-                            Label(if (loan.settled) "Settled" else "Still owed")
+                            Label(if (loan.settled) "Settled" else "Pending loan amount")
                             Amount(
                                 loan.outstanding,
                                 colour = if (loan.settled) Plus.Money else Plus.Debt,
@@ -277,8 +277,9 @@ fun MemberScreen(
                         }
                         HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 8.dp))
                         ReviewLine("Borrowed", loan.principal)
-                        ReviewLine("Charge (${loan.rateLabel})", loan.interest)
-                        ReviewLine("M-Pesa cost", loan.txnCost)
+                        ReviewLine("Interest (${loan.rateLabel})", loan.interest)
+                        ReviewLine("M-Pesa charge", loan.mpesaCharge)
+                        if (loan.hasBankCharge) ReviewLine("Bank charge", loan.bankCharge)
                         ReviewLine("Paid back so far", loan.repaid)
                     }
                 }
