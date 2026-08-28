@@ -32,7 +32,42 @@ import online.vyybandasky.plus365.core.domain.MemberId
  * with an unexplained gap: money genuinely left, and the only record of it is
  * the text the bank sent.
  */
-enum class SmsProvider { MPESA, KCB, BANK, UNKNOWN }
+enum class SmsProvider {
+    MPESA,
+    KCB,
+    BANK,
+
+    /**
+     * Safaricom's money-market fund. It does send confirmations — but their
+     * exact wording is not known here yet, so nothing reads them. See
+     * [ParseOutcome.Unmapped].
+     */
+    ZIIDI,
+
+    /** Safaricom's savings product. Unmapped for the same reason. */
+    MSHWARI,
+
+    UNKNOWN,
+}
+
+fun SmsProvider.label(): String = when (this) {
+    SmsProvider.MPESA -> "M-Pesa"
+    SmsProvider.KCB -> "KCB"
+    SmsProvider.BANK -> "your bank"
+    SmsProvider.ZIIDI -> "Ziidi"
+    SmsProvider.MSHWARI -> "M-Shwari"
+    SmsProvider.UNKNOWN -> "an unrecognised sender"
+}
+
+/**
+ * Providers we can recognise but cannot yet read.
+ *
+ * Kept as a list rather than guessed at. The last time a format was guessed —
+ * KCB — the guess went in untested against a real message and had to be flagged
+ * as unverified in the docs. Recognising a message and admitting it cannot be
+ * read is worth more than parsing it wrongly and calling the result evidence.
+ */
+private val UNMAPPED_PROVIDERS = setOf(SmsProvider.ZIIDI, SmsProvider.MSHWARI)
 
 /** Which way the money moved, from the point of view of whoever got this SMS. */
 enum class SmsDirection { SENT, RECEIVED }
@@ -85,8 +120,32 @@ fun RejectReason.message(): String = when (this) {
 
 sealed interface ParseOutcome {
     data class Parsed(val evidence: SmsEvidence) : ParseOutcome
+
+    /**
+     * We know who sent this and we cannot read it yet.
+     *
+     * Distinct from [Rejected] on purpose: rejected means the message is no good,
+     * unmapped means *we* are not good enough yet. The member did nothing wrong,
+     * the text is worth keeping, and it must never be counted as proof of
+     * anything until the format is known.
+     *
+     * When a real Ziidi message arrives, that is the one place this changes:
+     * teach [parseSms] the shape and this outcome stops being returned for it.
+     */
+    data class Unmapped(
+        val provider: SmsProvider,
+        /** Redacted the same way real evidence is: no numbers survive. */
+        val raw: String,
+    ) : ParseOutcome
+
     data class Rejected(val reason: RejectReason) : ParseOutcome
 }
+
+/** What to tell a member when their message is recognised but unreadable. */
+fun ParseOutcome.Unmapped.message(): String =
+    "This looks like a ${provider.label()} message. 365+ cannot read those yet — " +
+        "the exact wording is still being confirmed. Record it by hand for now; " +
+        "the message is kept so it can be matched later."
 
 /** A transaction SMS is a couple of hundred characters. Anything past this is not one. */
 private const val MAX_SMS_LENGTH = 1_000
@@ -177,6 +236,12 @@ fun parseSms(text: String, pastedBy: MemberId): ParseOutcome {
 
     val provider = detectProvider(lower)
 
+    // Recognised, not readable. Bail out before pretending to understand it —
+    // a half-read money message is worse than an admittedly unread one.
+    if (provider in UNMAPPED_PROVIDERS) {
+        return ParseOutcome.Unmapped(provider, redactNumbers(trimmed))
+    }
+
     val amountCents = (
         AMOUNT.find(trimmed)?.groupValues?.get(1)
             ?: AMOUNT_TRAILING.find(trimmed)?.groupValues?.get(1)
@@ -207,7 +272,12 @@ fun parseSms(text: String, pastedBy: MemberId): ParseOutcome {
 }
 
 private fun detectProvider(lower: String): SmsProvider = when {
-    // KCB first: a KCB M-Pesa message mentions both, and the bank is the one
+    // The unmapped ones first. A Ziidi message moves money through M-Pesa and
+    // says so, so checking M-Pesa first would read it as an M-Pesa message and
+    // pull out fields that mean something else.
+    "ziidi" in lower -> SmsProvider.ZIIDI
+    "m-shwari" in lower || "mshwari" in lower -> SmsProvider.MSHWARI
+    // KCB next: a KCB M-Pesa message mentions both, and the bank is the one
     // that actually holds the money and prints the reference.
     "kcb" in lower -> SmsProvider.KCB
     "m-pesa" in lower || "mpesa" in lower -> SmsProvider.MPESA

@@ -59,7 +59,7 @@ private fun e(
  *
  *   poolCash = Sum(contributions) - Sum(payouts) - Sum(loans_out)
  *            + Sum(loan_repayments) + Sum(member_loans_in) - Sum(pool_repayments)
- *            - Sum(txn_costs)
+ *            - Sum(txn_costs) + Sum(account_interest)
  *
  * Interest and transfers are absent on purpose: interest is owed rather than
  * held, and a transfer only changes which pocket the cash sits in.
@@ -88,6 +88,8 @@ private fun invariantPoolCash(entries: List<Entry>): Long {
             EntryType.INTEREST_ACCRUAL -> 0L
             EntryType.TXN_COST -> -amt
             EntryType.TRANSFER -> 0L
+            EntryType.ACCOUNT_INTEREST -> amt
+            EntryType.POCKET_TRANSFER -> 0L
             EntryType.REVERSAL -> 0L
         }
     }

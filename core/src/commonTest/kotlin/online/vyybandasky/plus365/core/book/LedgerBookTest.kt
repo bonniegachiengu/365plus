@@ -248,17 +248,17 @@ class LedgerBookTest {
         b = b.record(
             id = "c1", type = EntryType.CONTRIBUTION, amountCents = 500_000,
             memberId = DevSeed.BONNIE, recordedBy = DevSeed.BONNIE, config = CONFIG,
-            accountId = DevSeed.SAVINGS,
+            accountId = DevSeed.POCHI,
         ).value().book
         b = b.confirm("c1", DevSeed.BRIAN, CONFIG).value().book
         assertEquals(500_000L, b.state().cashAtHandCents)
 
-        b = b.transfer("t1", DevSeed.SAVINGS, DevSeed.FLOAT, 200_000, DevSeed.BONNIE, CONFIG)
+        b = b.transfer("t1", DevSeed.POCHI, DevSeed.ZIIDI, 200_000, DevSeed.BONNIE, CONFIG)
             .value().book
         b = b.confirm("t1", DevSeed.BRIAN, CONFIG).value().book
 
-        assertEquals(300_000L, b.state().accountBalance(DevSeed.SAVINGS))
-        assertEquals(200_000L, b.state().accountBalance(DevSeed.FLOAT))
+        assertEquals(300_000L, b.state().accountBalance(DevSeed.POCHI))
+        assertEquals(200_000L, b.state().accountBalance(DevSeed.ZIIDI))
         assertEquals(500_000L, b.state().cashAtHandCents, "a transfer moves, never creates")
         assertEquals(
             b.state().poolCashCents,
@@ -271,7 +271,7 @@ class LedgerBookTest {
     fun a_transfer_needs_two_different_accounts() {
         val b = freshBook(withAccounts = true)
         val refused = assertIs<Decision.Refused>(
-            b.transfer("t1", DevSeed.SAVINGS, DevSeed.SAVINGS, 100, DevSeed.BONNIE, CONFIG),
+            b.transfer("t1", DevSeed.POCHI, DevSeed.POCHI, 100, DevSeed.BONNIE, CONFIG),
         )
         assertIs<Refusal.Invalid>(refused.refusal)
     }

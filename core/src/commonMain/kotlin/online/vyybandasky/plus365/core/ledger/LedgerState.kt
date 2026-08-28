@@ -4,6 +4,7 @@ import online.vyybandasky.plus365.core.domain.AccountId
 import online.vyybandasky.plus365.core.domain.LoanDirection
 import online.vyybandasky.plus365.core.domain.LoanId
 import online.vyybandasky.plus365.core.domain.MemberId
+import online.vyybandasky.plus365.core.domain.PocketId
 
 /**
  * What one member has put into the pool, and what they still have out on loan.
@@ -77,6 +78,11 @@ data class LedgerState(
      * construction — see the fold's account routing.
      */
     val perAccount: Map<AccountId, Long> = emptyMap(),
+    /**
+     * The same cash, split by what it is earmarked for. Sums to
+     * [poolCashCents] as well — two views of one balance, from different sides.
+     */
+    val perPocket: Map<PocketId, Long> = emptyMap(),
     val loans: Map<LoanId, LoanOutstanding> = emptyMap(),
 
     /**
@@ -98,6 +104,22 @@ data class LedgerState(
     val cashAtHandCents: Long get() = perAccount.values.sum()
 
     fun accountBalance(accountId: AccountId): Long = perAccount[accountId] ?: 0L
+
+    /** The roll-up over pockets. Equals [cashAtHandCents] and [poolCashCents]. */
+    val allocatedCents: Long get() = perPocket.values.sum()
+
+    fun pocketBalance(pocketId: PocketId): Long = perPocket[pocketId] ?: 0L
+
+    /**
+     * Whether the three views of the pool agree.
+     *
+     * Where the money is, what it is for, and how much there is are computed
+     * from the same entries by three separate routes. If they ever disagree the
+     * fold has a hole in it, and a money app whose own totals disagree is worse
+     * than useless — so this is asserted rather than assumed.
+     */
+    val balances: Boolean
+        get() = cashAtHandCents == poolCashCents && allocatedCents == poolCashCents
 
     /** Every pending loan amount owed to the pool, added up. */
     val totalOutstandingCents: Long

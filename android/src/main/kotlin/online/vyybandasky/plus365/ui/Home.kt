@@ -78,7 +78,7 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { TopBar(session, onOpenProfile) }
-        item { CashOnHandCard(cash.total, cash.memberCountLine, cash.lastUpdated, cash.pendingLine) }
+        item { CashOnHandCard(cash) }
         item { ActionRow(onAction) }
 
         // The third member's work comes first: a conflict is somebody's money
@@ -167,12 +167,11 @@ private fun NeedsSettlingCard(count: Int, onClick: () -> Unit) {
  * opens the app to answer.
  */
 @Composable
-private fun CashOnHandCard(
-    total: String,
-    memberCountLine: String,
-    lastUpdated: String,
-    pendingLine: String?,
-) {
+private fun CashOnHandCard(cash: online.vyybandasky.plus365.core.presentation.CashOnHand) {
+    val total = cash.total
+    val memberCountLine = cash.memberCountLine
+    val lastUpdated = cash.lastUpdated
+    val pendingLine = cash.pendingLine
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -187,6 +186,38 @@ private fun CashOnHandCard(
             style = MaterialTheme.typography.bodySmall,
             color = Plus.TextLow,
         )
+
+        // Where it is.
+        HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 10.dp))
+        Label("Where it is", Plus.TextLow)
+        for (a in cash.accounts) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    a.label + if (a.earns) " · earns" else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (a.earns) Plus.Money else Plus.TextMid,
+                )
+                Text(a.balance, style = MaterialTheme.typography.bodySmall, color = Plus.TextHigh)
+            }
+        }
+
+        // What it is for. The same total, split the other way.
+        if (cash.pockets.isNotEmpty()) {
+            HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 10.dp))
+            Label("What it is for", Plus.TextLow)
+            for (p in cash.pockets) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(p.label, style = MaterialTheme.typography.bodySmall, color = Plus.TextMid)
+                    Text(p.balance, style = MaterialTheme.typography.bodySmall, color = Plus.TextHigh)
+                }
+            }
+        }
         if (pendingLine != null) {
             Row(
                 modifier = Modifier.padding(top = 10.dp),

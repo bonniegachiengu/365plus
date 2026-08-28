@@ -504,6 +504,85 @@ wrong costs a label; refusing to read the message would cost the entry.
 A bank message and an M-Pesa message **still match on their shared code**, which
 is the whole point surviving a change of provider.
 
+## D27 - Accounts are where; pockets are what for
+
+**Decided:** 2026-08-26. **Status:** settled.
+
+Two orthogonal splits over one balance.
+
+**Accounts** answer *where the money physically sits*: M-Pesa Pochi, Ziidi,
+M-Shwari, and a bank account once it exists. Each has its own balance and its own
+confirmations. Cash-at-hand is their sum.
+
+**Pockets** answer *what it is earmarked for*: the members' pool and the Keshflo
+fund. A virtual split sitting **over** the total, not inside it. Pockets sum to
+cash-at-hand as well.
+
+The two are independent, and that is the point:
+
+- **Moving money between accounts changes nothing about what it is for.** Parking
+  the float in Ziidi does not turn it into the Keshflo fund.
+- **Re-earmarking moves no money at all.** Deciding a slice is now the Keshflo
+  fund leaves every account balance untouched.
+
+The Keshflo fund is not a separate account. Making it one would mean physically
+moving money to change a decision, and being unable to change the decision
+without moving money.
+
+**The invariant, asserted rather than assumed:** where the money is, what it is
+for, and how much there is are computed from the same entries by three separate
+routes, and `LedgerState.balances` requires all three to agree. A money app whose
+own totals disagree is worse than useless.
+
+**Depends on it:** `Account`, `Pocket`, `routeToAccounts`, `routeToPockets`,
+`reallocate`.
+
+## D28 - Interest an account pays is not a contribution
+
+**Decided:** 2026-08-26. **Status:** settled.
+
+Ziidi and M-Shwari grow on their own; a wallet does not. `ACCOUNT_INTEREST` is
+its own entry type because nobody's pool contribution rises when a fund pays out
+— recording it as a contribution would credit a member with money they never put
+in.
+
+Only an account whose kind earns can receive it. Booking interest against the
+M-Pesa wallet is refused: the wallet does not grow by itself, so that would be
+inventing money.
+
+It still waits for a second member, like everything else.
+
+**Depends on it:** `AccountKind.earnsInterest`, `recordAccountInterest`.
+
+## D29 - Ziidi is recognised, and deliberately not parsed
+
+**Decided:** 2026-08-26. **Status:** open, waiting on a real message.
+
+Ziidi does send confirmations, and it is zero-rated and instant through M-Pesa —
+so it belongs in the model. **But there is no real Ziidi message to work from
+yet**, and the last format that was guessed at (KCB, D26) went in untested and
+had to be flagged as unverified in these notes.
+
+So the parser recognises a Ziidi or M-Shwari message and returns
+`ParseOutcome.Unmapped` — a third outcome, distinct from both parsed and
+rejected. Rejected means the message is no good; **unmapped means we are not good
+enough yet.** The member did nothing wrong, the text is kept (redacted), and it
+is never counted as proof of anything.
+
+Ziidi is checked **before** M-Pesa, because a Ziidi message moves money through
+M-Pesa and says so — checking M-Pesa first would read it as an M-Pesa message and
+pull out fields meaning something else entirely.
+
+**Where the sample plugs in:** one place. In `core/sms/SmsParser.kt`, remove
+`ZIIDI` from `UNMAPPED_PROVIDERS` and teach `parseSms` the shape — the reference,
+the amount, and which way the money went. Everything downstream already works:
+matching, assurance, the override path, the UI. `UnmappedProviderTest` is where
+the new expectations go, and its "recognised but not parsed" tests become
+"parsed" ones.
+
+Until then Ziidi movements are recorded by hand and confirmed by a second member
+— the `ATTESTED` path, which the screen labels as lower assurance.
+
 ---
 
 ## Still open

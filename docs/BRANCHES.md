@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **232 tests green** (core 210, desktop 12, android 10). APK installs on the Redmi; persistence verified on device. |
+| `main` | Protected trunk. Always green, always installable. | **253 tests green** (core 231, desktop 12, android 10). APK installs on the Redmi; persistence verified on device. |
 
 Nothing else is open right now.
 
@@ -29,7 +29,8 @@ Nothing else is open right now.
 | `slice/sms-paste-match` | Paste-and-match confirmation: own M-Pesa/KCB parser, OTP filter, shared-code matching, two assurance levels, paste fields on record and confirm. | 2026-08-26 | `da99197` |
 | `slice/third-member-override` | Two-of-three arbitration: fallouts route to the uninvolved member, who confirms, corrects or rejects with a logged reason. Plus tap-through to entry, member and profile views. | 2026-08-26 | `da99197`.. |
 | `slice/flows-and-ledger` | All four flows end-to-end through paste-and-match and the full lifecycle; loans escalate and settle as one act; the ledger shows every leg; disputed money reads differently from queued money. | 2026-08-26 | `cc75edb` |
-| `slice/keshflo-and-tiers` | Brian's feedback: two interest tiers, Keshflo external lending, the charge split, bank/ATM parsing, and his wording throughout. | 2026-08-26 | see below |
+| `slice/keshflo-and-tiers` | Brian's feedback: two interest tiers, Keshflo external lending, the charge split, bank/ATM parsing, and his wording throughout. | 2026-08-26 | `a5e9e21` |
+| `slice/accounts-and-pockets` | Real accounts (Pochi, Ziidi, M-Shwari, bank later) with interest-earning kinds, virtual pockets over the total, and Ziidi recognised-but-unparsed pending a real sample. | 2026-08-26 | see below |
 
 > `5d794d6`'s message says 118 tests. The true count at that commit was **116** —
 > it double-counted two core tests that run on both the jvm and android targets.
