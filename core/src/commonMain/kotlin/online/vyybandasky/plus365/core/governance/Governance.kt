@@ -103,6 +103,16 @@ sealed interface Refusal {
             "Only the pool's own members hold a share, so only they can pay in or be paid out."
     }
 
+    /**
+     * A message was offered as proof of something it does not prove.
+     *
+     * A Ziidi confirmation says money moved between two accounts the pool
+     * already owns. Attached to a contribution it would read as proof that money
+     * *arrived* — raising the pool by an amount nobody added, with a real
+     * transaction code underneath making it look checked.
+     */
+    data class WrongKindOfEvidence(override val message: String) : Refusal
+
     data class NotPending(val state: EntryState) : Refusal {
         override val message = "Only a PENDING entry can be confirmed; this one is $state."
     }

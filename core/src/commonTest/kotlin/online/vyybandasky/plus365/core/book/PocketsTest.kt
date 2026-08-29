@@ -185,21 +185,32 @@ class PocketsTest {
 }
 
 /**
- * Ziidi and M-Shwari: recognised, deliberately not read.
+ * Recognised, deliberately not read.
  *
- * There is no real Ziidi message to work from yet. The last format that was
- * guessed at went in untested and had to be flagged as unverified; this one is
- * left honestly unmapped until a redacted sample arrives.
+ * M-Shwari entirely: no real message has been seen, and the last format guessed
+ * at went in untested and had to be flagged as unverified afterwards.
+ *
+ * Ziidi only *partly* now. Two of its shapes are read from real messages Brian
+ * supplied — see `ZiidiParserTest` — and every other Ziidi shape still comes
+ * back unmapped, which is what this class covers. Knowing two sentences a
+ * provider sends is not knowing the provider.
  */
 class UnmappedProviderTest {
 
+    /**
+     * Ziidi-shaped and not one of the two verified sentences.
+     *
+     * Close enough to be tempting — it says "investment", it carries an amount
+     * and a balance — and far enough that reading it would mean inventing the
+     * format.
+     */
     private val ziidi =
         "Ziidi: Your investment of KES 4,000.00 was successful. Fund balance KES 24,042.00."
     private val mshwari =
         "M-Shwari: You have deposited Ksh1,000.00 to M-Shwari account. Balance Ksh8,000.00."
 
     @Test
-    fun a_ziidi_message_is_recognised_but_not_parsed() {
+    fun a_ziidi_shape_nobody_has_verified_is_not_parsed() {
         val outcome = assertIs<ParseOutcome.Unmapped>(parseSms(ziidi, DevSeed.BONNIE))
         assertEquals(SmsProvider.ZIIDI, outcome.provider)
     }

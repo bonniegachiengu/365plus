@@ -32,6 +32,8 @@ import online.vyybandasky.plus365.core.ledger.LedgerState
 import online.vyybandasky.plus365.core.ledger.fold
 import online.vyybandasky.plus365.core.sms.Assurance
 import online.vyybandasky.plus365.core.sms.MatchResult
+import online.vyybandasky.plus365.core.sms.isOneSided
+import online.vyybandasky.plus365.core.sms.SmsProvider
 import online.vyybandasky.plus365.core.sms.SmsEvidence
 import online.vyybandasky.plus365.core.sms.explain
 import online.vyybandasky.plus365.core.sms.matchEvidence
@@ -217,6 +219,18 @@ fun LedgerBook.record(
         // Idempotency: the same id twice is the same fact, not a second one.
         return Decision.Allowed(Recorded(this, listOf(entry(id)!!)))
     }
+    // A Ziidi message describes money moving between accounts the pool already
+    // owns, so it proves a transfer and nothing else. Attached to a contribution
+    // it would raise the pool by an amount nobody added.
+    if (evidence?.provider == SmsProvider.ZIIDI && type != EntryType.TRANSFER) {
+        return Decision.Refused(
+            Refusal.WrongKindOfEvidence(
+                "A Ziidi message shows money moving between the pool's own accounts, " +
+                    "so it cannot be proof that money came in or went out. Record it " +
+                    "as a move between accounts instead.",
+            ),
+        )
+    }
     if (evidence != null && evidence.pastedBy != recordedBy) {
         return Decision.Refused(
             Refusal.BadEvidence("The message must be the one the recorder received."),
@@ -384,7 +398,17 @@ fun LedgerBook.confirm(
     // entry through, because they have nothing to wave it through with.
     val recorded = target.recordedEvidence
     val assurance: Assurance
-    if (recorded != null) {
+    if (recorded != null && evidence == null && recorded.isOneSided()) {
+        // A message only one person can ever hold is confirmed by hand, and says
+        // so. Demanding a second copy of something that does not exist would
+        // leave the entry unconfirmable, and the way round it would be to record
+        // the movement with no message at all — losing the proof and still
+        // ending up with a hand confirmation.
+        //
+        // The recorder's message stays on the entry. What is weaker here is the
+        // confirmation, not the record.
+        assurance = Assurance.ATTESTED
+    } else if (recorded != null) {
         if (evidence == null) {
             return Decision.Refused(
                 Refusal.BadEvidence(

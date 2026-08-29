@@ -1879,6 +1879,74 @@ rather than leaving a reader to find the contradiction themselves.
 
 ---
 
+## D69 — Ziidi, read from real messages at last
+
+Brian supplied two real Ziidi confirmations, and they are the only two shapes
+anybody here has seen:
+
+    You have successfully withdrawn Ksh. 1,000.00 of transaction code
+    UH21I1HQI9. Your ZIIDI balance is Ksh. 17,707.74.
+
+    You have successfully invested Ksh. 11,000.00 of transaction code
+    UHL1I3NX68. Your ZIIDI balance is Ksh. 11,001.07.
+
+`ZIIDI` is out of `UNMAPPED_PROVIDERS`. Both shapes parse: amount, transaction
+code, resulting balance, and direction from the verb — **invested** is money into
+Ziidi, **withdrawn** is money out of it.
+
+Every field is anchored on the words around it, never on position. The message
+carries **two** amounts, and "the first one" would read the balance as the
+transaction the day Ziidi reorders the sentence. The verb and the amount come
+out of a single match, so they cannot arrive from different halves.
+
+Anything else Ziidi sends is still `Unmapped`. Two verified shapes is what there
+is; the last format guessed at was KCB, it went in untested and had to be flagged
+unverified in these notes afterwards.
+
+`SmsEvidence` gained `balanceAfterCents`. It is a figure to show a person, never
+one to compute with — cash-at-hand is the fold, always.
+
+### The hole this opened
+
+While Ziidi was unmapped it could not produce evidence, so nothing could attach
+it to the wrong entry. The gap was closed by accident, and parsing opened it.
+
+*"You have successfully invested Ksh. 11,000.00"* reads exactly like proof that
+eleven thousand shillings arrived. It is proof that eleven thousand shillings
+moved between two accounts the pool already owns. Attached to a contribution it
+would raise the pool by money nobody added — wrong in the direction that flatters
+everybody, with a real transaction code underneath making it look checked.
+
+`record` now refuses a Ziidi message on anything but a `TRANSFER`, and says why.
+
+### And the rule that would have made it unconfirmable
+
+Paste-and-match requires the confirmer's own message for the same transaction.
+That is right for M-Pesa, where two people each get one carrying the same code.
+
+For a Ziidi move it demands something that **cannot exist**. Only the account
+holder is texted, and the matching M-Pesa leg is a separate transaction with a
+different code. Worse, `matchEvidence` requires the two messages to disagree
+about direction — so even two copies of the Ziidi message would be the same side
+and would not match. Code-matching a Ziidi move is impossible, not unlikely.
+
+A rule demanding an impossible message adds no safety. It leaves the entry
+unconfirmable, and the way round it is to record the movement with no message at
+all — losing the proof *and* still ending in a hand confirmation.
+
+So evidence that is inherently one-sided may be confirmed by hand, landing as
+`ATTESTED` — which has said *"a transaction where only one side gets an SMS"* in
+its own documentation since the day it was written. The design anticipated this;
+`confirm` had simply never implemented the exception.
+
+This also fixes it for **ATM withdrawals**, which had the same problem and nobody
+had noticed.
+
+Untouched, and tested for: an M-Pesa entry still demands the second message, and
+the recorder still cannot confirm their own entry whatever they hold.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

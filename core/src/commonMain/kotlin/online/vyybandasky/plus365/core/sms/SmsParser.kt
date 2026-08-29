@@ -38,9 +38,12 @@ enum class SmsProvider {
     BANK,
 
     /**
-     * Safaricom's money-market fund. It does send confirmations — but their
-     * exact wording is not known here yet, so nothing reads them. See
-     * [ParseOutcome.Unmapped].
+     * Safaricom's money-market fund.
+     *
+     * Two shapes are known and read: *invested* and *withdrawn*, from real
+     * messages Brian supplied. Anything else Ziidi sends still comes back as
+     * [ParseOutcome.Unmapped] — two verified shapes is what there is, and the
+     * third one will be guessed at by nobody.
      */
     ZIIDI,
 
@@ -67,7 +70,7 @@ fun SmsProvider.label(): String = when (this) {
  * as unverified in the docs. Recognising a message and admitting it cannot be
  * read is worth more than parsing it wrongly and calling the result evidence.
  */
-private val UNMAPPED_PROVIDERS = setOf(SmsProvider.ZIIDI, SmsProvider.MSHWARI)
+private val UNMAPPED_PROVIDERS = setOf(SmsProvider.MSHWARI)
 
 /** Which way the money moved, from the point of view of whoever got this SMS. */
 enum class SmsDirection { SENT, RECEIVED }
@@ -92,6 +95,19 @@ data class SmsEvidence(
     val counterparty: String? = null,
     /** The date/time exactly as printed. Not parsed — formats vary and core has no clock. */
     val occurredAtText: String? = null,
+    /**
+     * The account balance the message reports afterwards, where it gives one.
+     *
+     * Ziidi prints it; M-Pesa prints one too but this parser has never taken it.
+     * Kept because a savings account's own statement of where it landed is worth
+     * more than an inference — it is how a member checks the ledger against the
+     * account without opening the app twice.
+     *
+     * It is **not** evidence of anything by itself and no balance in this app is
+     * ever taken from a message: cash-at-hand is the fold, always. This is a
+     * figure to show a person, not a figure to compute with.
+     */
+    val balanceAfterCents: Long? = null,
     /** Who pasted this. Half of what makes a pair a pair. */
     val pastedBy: MemberId,
 )
@@ -129,8 +145,11 @@ sealed interface ParseOutcome {
      * the text is worth keeping, and it must never be counted as proof of
      * anything until the format is known.
      *
-     * When a real Ziidi message arrives, that is the one place this changes:
-     * teach [parseSms] the shape and this outcome stops being returned for it.
+     * Ziidi is how this is meant to go. It sat here for weeks; two real messages
+     * arrived; those two shapes are read now and every other Ziidi sentence
+     * still lands here. Knowing two sentences a provider sends is not knowing
+     * the provider, and the outcome does not become dishonest because some of
+     * the provider is understood.
      */
     data class Unmapped(
         val provider: SmsProvider,
@@ -187,6 +206,36 @@ private val AMOUNT_TRAILING = Regex("""([\d,]+\.\d{2})\s*(?:ksh|kes|kshs)\b""", 
  * number, and neither belongs in a file that syncs between three phones. The
  * reference code is the proof; the account number proves nothing.
  */
+/**
+ * The two Ziidi shapes, from real messages.
+ *
+ *   You have successfully withdrawn Ksh. 1,000.00 of transaction code
+ *   UH21I1HQI9. Your ZIIDI balance is Ksh. 17,707.74.
+ *
+ *   You have successfully invested Ksh. 11,000.00 of transaction code
+ *   UHL1I3NX68. Your ZIIDI balance is Ksh. 11,001.07.
+ *
+ * Every field is anchored on the words around it rather than on position. The
+ * message carries **two** amounts — the transaction and the resulting balance —
+ * and a rule like "the first one" would read the balance as the amount the day
+ * Ziidi reorders the sentence. Taking the verb and the amount from one match
+ * makes it impossible for them to come from different halves of the message.
+ */
+private val ZIIDI_MOVE = Regex(
+    """successfully\s+(withdrawn|invested)\s+(?:ksh|kes|kshs)\s*\.?\s*([\d,]+(?:\.\d{1,2})?)""",
+    RegexOption.IGNORE_CASE,
+)
+
+private val ZIIDI_REF = Regex(
+    """transaction\s+code\s+([A-Za-z0-9]{6,20})\b""",
+    RegexOption.IGNORE_CASE,
+)
+
+private val ZIIDI_BALANCE = Regex(
+    """ziidi\s+balance\s+is\s+(?:ksh|kes|kshs)\s*\.?\s*([\d,]+(?:\.\d{1,2})?)""",
+    RegexOption.IGNORE_CASE,
+)
+
 private val PHONE = Regex("""(?:\+?254|0)7\d{8}|\b\d{6,16}\b|\b(?:x|\*){2,}\d{2,6}\b""")
 
 /**
@@ -263,6 +312,13 @@ fun parseSms(text: String, pastedBy: MemberId): ParseOutcome {
         return ParseOutcome.Unmapped(provider, redactNumbers(trimmed))
     }
 
+    // Ziidi has its own two shapes and does not go through the generic path.
+    // Its message carries two amounts and labels neither the way M-Pesa does, so
+    // the general rules would read the wrong one.
+    if (provider == SmsProvider.ZIIDI) {
+        return parseZiidi(trimmed, pastedBy)
+    }
+
     val amountCents = (
         AMOUNT.find(trimmed)?.groupValues?.get(1)
             ?: AMOUNT_TRAILING.find(trimmed)?.groupValues?.get(1)
@@ -292,10 +348,75 @@ fun parseSms(text: String, pastedBy: MemberId): ParseOutcome {
     )
 }
 
+/**
+ * Read a Ziidi confirmation, or admit it is a shape nobody has seen.
+ *
+ * ## Which way is "sent"
+ *
+ * [SmsDirection] is the direction *this message's account* moved, and this
+ * message is about the Ziidi account:
+ *
+ *  * **invested** — money arrived in Ziidi. `RECEIVED`.
+ *  * **withdrawn** — money left Ziidi. `SENT`.
+ *
+ * ## What it is evidence *of*
+ *
+ * Not income and not spending. Ziidi is one of the pool's own accounts, so
+ * investing and withdrawing are **transfers between accounts the pool already
+ * owns** — cash-at-hand cannot change, and treating an "invested" message as
+ * money arriving would inflate the pool by the amount it just moved.
+ *
+ * The message reports only the Ziidi side. The matching M-Pesa leg arrives as
+ * its own message, and the two together are the pair.
+ *
+ * ## Anything else
+ *
+ * Returned [ParseOutcome.Unmapped], exactly as before. Two shapes were verified
+ * against real messages; a third would be a guess, and the last guessed format
+ * had to be marked unverified in the docs afterwards.
+ */
+private fun parseZiidi(trimmed: String, pastedBy: MemberId): ParseOutcome {
+    val move = ZIIDI_MOVE.find(trimmed)
+        ?: return ParseOutcome.Unmapped(SmsProvider.ZIIDI, redactNumbers(trimmed))
+
+    val verb = move.groupValues[1].lowercase()
+    val amountCents = parseAmountToCents(move.groupValues[2])
+        ?: return ParseOutcome.Rejected(RejectReason.NO_AMOUNT)
+
+    val reference = ZIIDI_REF.find(trimmed)?.groupValues?.get(1)?.takeIf(::hasLetter)?.uppercase()
+        ?: return ParseOutcome.Rejected(RejectReason.NO_REFERENCE)
+
+    val direction = when (verb) {
+        "invested" -> SmsDirection.RECEIVED
+        "withdrawn" -> SmsDirection.SENT
+        // Unreachable while the regex only offers those two, and a cheap way to
+        // fail loudly rather than silently if a third verb is ever added above
+        // without deciding which way it points.
+        else -> return ParseOutcome.Unmapped(SmsProvider.ZIIDI, redactNumbers(trimmed))
+    }
+
+    return ParseOutcome.Parsed(
+        SmsEvidence(
+            raw = redactNumbers(trimmed),
+            provider = SmsProvider.ZIIDI,
+            reference = reference,
+            amountCents = amountCents,
+            direction = direction,
+            counterparty = null,
+            occurredAtText = WHEN.find(trimmed)?.groupValues?.get(1),
+            balanceAfterCents = ZIIDI_BALANCE.find(trimmed)
+                ?.groupValues?.get(1)
+                ?.let(::parseAmountToCents),
+            pastedBy = pastedBy,
+        ),
+    )
+}
+
 private fun detectProvider(lower: String): SmsProvider = when {
-    // The unmapped ones first. A Ziidi message moves money through M-Pesa and
+    // Ziidi and M-Shwari first. A Ziidi message moves money through M-Pesa and
     // says so, so checking M-Pesa first would read it as an M-Pesa message and
-    // pull out fields that mean something else.
+    // pull out fields that mean something else — its reference is labelled
+    // differently and it carries a second amount that is not the transaction.
     "ziidi" in lower -> SmsProvider.ZIIDI
     "m-shwari" in lower || "mshwari" in lower -> SmsProvider.MSHWARI
     // KCB next: a KCB M-Pesa message mentions both, and the bank is the one
@@ -305,6 +426,34 @@ private fun detectProvider(lower: String): SmsProvider = when {
     BANK_MARKERS.any { it in lower } -> SmsProvider.BANK
     else -> SmsProvider.UNKNOWN
 }
+
+/**
+ * Whether this message is the only one anybody will ever have for it.
+ *
+ * Paste-and-match rests on an assumption that is true of an M-Pesa transfer and
+ * false of several other real movements: that *two* people each receive their
+ * own message carrying the same code. When that holds, requiring the second
+ * message is what makes two-person control structural rather than procedural.
+ *
+ * It does not hold here:
+ *
+ *  * **Ziidi.** Both verified shapes move money between accounts the same person
+ *    owns. There is no counterparty to receive anything, and the matching M-Pesa
+ *    leg is a different transaction with a different code — so no second message
+ *    with this code exists anywhere in the world.
+ *  * **An ATM withdrawal.** Cash out of a machine has nobody on the other side.
+ *
+ * A rule that demands a message which cannot exist does not add safety. It makes
+ * the entry unconfirmable, and the way round it is to record the movement with
+ * no message at all — losing the proof *and* still ending up with a hand
+ * confirmation. Strictly worse than admitting what this is.
+ *
+ * So these confirm by hand, and land as [Assurance.ATTESTED], which has said
+ * "only one side gets an SMS" in its own documentation since the day it was
+ * written.
+ */
+fun SmsEvidence.isOneSided(): Boolean =
+    provider == SmsProvider.ZIIDI || isAtmWithdrawal()
 
 /** Whether this message describes cash coming out of a machine. */
 fun SmsEvidence.isAtmWithdrawal(): Boolean =
