@@ -43,6 +43,7 @@ import online.vyybandasky.plus365.core.presentation.activity
 import online.vyybandasky.plus365.core.presentation.cashOnHand
 import online.vyybandasky.plus365.core.presentation.beneficiaryCards
 import online.vyybandasky.plus365.core.presentation.founderCards
+import online.vyybandasky.plus365.core.presentation.firstRunLine
 import online.vyybandasky.plus365.core.presentation.overdrawReport
 import online.vyybandasky.plus365.core.presentation.overrideCount
 import online.vyybandasky.plus365.core.presentation.pendingActs
@@ -127,6 +128,13 @@ fun HomeScreen(
         }
 
         item { SectionHeading("Recent activity", action = "See all", onAction = onOpenLedger) }
+        session.book.firstRunLine(now)?.let { line ->
+            item {
+                Card {
+                    Text(line, style = MaterialTheme.typography.bodyMedium, color = Plus.TextMid)
+                }
+            }
+        }
         items(recent) { row -> ActivityLine(row) { onOpenEntry(row.entryId) } }
     }
 }

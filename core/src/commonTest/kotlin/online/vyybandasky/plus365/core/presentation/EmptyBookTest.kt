@@ -105,3 +105,59 @@ class EmptyBookTest {
         assertTrue(s.book.state().balances, "the invariant holds from the first entry")
     }
 }
+
+/**
+ * What the app says on its first day.
+ *
+ * Members first, entries later — that is how the real ledger loads, so the first
+ * thing anyone ever sees is three names and no history. A bare "Recent activity"
+ * heading over nothing reads as an app that failed to load, which is a poor first
+ * impression for a record whose only job is being believed.
+ */
+class FirstRunTest {
+
+    private val now = Instant.parse("2026-08-29T09:00:00Z")
+    private val config = ActorConfig.dev(DevSeed.BONNIE, DevSeed.EVERYONE)
+
+    @Test
+    fun `an empty book says so`() {
+        val line = LedgerBook(
+            members = DevSeed.MEMBERS,
+            accounts = DevSeed.ACCOUNTS,
+            pockets = DevSeed.POCKETS,
+        ).firstRunLine(now)
+        assertNotNull(line)
+        assertTrue(line.contains("Nothing has been recorded yet"))
+    }
+
+    @Test
+    fun `a book with no members says something different`() {
+        val line = LedgerBook().firstRunLine(now)
+        assertNotNull(line)
+        assertTrue(line.contains("Nobody"), "no members and no entries are not the same problem")
+    }
+
+    @Test
+    fun `the line disappears the moment it stops being true`() {
+        var s = Session(
+            book = LedgerBook(
+                members = DevSeed.MEMBERS,
+                accounts = DevSeed.ACCOUNTS,
+                pockets = DevSeed.POCKETS,
+            ),
+            config = config,
+            actingAs = DevSeed.BONNIE,
+        )
+        assertNotNull(s.book.firstRunLine(now))
+        s = s.contribute(DevSeed.BONNIE, 100_000, now)
+        assertNull(
+            s.book.firstRunLine(now),
+            "a pending entry is still something that has happened",
+        )
+    }
+
+    @Test
+    fun `the seeded book never shows it`() {
+        assertNull(DevSeed.book(now).firstRunLine(now))
+    }
+}

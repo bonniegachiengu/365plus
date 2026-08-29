@@ -1105,6 +1105,34 @@ and the page was wrong. Some defects are only visible in a screenshot.
 
 ---
 
+## D48 — The first day, and the third printing of one number
+
+Two things, both about what a screen says when there is too little or too much of
+one figure.
+
+**The empty home screen.** With no entries, both home screens showed the heading
+"Recent activity" and nothing under it. That is not a neutral blank — it reads as
+an app that failed to load, which is a poor first impression for a record whose
+only job is being believed.
+
+It is not a hypothetical state. Members first, entries later is how the real
+ledger loads, so three names and no history is literally day one. `firstRunLine`
+says so in words, distinguishes *no entries* from *no members* — they are not the
+same problem and should not read the same — and returns null the moment there is
+anything to show, including a pending entry, because something waiting to be
+confirmed is still something that has happened.
+
+**The member page, finally.** After D47 fixed the hero and the colour, Wanjiku's
+page still printed KSh 1,128.00 three times: the hero, the standing line
+underneath it, and the loan card's own header. The standing line was the
+redundant one — for a borrower it is the hero said again, one size down — so it
+is shown only for founders now, where it carries a stake and is not a repeat.
+
+The loan card stays. It breaks the figure into borrowed, interest, charge and
+paid-so-far, which is composition rather than repetition.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

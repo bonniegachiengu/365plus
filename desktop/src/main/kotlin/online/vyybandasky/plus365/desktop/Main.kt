@@ -59,6 +59,7 @@ import online.vyybandasky.plus365.core.presentation.activity
 import online.vyybandasky.plus365.core.presentation.beneficiaryCards
 import online.vyybandasky.plus365.core.presentation.cashOnHand
 import online.vyybandasky.plus365.core.presentation.entryDetail
+import online.vyybandasky.plus365.core.presentation.firstRunLine
 import online.vyybandasky.plus365.core.presentation.founderCards
 import online.vyybandasky.plus365.core.presentation.memberDetail
 import online.vyybandasky.plus365.core.presentation.overdrawReport
@@ -437,6 +438,9 @@ private fun HomeBody(
         Text("Recent activity", style = MaterialTheme.typography.titleLarge, color = Plus.TextHigh)
         BigButton("See the whole ledger", filled = false, onClick = onOpenLedger)
     }
+    session.book.firstRunLine(now)?.let { line ->
+        Card { Text(line, style = MaterialTheme.typography.bodyMedium, color = Plus.TextMid) }
+    }
     for (row in session.book.activity(now, limit = 6)) {
         ActivityLine(row) { onOpenEntry(row.entryId) }
     }
@@ -566,11 +570,17 @@ private fun MemberBody(
                 if (!d.isBeneficiary && d.owesCents > 0L) {
                     ReviewLine("Pending loan amount", d.owes)
                 }
-                Text(
-                    d.standingLine,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = if (d.inDebt) Plus.Debt else Plus.Money,
-                )
+                // For a borrower the standing line is the hero figure said again
+                // one size down, and the card below breaks it into parts. Three
+                // printings of one number on one screen is how a page stops
+                // being read.
+                if (!d.isBeneficiary) {
+                    Text(
+                        d.standingLine,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (d.inDebt) Plus.Debt else Plus.Money,
+                    )
+                }
                 Text(
                     "${d.contributionCount} contributions · ${d.activeLoanCount} active " +
                         if (d.activeLoanCount == 1) "loan" else "loans",

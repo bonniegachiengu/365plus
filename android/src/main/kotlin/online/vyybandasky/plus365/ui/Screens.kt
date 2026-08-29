@@ -277,11 +277,15 @@ fun MemberScreen(
                 if (!detail.isBeneficiary && detail.owesCents > 0L) {
                     ReviewLine("Pending loan amount", detail.owes)
                 }
-                Text(
-                    detail.standingLine,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = if (detail.inDebt) Plus.Debt else Plus.Money,
-                )
+                // For a borrower the standing line is the hero figure said again
+                // one size down, and the card below breaks it into parts.
+                if (!detail.isBeneficiary) {
+                    Text(
+                        detail.standingLine,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (detail.inDebt) Plus.Debt else Plus.Money,
+                    )
+                }
                 Text(
                     "${detail.contributionCount} contributions · " +
                         "${detail.activeLoanCount} active " +

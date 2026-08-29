@@ -261,3 +261,25 @@ private fun ActivityRow.matches(needle: String): Boolean =
         amount.contains(needle, ignoreCase = true) ||
         footnote.contains(needle, ignoreCase = true) ||
         reference?.contains(needle, ignoreCase = true) == true
+
+/**
+ * What the home screen says before anything has happened.
+ *
+ * Members first, entries later — that is how the real ledger will be loaded, so
+ * the first thing anyone ever sees is three names and no history. A bare
+ * "Recent activity" heading over nothing reads as an app that failed to load,
+ * which is a bad first impression for a record whose whole job is being
+ * believed.
+ *
+ * Null once there is anything to show, so the card disappears the moment it
+ * stops being true.
+ */
+fun LedgerBook.firstRunLine(now: Instant? = null): String? {
+    if (activity(now, everything = true).isNotEmpty()) return null
+    return if (members.isEmpty()) {
+        "Nobody is in this pool yet."
+    } else {
+        "Nothing has been recorded yet. The first thing anyone adds shows up here, " +
+            "and stays — this record is only ever added to."
+    }
+}
