@@ -155,9 +155,9 @@ fun LedgerBook.memberRows(): List<MemberRow> {
             name = m.displayName,
             stake = formatKes(b.stakeCents),
             owes = when {
-                b.debtCents < 0L -> "owes ${formatKes(-b.debtCents)}"
-                b.debtCents > 0L -> "is owed ${formatKes(b.debtCents)}"
-                else -> "clear"
+                b.debtCents < 0L -> "pending loan amount ${formatKes(-b.debtCents)}"
+                b.debtCents > 0L -> "the pool owes them ${formatKes(b.debtCents)}"
+                else -> "no pending loan"
             },
             owesCents = b.debtCents,
         )
