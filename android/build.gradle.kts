@@ -34,8 +34,8 @@ android {
         // Bumped every slice so the build on the phone can be named, not
         // assumed. An APK that silently failed to replace the old one looks
         // exactly like a feature that silently failed to work.
-        versionCode = 9
-        versionName = "0.9.0-accounts-pockets"
+        versionCode = 10
+        versionName = "0.10.0-overdraw-flags"
     }
 
     buildFeatures {

@@ -29,7 +29,9 @@ import online.vyybandasky.plus365.core.presentation.Notice
 import online.vyybandasky.plus365.core.presentation.Session
 import online.vyybandasky.plus365.core.presentation.historyRows
 import online.vyybandasky.plus365.core.presentation.loanRows
-import online.vyybandasky.plus365.core.presentation.memberRows
+import online.vyybandasky.plus365.core.presentation.beneficiaryCards
+import online.vyybandasky.plus365.core.presentation.founderCards
+import online.vyybandasky.plus365.core.presentation.overdrawReport
 import online.vyybandasky.plus365.core.presentation.pendingRows
 import online.vyybandasky.plus365.core.presentation.summaryView
 import online.vyybandasky.plus365.core.store.LedgerStore
@@ -109,9 +111,36 @@ fun App(store: LedgerStore) {
                     }
                 }
 
+                val overdraw = session.book.overdrawReport()
+                if (overdraw.any) {
+                    Section("Accounts that went below zero")
+                    Text(overdraw.headline)
+                    Text(
+                        "Recorded, not blocked — the money did move. Kept so the cause " +
+                            "can be traced.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    for (a in overdraw.byAccount) {
+                        Text("${a.account} — ${a.times}x, worst ${a.worstShortfall}")
+                    }
+                    for (m in overdraw.byMember) {
+                        Text(
+                            "${m.name}: in ${m.involvedIn}, recorded ${m.recorded}",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
+
                 Section("Members")
-                for (row in session.book.memberRows()) {
-                    Text("${row.name} — pool contribution ${row.stake}, ${row.owes}")
+                for (row in session.book.founderCards()) {
+                    Text("${row.name} — pool contribution ${row.stake}, ${row.standingLine}")
+                }
+                val borrowers = session.book.beneficiaryCards()
+                if (borrowers.isNotEmpty()) {
+                    Section("Keshflo borrowers")
+                    for (row in borrowers) {
+                        Text("${row.name} — ${row.standingLine}")
+                    }
                 }
 
                 Section("Waiting on a second pair of eyes")

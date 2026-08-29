@@ -3,6 +3,9 @@ package online.vyybandasky.plus365.core.ledger
 import online.vyybandasky.plus365.core.domain.AccountId
 import online.vyybandasky.plus365.core.domain.LoanDirection
 import online.vyybandasky.plus365.core.domain.LoanId
+import kotlinx.datetime.Instant
+import online.vyybandasky.plus365.core.domain.EntryId
+import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.domain.MemberId
 import online.vyybandasky.plus365.core.domain.PocketId
 
@@ -64,6 +67,46 @@ data class LoanOutstanding(
 }
 
 /**
+ * An account went below zero, and everything needed to find out why.
+ *
+ * **Flagged, never refused.** An entry that overdraws an account is still
+ * recorded, because the money did move and a ledger that refuses to write down
+ * what happened is worse than one that writes down something awkward. Blocking
+ * it would also lose the very thing worth having: the slip itself.
+ *
+ * So this carries enough to trace the source rather than just complain — which
+ * account, which entry took it under, who was on the other side, who recorded
+ * it, how far under it went, and when. One flag is a mistake; the same
+ * counterparty across several is a pattern, and the pattern is the point.
+ *
+ * Derived by the fold like every other total, so it can never be stale and can
+ * never be dismissed into non-existence.
+ */
+data class OverdrawFlag(
+    /** Which account went under. */
+    val accountId: AccountId,
+    /** The entry that took it under — the one to go and look at. */
+    val entryId: EntryId,
+    val seq: Long?,
+    /** When it happened, where the entry recorded a time. */
+    val at: Instant?,
+    val type: EntryType,
+    /** What that entry moved. */
+    val amountCents: Long,
+    /** Where the account stood immediately afterwards. Negative, by definition. */
+    val balanceAfterCents: Long,
+    /** Who the money concerned — the counterparty side of the slip. */
+    val memberId: MemberId,
+    /** Who wrote it down. The other half of tracing a habit. */
+    val recordedByMemberId: MemberId?,
+    /** What the money was earmarked for when it went under. */
+    val pocketId: PocketId?,
+) {
+    /** How far under. Always positive. */
+    val shortfallCents: Long get() = -balanceAfterCents
+}
+
+/**
  * Derived, never stored. Two devices holding the same entries must produce an
  * identical [LedgerState] — which is why the fold is shared code rather than
  * written once per platform.
@@ -94,6 +137,15 @@ data class LedgerState(
 
     /** How many local DRAFT entries were folded in optimistically, if any. */
     val includedDraftCount: Int = 0,
+
+    /**
+     * Every point at which an account went below zero, oldest first.
+     *
+     * Not errors and not warnings to be cleared — a running record of where the
+     * books and the real accounts drifted apart, kept so the drift can be traced
+     * to a cause.
+     */
+    val overdrawFlags: List<OverdrawFlag> = emptyList(),
 ) {
     fun balanceOf(memberId: MemberId): MemberBalance = perMember[memberId] ?: MemberBalance()
 
@@ -104,6 +156,13 @@ data class LedgerState(
     val cashAtHandCents: Long get() = perAccount.values.sum()
 
     fun accountBalance(accountId: AccountId): Long = perAccount[accountId] ?: 0L
+
+    /** Whether any account has ever dipped below zero. */
+    val hasOverdrawn: Boolean get() = overdrawFlags.isNotEmpty()
+
+    /** Flags against one account, oldest first. */
+    fun overdrawsFor(accountId: AccountId): List<OverdrawFlag> =
+        overdrawFlags.filter { it.accountId == accountId }
 
     /** The roll-up over pockets. Equals [cashAtHandCents] and [poolCashCents]. */
     val allocatedCents: Long get() = perPocket.values.sum()

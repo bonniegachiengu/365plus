@@ -127,6 +127,7 @@ fun fold(
     val pendingMembers = mutableMapOf<MemberId, MemberBalance>()
     val confirmedAccounts = mutableMapOf<AccountId, Long>()
     val confirmedPockets = mutableMapOf<PocketId, Long>()
+    val overdraws = mutableListOf<OverdrawFlag>()
     var confirmedCash = 0L
     var pendingCash = 0L
     var draftCount = 0
@@ -151,7 +152,7 @@ fun fold(
             if (entry.state == EntryState.DRAFT) draftCount++
             confirmedMembers.accumulate(entry.memberId, effect)
             confirmedCash += effect.poolCashCents
-            routeToAccounts(entry, byId, effect, confirmedAccounts)
+            routeToAccounts(entry, byId, effect, confirmedAccounts, overdraws)
             routeToPockets(entry, byId, effect, confirmedPockets)
             tallyLoan(entry, byId, loansById, loanTallies)
         } else {
@@ -165,6 +166,7 @@ fun fold(
         poolCashCents = confirmedCash,
         perAccount = confirmedAccounts.filterValues { it != 0L }.toMap(),
         perPocket = confirmedPockets.filterValues { it != 0L }.toMap(),
+        overdrawFlags = overdraws.toList(),
         loans = loanTallies.mapValues { (_, tally) -> tally.toOutstanding() },
         pendingPerMember = pendingMembers.toMap(),
         pendingPoolCashCents = pendingCash,
@@ -209,6 +211,7 @@ private fun routeToAccounts(
     byId: Map<EntryId, Entry>,
     effect: Effect,
     into: MutableMap<AccountId, Long>,
+    overdraws: MutableList<OverdrawFlag>,
 ) {
     // A reversal moves the inverse through whatever accounts its target used.
     val subject: Entry
@@ -227,12 +230,56 @@ private fun routeToAccounts(
         val amt = subject.amountCents * sign
         into[from] = (into[from] ?: 0L) - amt
         into[to] = (into[to] ?: 0L) + amt
+        // A transfer can overdraw the account it came out of just as easily as a
+        // payment can. Same flag, same reason.
+        flagIfUnder(entry, subject, from, -amt, into, overdraws)
         return
     }
 
     if (effect.poolCashCents == 0L) return
     val account = subject.accountId ?: Accounts.UNASSIGNED
     into[account] = (into[account] ?: 0L) + effect.poolCashCents
+    flagIfUnder(entry, subject, account, effect.poolCashCents, into, overdraws)
+}
+
+/**
+ * Note an entry that left an account below zero.
+ *
+ * Recorded, not refused. The entry stands either way — this is a note about it,
+ * carrying enough to go and find out what happened rather than merely to say
+ * that something did.
+ *
+ * Flagged when the entry either took the account under or pushed it further
+ * under. An entry that leaves it negative but *less* negative is a repayment
+ * digging the account out, and flagging that would bury the slips in their own
+ * aftermath — which is exactly how a useful signal becomes a dismissable one.
+ */
+private fun flagIfUnder(
+    entry: Entry,
+    subject: Entry,
+    accountId: AccountId,
+    delta: Long,
+    balances: Map<AccountId, Long>,
+    overdraws: MutableList<OverdrawFlag>,
+) {
+    val after = balances[accountId] ?: 0L
+    if (after >= 0L) return
+    val before = after - delta
+    // Under already and this made it no worse: the account is recovering.
+    if (before < 0L && after >= before) return
+
+    overdraws += OverdrawFlag(
+        accountId = accountId,
+        entryId = entry.id,
+        seq = entry.seq,
+        at = entry.confirmedAt ?: entry.recordedAt,
+        type = subject.type,
+        amountCents = subject.amountCents,
+        balanceAfterCents = after,
+        memberId = subject.memberId,
+        recordedByMemberId = entry.recordedByMemberId,
+        pocketId = subject.pocketId,
+    )
 }
 
 /**
