@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.money.formatKes
 import online.vyybandasky.plus365.core.presentation.EntryDetail
+import online.vyybandasky.plus365.core.book.earningAccounts
 import online.vyybandasky.plus365.core.presentation.PoolMove
 import online.vyybandasky.plus365.core.presentation.Session
 
@@ -44,7 +45,9 @@ fun MovesCard(session: Session, now: Instant, onChange: (Session) -> Unit) {
     var move by remember { mutableStateOf(PoolMove.MOVE) }
     val accounts = session.book.accounts
     val pockets = session.book.pockets
-    val earning = accounts.filter { it.earnsInterest }
+    // Which accounts grow on their own is core's question to answer, not one
+    // each shell should re-derive from the model and get subtly different.
+    val earning = session.book.earningAccounts()
 
     var from by remember { mutableStateOf(accounts.firstOrNull()?.id ?: "") }
     var to by remember { mutableStateOf(accounts.getOrNull(1)?.id ?: "") }

@@ -1267,6 +1267,37 @@ there is somebody's word.
 
 ---
 
+## D53 — A button rendered one letter wide
+
+The Places screen shipped with its account "Add it" button squeezed into a
+sliver between the two columns, its label stacked vertically down the page:
+
+    A
+    d
+    d
+    i
+    t
+
+`NameField` applied `fillMaxWidth()` internally, so in a `Row` it took the whole
+row and left the button whatever was left, which was nothing. The button was not
+merely ugly; at that width it could not be pressed. The screen was untappable and
+every test passed.
+
+The field lets the caller decide its width now — `weight(1f)` beside a fixed
+110dp button in the row, `fillMaxWidth()` in the stacked pocket form. A composable
+that forces its own width cannot be laid out beside anything.
+
+Third time in this session that unit tests were green and a screenshot was not.
+The rule that keeps proving itself: build it, install it, look at it.
+
+Also folded in from the reachability audit: both shells were computing
+`accounts.filter { it.earnsInterest }` to find the accounts that grow on their
+own, while `LedgerBook.earningAccounts()` sat in core answering exactly that and
+called only by a test. Two shells deriving the same fact separately is the thing
+the two-shell split exists to prevent, so both ask core now.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

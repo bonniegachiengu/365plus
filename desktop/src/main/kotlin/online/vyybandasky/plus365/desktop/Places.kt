@@ -125,12 +125,13 @@ private fun AddAccountCard(session: Session, onChange: (Session) -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         ) {
-            NameField(label, "What is it called") { label = it }
-            Box2 {
-                BigButton("Add it", enabled = label.isNotBlank()) {
-                    onChange(session.addAccount(label, kind))
-                    label = ""
-                }
+            // The field takes what is left after the button, not all of it.
+            // Sharing a row with a fillMaxWidth text field squeezed the button
+            // into a one-character column and stacked its label vertically.
+            NameField(label, "What is it called", Modifier.weight(1f)) { label = it }
+            BigButton("Add it", enabled = label.isNotBlank(), modifier = Modifier.width(110.dp)) {
+                onChange(session.addAccount(label, kind))
+                label = ""
             }
         }
     }
@@ -149,8 +150,12 @@ private fun AddPocketCard(session: Session, onChange: (Session) -> Unit) {
             style = MaterialTheme.typography.bodySmall,
             color = Plus.TextLow,
         )
-        NameField(label, "What is it for", Modifier.padding(top = 8.dp)) { label = it }
-        NameField(blurb, "A line about it, if it helps", Modifier.padding(top = 8.dp)) { blurb = it }
+        NameField(label, "What is it for", Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            label = it
+        }
+        NameField(blurb, "A line about it, if it helps", Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            blurb = it
+        }
         Row(modifier = Modifier.padding(top = 10.dp)) {
             BigButton("Add it", enabled = label.isNotBlank()) {
                 onChange(session.addPocket(label, blurb))
@@ -173,7 +178,7 @@ private fun NameField(
         onValueChange = { onValue(it.take(40)) },
         label = { Text(label) },
         singleLine = true,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier,
         shape = RoundedCornerShape(12.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = Plus.Money,
@@ -185,12 +190,6 @@ private fun NameField(
             cursorColor = Plus.Money,
         ),
     )
-}
-
-/** A fixed-width slot so the button does not stretch with the field beside it. */
-@Composable
-private fun Box2(content: @Composable () -> Unit) {
-    Column(Modifier.width(110.dp)) { content() }
 }
 
 /** The kinds, in words a person would use rather than the enum's. */

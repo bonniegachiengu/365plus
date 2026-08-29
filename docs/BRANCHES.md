@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **343 tests green** (core 321, desktop 12, android 10), and the build compiles with no warnings. Desktop installed and verified as `0.23.0-places`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+| `main` | Protected trunk. Always green, always installable. | **343 tests green** (core 321, desktop 12, android 10), and the build compiles with no warnings. Desktop installed and verified as `0.23.1-places-layout`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
 
 
 ## Merged
