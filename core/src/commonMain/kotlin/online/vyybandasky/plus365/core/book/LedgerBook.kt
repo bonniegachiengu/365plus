@@ -60,8 +60,30 @@ data class LedgerBook(
     val entries: List<Entry> = emptyList(),
     val nextSeq: Long = 1L,
 ) {
-    /** Balances. Derived on demand, never stored — see [fold]. */
-    fun state(): LedgerState = fold(entries, loans)
+    /**
+     * Balances. Derived, never stored — see [fold].
+     *
+     * Derived once. One render of the home screen asks for this repeatedly:
+     * cash on hand, the member cards, the activity list and the overdraw report
+     * each want balances, and Compose re-runs the lot on every recomposition.
+     * With the dev seed that is a dozen entries and free; with the years of
+     * history still to be loaded it is the whole log folded several times a
+     * frame.
+     *
+     * Safe because a book is immutable. Every mutation in this codebase produces
+     * a new `LedgerBook` through `copy`, and a copy gets its own lazy — so this
+     * can never hand back balances belonging to a book that no longer exists.
+     * `FoldCostTest` holds both halves of that: computed once for one book, and
+     * recomputed for a copy.
+     *
+     * Not stored in the constructor, so it stays out of `equals`, `hashCode`,
+     * `toString` and serialisation. It is a cache, not a fact about the book.
+     */
+    private val folded: LedgerState by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        fold(entries, loans)
+    }
+
+    fun state(): LedgerState = folded
 
     fun member(id: MemberId): Member? = members.firstOrNull { it.id == id }
 

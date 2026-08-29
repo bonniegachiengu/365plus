@@ -1541,6 +1541,44 @@ somebody intended rather than what the file did.
 
 ---
 
+## D60 — Folding the log once per book
+
+`state()` folds the whole entry log, and one render of the home screen asks for
+it from seven places: cash on hand, the member cards, the borrower cards, the
+activity list, the pending acts, the conflict count and the overdraw report.
+Compose re-runs all of that on every recomposition.
+
+With the dev seed that is a dozen entries and free. With the years of history
+still waiting to be loaded it is the entire log folded seven times a frame, and
+the screen that gets slow is the one showing the money.
+
+A `LedgerBook` is immutable and every mutation here produces a new one through
+`copy`, so the fold has exactly one answer for the life of the object. It is a
+`by lazy` now, deliberately outside the constructor so it stays out of `equals`,
+`hashCode`, `toString` and serialisation — it is a cache, not a fact about the
+book.
+
+`FoldCostTest` holds both halves of the guarantee: computed once for one book,
+and **recomputed for a copy**. The second matters more than the first. A memo
+that survived a `copy` would hand back the balances of a book that no longer
+exists, which is a stale-balance bug — considerably worse than the slow fold it
+was meant to fix.
+
+### The fixture that was passing for the wrong reason
+
+Two of these tests failed before the change was even made, which should not have
+been possible. The fixture recorded fifty entries and never confirmed any of
+them, so every balance was zero and "the copy has less money than the original"
+was `0 < 0`.
+
+The tests were wrong, not the code. Recording lands an entry pending and pending
+moves nothing — which is the central rule of this whole application, and I had
+written a fixture that quietly assumed otherwise. It now records *and* confirms,
+and asserts on the way past that the pending entry moved nothing before anybody
+agreed to it.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |
