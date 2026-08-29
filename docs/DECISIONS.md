@@ -670,6 +670,45 @@ the same name and killing the parent takes the child with it.
 
 ---
 
+## D34 — Four capabilities the book had and the shells did not
+
+Auditing core against the two shells turned up a gap that no test could have
+found, because nothing was wrong with any of it:
+
+    reverse                core=2  ui=0
+    transfer               core=2  ui=0
+    reallocate             core=1  ui=0
+    recordAccountInterest  core=1  ui=0
+
+Each was written, tested, and reachable by nothing. `reverse` was the serious
+one: both ledger screens say in plain words that a mistake is corrected by adding
+the correction and that both stay — a sentence describing an architecture that no
+member could actually invoke. The promise was true of the code and false of the
+app.
+
+The fix is small on each shell and deliberately unglamorous:
+
+- **Reverse** appears on entry detail, gated on `canReverse` — confirmed, and not
+  already reversed. Once a reversal exists the card flips to saying so and naming
+  it, so the same entry cannot be reversed twice by two people who each looked
+  once. This is the same rule the book enforces; the UI just stops offering what
+  would be refused.
+- **Move money / Set aside / Interest earned** are grouped as *housekeeping*,
+  below the four money actions. On the phone each gets a screen; on the laptop
+  all three share one card, because the window has the room and navigating to
+  fill in two fields is worse than not navigating.
+
+None of them skips two-person control, and each screen says so before the button.
+Moving the pool's own money between the pool's own accounts is still a decision
+about the members' money, and the temptation to treat housekeeping as
+administrative — as not really a transaction — is exactly how a ledger acquires
+entries nobody agreed to.
+
+`EntryDetail` gained `canReverse` and `reversedByEntryId` so both shells read the
+same rule rather than each deciding for itself what is reversible.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

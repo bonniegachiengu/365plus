@@ -36,6 +36,7 @@ import online.vyybandasky.plus365.core.sms.Assurance
 import online.vyybandasky.plus365.core.sms.label
 import online.vyybandasky.plus365.core.presentation.MemberCard
 import online.vyybandasky.plus365.core.presentation.PoolAction
+import online.vyybandasky.plus365.core.presentation.PoolMove
 import online.vyybandasky.plus365.core.presentation.Session
 import online.vyybandasky.plus365.core.presentation.activity
 import online.vyybandasky.plus365.core.presentation.cashOnHand
@@ -63,6 +64,7 @@ fun HomeScreen(
     onOpenEntry: (String) -> Unit,
     onOpenLedger: () -> Unit,
     onOpenProfile: () -> Unit,
+    onMove: (PoolMove) -> Unit,
 ) {
     val cash = session.book.cashOnHand(now)
     val pending = session.book.pendingActs(session.config, now)
@@ -82,6 +84,7 @@ fun HomeScreen(
         item { TopBar(session, onOpenProfile) }
         item { CashOnHandCard(cash) }
         item { ActionRow(onAction) }
+        item { MoveRow(onMove) }
 
         // The third member's work comes first: a conflict is somebody's money
         // stuck, and it outranks a routine confirmation.
@@ -262,6 +265,35 @@ private fun ActionRow(onAction: (PoolAction) -> Unit) {
                 modifier = Modifier.weight(1f),
                 onClick = { onAction(action) },
             )
+        }
+    }
+}
+
+/**
+ * The rarer moves, kept quiet.
+ *
+ * Housekeeping rather than lending, so they sit below the four primary actions
+ * in a plainer row — present because the book can do them, not promoted because
+ * nobody opens the app for them.
+ */
+@Composable
+private fun MoveRow(onMove: (PoolMove) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (m in PoolMove.entries) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(Plus.Surface, RoundedCornerShape(14.dp))
+                    .tappable { onMove(m) }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    m.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Plus.TextMid,
+                )
+            }
         }
     }
 }

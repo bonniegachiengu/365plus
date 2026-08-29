@@ -134,7 +134,7 @@ fun App(store: LedgerStore) {
                         screen = Screen.EntryDetail(it)
                     }
 
-                    is Screen.EntryDetail -> EntryBody(session, s.entryId, now)
+                    is Screen.EntryDetail -> EntryBody(session, s.entryId, now, commit)
 
                     is Screen.Ledger -> LedgerBody(session, now) { screen = Screen.EntryDetail(it) }
                 }
@@ -299,6 +299,9 @@ private fun HomeBody(
         for (m in borrowers) MemberLine(m) { onOpenMember(m.id) }
     }
 
+    SectionHeading("Housekeeping")
+    MovesCard(session, now, onChange)
+
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -443,7 +446,12 @@ private fun MemberBody(
 }
 
 @Composable
-private fun EntryBody(session: Session, entryId: String, now: Instant) {
+private fun EntryBody(
+    session: Session,
+    entryId: String,
+    now: Instant,
+    onChange: (Session) -> Unit,
+) {
     val d = session.book.entryDetail(entryId, session.config, now)
     if (d == null) {
         Card { Text("That entry is not in the book.", color = Plus.TextMid) }
@@ -535,6 +543,7 @@ private fun EntryBody(session: Session, entryId: String, now: Instant) {
             }
         }
     }
+    CorrectionCard(d, session, now, onChange)
 }
 
 @Composable

@@ -40,6 +40,7 @@ fun EntryScreen(
     entryId: String,
     now: Instant,
     onBack: () -> Unit,
+    onChange: (Session) -> Unit = {},
 ) {
     val d = session.book.entryDetail(entryId, session.config, now)
 
@@ -59,6 +60,7 @@ fun EntryScreen(
             d.conflict?.let { ConflictCard(it) }
             if (d.overrides.isNotEmpty()) OverrideHistoryCard(d)
             LinkedCard(d)
+            CorrectionCard(d, session, now, onChange)
             Box(Modifier.height(24.dp))
         }
     }
@@ -212,6 +214,51 @@ private fun LinkedCard(d: EntryDetail) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = Plus.TextMid,
             )
+        }
+    }
+}
+
+/**
+ * The way to correct a confirmed entry.
+ *
+ * The ledger page promises that a mistake is fixed by adding its correction and
+ * that both stay. Until now there was no way to add one, which made the promise
+ * a description of an architecture rather than something a member could do.
+ */
+@Composable
+private fun CorrectionCard(
+    d: EntryDetail,
+    session: Session,
+    now: Instant,
+    onChange: (Session) -> Unit,
+) {
+    if (d.reversedByEntryId != null) {
+        Card(colour = Plus.SurfaceRaised) {
+            Label("Corrected")
+            Text(
+                "A reversal has been written against this entry. Both stay in the " +
+                    "record, so the correction reads as a correction.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Plus.TextMid,
+            )
+        }
+        return
+    }
+    if (!d.canReverse) return
+
+    Card {
+        Label("Correct this")
+        Text(
+            "Nothing is ever edited or deleted. A mistake is undone by adding its " +
+                "reverse, which needs a second member like anything else — and both " +
+                "entries stay in the record afterwards.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Plus.TextMid,
+        )
+        Box(Modifier.padding(top = 8.dp)) {
+            BigButton("Reverse this entry", filled = false, danger = true) {
+                onChange(session.reverse(d.entryId, now))
+            }
         }
     }
 }

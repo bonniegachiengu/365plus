@@ -74,6 +74,24 @@ enum class PoolAction(val label: String, val blurb: String) {
     REPAY("Repay", "Pay back a loan"),
 }
 
+/**
+ * The rarer moves: housekeeping rather than lending.
+ *
+ * Kept off the four primary actions because they are not what anyone opens the
+ * app to do — but the book could already do all three, and a capability with no
+ * screen may as well not exist.
+ */
+enum class PoolMove(val label: String, val blurb: String) {
+    /** Between the pool's own accounts. Cash-at-hand cannot change. */
+    MOVE("Move money", "Between the pool's own accounts"),
+
+    /** Between pockets. No money moves at all. */
+    EARMARK("Set aside", "Change what money is earmarked for"),
+
+    /** A savings account paying out. */
+    INTEREST("Interest earned", "Record what Ziidi or M-Shwari paid"),
+}
+
 // ── needs confirming ─────────────────────────────────────────────────────────
 
 /**

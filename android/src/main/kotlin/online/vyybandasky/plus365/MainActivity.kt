@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import java.io.File
 import kotlinx.datetime.Clock
 import online.vyybandasky.plus365.core.presentation.PoolAction
+import online.vyybandasky.plus365.core.presentation.PoolMove
 import online.vyybandasky.plus365.core.presentation.Session
 import online.vyybandasky.plus365.core.store.LedgerStore
 import online.vyybandasky.plus365.core.store.save
@@ -27,6 +28,7 @@ import online.vyybandasky.plus365.ui.HomeScreen
 import online.vyybandasky.plus365.ui.EntryScreen
 import online.vyybandasky.plus365.ui.LedgerScreen
 import online.vyybandasky.plus365.ui.MemberScreen
+import online.vyybandasky.plus365.ui.MoveScreen
 import online.vyybandasky.plus365.ui.OverrideScreen
 import online.vyybandasky.plus365.ui.ProfileScreen
 import online.vyybandasky.plus365.ui.Plus
@@ -51,6 +53,7 @@ private sealed interface Screen {
     data class EntryDetail(val entryId: String) : Screen
     data object Ledger : Screen
     data object Profile : Screen
+    data class Move(val move: PoolMove) : Screen
 }
 
 /**
@@ -98,6 +101,7 @@ fun Plus365App(store: LedgerStore) {
                     onOpenEntry = { screen = Screen.EntryDetail(it) },
                     onOpenLedger = { screen = Screen.Ledger },
                     onOpenProfile = { screen = Screen.Profile },
+                    onMove = { screen = Screen.Move(it) },
                 )
 
                 is Screen.Flow -> FlowScreen(
@@ -141,6 +145,7 @@ fun Plus365App(store: LedgerStore) {
                     entryId = s.entryId,
                     now = now,
                     onBack = { screen = Screen.Home },
+                    onChange = commit,
                 )
 
                 is Screen.Ledger -> LedgerScreen(
@@ -153,6 +158,17 @@ fun Plus365App(store: LedgerStore) {
                 is Screen.Profile -> ProfileScreen(
                     session = session,
                     onBack = { screen = Screen.Home },
+                )
+
+                is Screen.Move -> MoveScreen(
+                    move = s.move,
+                    session = session,
+                    now = now,
+                    onBack = { screen = Screen.Home },
+                    onCommit = { next ->
+                        commit(next)
+                        screen = Screen.Confirm
+                    },
                 )
             }
         }

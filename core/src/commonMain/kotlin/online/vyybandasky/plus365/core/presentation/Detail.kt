@@ -88,6 +88,15 @@ data class EntryDetail(
     val correctsEntryId: EntryId?,
     val correctedByEntryId: EntryId?,
     val note: String?,
+    /**
+     * Whether this entry can still be corrected by appending its reverse.
+     *
+     * Only a confirmed entry: a waiting one is rejected instead, and a rejected
+     * one never counted, so there is nothing to undo.
+     */
+    val canReverse: Boolean,
+    /** Set once a reversal has been written against it. */
+    val reversedByEntryId: EntryId?,
 )
 
 private fun LedgerBook.evidenceView(e: SmsEvidence): EvidenceView = EvidenceView(
@@ -160,6 +169,9 @@ fun LedgerBook.entryDetail(
         correctsEntryId = e.correctsEntryId,
         correctedByEntryId = entries.firstOrNull { it.correctsEntryId == e.id }?.id,
         note = e.note,
+        canReverse = e.state == EntryState.CONFIRMED &&
+            entries.none { it.reversesEntryId == e.id },
+        reversedByEntryId = entries.firstOrNull { it.reversesEntryId == e.id }?.id,
     )
 }
 

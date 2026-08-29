@@ -12,7 +12,9 @@ import online.vyybandasky.plus365.core.book.override
 import online.vyybandasky.plus365.core.book.reject
 import online.vyybandasky.plus365.core.book.rejectGroup
 import online.vyybandasky.plus365.core.book.disburseLoan
+import online.vyybandasky.plus365.core.book.reallocate
 import online.vyybandasky.plus365.core.book.record
+import online.vyybandasky.plus365.core.book.recordAccountInterest
 import online.vyybandasky.plus365.core.book.reverse
 import online.vyybandasky.plus365.core.book.transfer
 import online.vyybandasky.plus365.core.domain.EntryState
@@ -385,10 +387,76 @@ data class Session(
     private fun refuse(t: Throwable): Session =
         copy(notice = Notice.Refused(t.message ?: "That could not be read."))
 
+    /**
+     * Move cash between the pool's own accounts.
+     *
+     * Cash-at-hand cannot change; only which pocket of the real world holds it.
+     */
+    fun moveMoney(
+        from: String,
+        to: String,
+        amountCents: Long,
+        at: Instant? = null,
+    ): Session = transfer(from, to, amountCents).let { s ->
+        // transfer() does not take a time, so stamp the entry it just wrote.
+        val id = s.book.pending().lastOrNull()?.id
+        if (at == null || id == null) {
+            s
+        } else {
+            s.copy(book = s.book.copy(entries = s.book.entries.map {
+                if (it.id == id) it.copy(recordedAt = at) else it
+            }))
+        }
+    }
+
+    /** Change what a sum is earmarked for, without moving it anywhere. */
+    fun earmark(
+        fromPocket: String,
+        toPocket: String,
+        amountCents: Long,
+        at: Instant? = null,
+    ): Session {
+        val id = nextId("mark")
+        return when (
+            val r = book.reallocate(id, fromPocket, toPocket, amountCents, actingAs, config, at = at)
+        ) {
+            is Decision.Allowed -> copy(
+                book = r.value.book,
+                idCounter = idCounter + 1,
+                notice = Notice.Info(
+                    "Set aside. It moves no money, and still needs a second member.",
+                ),
+            )
+            is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
+        }
+    }
+
+    /** Record interest a savings account paid the pool. */
+    fun recordInterest(
+        accountId: String,
+        amountCents: Long,
+        pocketId: String? = null,
+        at: Instant? = null,
+    ): Session {
+        val id = nextId("int")
+        return when (
+            val r = book.recordAccountInterest(
+                id, accountId, amountCents, actingAs, config, pocketId = pocketId, at = at,
+            )
+        ) {
+            is Decision.Allowed -> copy(
+                book = r.value.book,
+                idCounter = idCounter + 1,
+                notice = Notice.Info("Recorded. It still needs a second member."),
+            )
+            is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
+        }
+    }
+
     /** Append the inverse of a confirmed entry. Also needs confirming. */
-    fun reverse(entryId: String): Session {
+    fun reverse(entryId: String, at: Instant? = null): Session {
         val id = nextId("rev")
-        return when (val r = book.reverse(id, entryId, actingAs, config)) {
+        return when (val r = book.reverse(id, entryId, actingAs, config, at = at)) {
             is Decision.Allowed -> copy(
                 book = r.value.book,
                 idCounter = idCounter + 1,
