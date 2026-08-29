@@ -963,6 +963,32 @@ Compose is watching the change, not the value.
 
 ---
 
+## D43 — Dates as headings, and undated entries kept honest
+
+A flat list of a hundred rows all reading "14 days ago" is a list nobody can
+navigate. `filteredActivity` now also returns the same rows cut into runs —
+Today, Yesterday, Earlier this week, this month, this year, Older.
+
+The same rows. `LedgerGroupingTest` asserts the groups flattened equal the rows
+exactly, in order, narrowed or not. A grouping that quietly loses a row while
+tidying the display is a ledger that quietly loses an entry, which is worse than
+no tidying at all.
+
+Two decisions inside it:
+
+**Elapsed days, not calendar dates.** "Yesterday" meaning "the previous calendar
+day" needs a time zone, and a ledger three people in the same town read together
+should not be wrong in two of them at midnight. Days since is the same answer for
+everybody.
+
+**Undated is its own bucket.** An entry with no `recordedAt` — which is most of
+what Brian's real history will be until it is stamped — goes under *Undated* at
+the end rather than being guessed into Today. Guessing a date onto somebody's
+money is exactly the sort of quiet helpfulness this ledger refuses everywhere
+else.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

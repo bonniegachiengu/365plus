@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **315 tests green** (core 293, desktop 12, android 10). Desktop installed and verified as `0.18.0-window`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+| `main` | Protected trunk. Always green, always installable. | **320 tests green** (core 298, desktop 12, android 10). Desktop installed and verified as `0.19.0-grouping`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
 
 
 ## Merged
@@ -41,6 +41,7 @@ concerned.
 | `slice/ledger-filters` | Narrow the ledger by direction, state, member and text — and never let a narrowed view read as the whole record. | 2026-08-29 | see `main` |
 | `slice/shell-parity` | The two things the laptop was not saying: the loan quote before the button, and the count of open conflicts. | 2026-08-29 | see `main` |
 | `slice/desktop-window` | A minimum window size, and Escape going back one level. | 2026-08-29 | see `main` |
+| `slice/ledger-grouping` | Date headings over the ledger, with undated entries kept in their own honest bucket. | 2026-08-29 | see `main` |
 
 ## Committed straight to `main` (rule 1 broken)
 

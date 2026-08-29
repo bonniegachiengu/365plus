@@ -96,9 +96,27 @@ data class LedgerFilter(
             text.isNotBlank()
 }
 
+/**
+ * A run of entries under one heading.
+ *
+ * "Today", "Yesterday", "Earlier this week", then months. A flat list of a
+ * hundred rows all reading "14 days ago" is a list nobody can navigate; the
+ * heading is how a person finds the week something happened in without reading
+ * every line to get there.
+ */
+data class LedgerGroup(val heading: String, val rows: List<ActivityRow>)
+
 /** The rows, plus enough about the narrowing to say so on screen. */
 data class FilteredLedger(
     val rows: List<ActivityRow>,
+    /**
+     * The same rows, cut into runs by when they happened.
+     *
+     * The same list, not a different one — [rows] flattened equals this
+     * flattened, and a test says so. A grouping that quietly loses a row would
+     * be a ledger that quietly loses an entry.
+     */
+    val groups: List<LedgerGroup>,
     /** How many rows the whole record has, narrowed or not. */
     val totalCount: Int,
     /**
@@ -140,6 +158,7 @@ fun LedgerBook.filteredActivity(
     if (!filter.isNarrowed) {
         return FilteredLedger(
             rows = rows,
+            groups = groupByWhen(rows, now),
             totalCount = all.size,
             narrowedLine = null,
             shownTotal = null,
@@ -157,6 +176,7 @@ fun LedgerBook.filteredActivity(
 
     return FilteredLedger(
         rows = rows,
+        groups = groupByWhen(rows, now),
         totalCount = all.size,
         narrowedLine = "Showing ${rows.size} of ${all.size} — ${describe(filter)}.",
         shownTotal = formatKes(shownCents),
@@ -166,6 +186,62 @@ fun LedgerBook.filteredActivity(
             null
         },
     )
+}
+
+/**
+ * Cut the rows into runs by when they happened.
+ *
+ * The rows arrive newest first and stay in that order; this only inserts the
+ * boundaries. Anything with no timestamp — an entry recorded before the app
+ * started stamping them, which is most of what the real history will be until it
+ * is cleaned — falls into one honest bucket at the end rather than being guessed
+ * at.
+ */
+private fun LedgerBook.groupByWhen(
+    rows: List<ActivityRow>,
+    now: Instant?,
+): List<LedgerGroup> {
+    if (rows.isEmpty()) return emptyList()
+    if (now == null) return listOf(LedgerGroup("Everything", rows))
+
+    val out = mutableListOf<LedgerGroup>()
+    var heading: String? = null
+    var run = mutableListOf<ActivityRow>()
+
+    for (row in rows) {
+        val at = entries.firstOrNull { it.id == row.entryId }?.recordedAt
+        val h = headingFor(at, now)
+        if (h != heading) {
+            if (run.isNotEmpty()) out += LedgerGroup(heading!!, run)
+            heading = h
+            run = mutableListOf()
+        }
+        run += row
+    }
+    if (run.isNotEmpty()) out += LedgerGroup(heading!!, run)
+    return out
+}
+
+/**
+ * Which run an entry belongs in.
+ *
+ * Days rather than calendar dates on purpose: "yesterday" meaning "the previous
+ * calendar day" needs a time zone, and a ledger three people read in the same
+ * town does not need to be wrong in two of them at midnight. Elapsed days is the
+ * same answer for everybody.
+ */
+private fun headingFor(at: Instant?, now: Instant): String {
+    if (at == null) return "Undated"
+    val days = (now - at).inWholeSeconds / 86_400L
+    return when {
+        days < 0L -> "Today"
+        days < 1L -> "Today"
+        days < 2L -> "Yesterday"
+        days < 7L -> "Earlier this week"
+        days < 31L -> "Earlier this month"
+        days < 365L -> "Earlier this year"
+        else -> "Older"
+    }
 }
 
 /** The narrowing in plain words, for the line that says the list is not everything. */

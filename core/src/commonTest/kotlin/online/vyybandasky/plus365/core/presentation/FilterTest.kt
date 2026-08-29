@@ -142,3 +142,52 @@ class FilterTest {
         assertTrue(f.narrowedLine!!.contains("money in"))
     }
 }
+
+/**
+ * Grouping must never lose a row.
+ *
+ * A ledger that quietly drops an entry while tidying the display is worse than a
+ * ledger with no tidying at all, so the flattening is checked rather than
+ * assumed.
+ */
+class LedgerGroupingTest {
+
+    private val now = Instant.parse("2026-08-29T09:00:00Z")
+    private val book = DevSeed.book(now)
+
+    @Test
+    fun `the groups are the rows, rearranged and nothing else`() {
+        val f = book.filteredActivity(LedgerFilter(), now)
+        assertEquals(f.rows, f.groups.flatMap { it.rows })
+    }
+
+    @Test
+    fun `headings do not repeat, so a run is a run`() {
+        val headings = book.filteredActivity(LedgerFilter(), now).groups.map { it.heading }
+        assertEquals(headings.size, headings.toSet().size, "a heading appearing twice is a broken run")
+    }
+
+    @Test
+    fun `newest first survives grouping`() {
+        val f = book.filteredActivity(LedgerFilter(), now)
+        val order = listOf(
+            "Today", "Yesterday", "Earlier this week",
+            "Earlier this month", "Earlier this year", "Older", "Undated",
+        )
+        val seen = f.groups.map { order.indexOf(it.heading) }
+        assertEquals(seen.sorted(), seen, "groups must run newest to oldest")
+        assertTrue(seen.none { it == -1 }, "an unexpected heading appeared")
+    }
+
+    @Test
+    fun `a narrowed ledger is grouped too`() {
+        val f = book.filteredActivity(LedgerFilter(kind = LedgerKind.IN), now)
+        assertEquals(f.rows, f.groups.flatMap { it.rows })
+    }
+
+    @Test
+    fun `an empty result has no groups rather than an empty group`() {
+        val f = book.filteredActivity(LedgerFilter(text = "no such thing"), now)
+        assertTrue(f.groups.isEmpty(), "an empty heading over nothing is noise")
+    }
+}

@@ -744,7 +744,15 @@ private fun LedgerBody(session: Session, now: Instant, onOpenEntry: (String) -> 
         Card { Text(line, style = MaterialTheme.typography.bodyMedium, color = Plus.TextMid) }
     }
 
-    for (row in view.rows) ActivityLine(row) { onOpenEntry(row.entryId) }
+    for (group in view.groups) {
+        Text(
+            group.heading,
+            style = MaterialTheme.typography.labelMedium,
+            color = Plus.TextLow,
+            modifier = Modifier.padding(top = 12.dp, start = 4.dp),
+        )
+        for (row in group.rows) ActivityLine(row) { onOpenEntry(row.entryId) }
+    }
 }
 
 @Composable

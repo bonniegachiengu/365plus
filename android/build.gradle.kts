@@ -35,7 +35,7 @@ android {
         // assumed. An APK that silently failed to replace the old one looks
         // exactly like a feature that silently failed to work.
         versionCode = 12
-        versionName = "0.18.0-window"
+        versionName = "0.19.0-grouping"
     }
 
     buildFeatures {
