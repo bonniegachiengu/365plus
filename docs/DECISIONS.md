@@ -1480,6 +1480,43 @@ Kept: `loadOr`. It only reads and cannot lose anything, so it is not a trap.
 
 ---
 
+## D58 — Two properties held up rather than argued
+
+**Ids never collide, including across a restart.** `record` treats a repeated id
+as *the same fact* and returns the existing entry as allowed — correct for a
+retried save, catastrophic for a genuinely new entry, because the member is told
+"Recorded" and nothing was added. The ids come from a counter restored from
+`nextSeq`, and the argument that it can never go backwards is short enough to be
+convincing and short enough to be wrong. `EntryIdTest` runs the shape most likely
+to break it — a loan, which is one act and several entries, so `seq` and the id
+counter advance at different rates — across a save and a reopen.
+
+**The invariant survives a whole realistic run.** Every other test in the suite
+does one thing. `WholeJourneyTest` does twenty-five in order — three
+contributions, a move into Ziidi, an earmark, a loan, a repayment, interest, a
+mistake, its reversal, opening a bank account, a restart in the middle, a payout
+— and asserts after **every single step** that
+
+    cash at hand == sum of the accounts == sum of the pockets
+
+and that nothing was refused. The joins are where an interaction breaks something
+no single-purpose test is watching.
+
+### The assertion that nearly did not assert
+
+It passed first time, which for a test that long is a reason for suspicion rather
+than satisfaction: a version where every confirm quietly did nothing would sail
+through every invariant check, because a ledger of entirely pending entries is
+perfectly balanced at zero.
+
+So the test now also asserts *exactly* 25 steps, *exactly* 13 entries, and all 13
+confirmed with none left pending. Two of my three guessed numbers were wrong — 25
+not 22, and 13 not 15, because a loan with no charge is two legs and not three.
+Both were my arithmetic rather than a defect, and finding that out is the point:
+a threshold I had guessed would have absorbed a real change silently.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

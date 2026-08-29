@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **362 tests green** (core 335, desktop 17, android 10), and the build compiles with no warnings. Desktop installed and verified as `0.26.1-no-unsafe-twins`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+| `main` | Protected trunk. Always green, always installable. | **368 tests green** (core 341, desktop 17, android 10), and the build compiles with no warnings. Desktop installed and verified as `0.27.0-journey`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
 
 
 ## Merged
@@ -57,6 +57,7 @@ concerned.
 | `fix/never-overwrite-unreadable` | Startup wrote the seed over any ledger that failed to parse. The worst defect found in this session. | 2026-08-29 | see `main` |
 | `fix/save-can-fail` | A failed write showed as a recorded entry. Both shells now say so. | 2026-08-29 | see `main` |
 | `cleanup/remove-unsafe-twins` | Delete `save` and `openOrSeed` rather than leaving them beside their safe replacements. | 2026-08-29 | see `main` |
+| `test/ids-survive-restart` | Ids never collide across a restart; the invariant survives a whole 25-step run. | 2026-08-29 | see `main` |
 
 ## Committed straight to `main` (rule 1 broken)
 
