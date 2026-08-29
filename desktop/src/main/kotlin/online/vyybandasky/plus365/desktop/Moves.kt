@@ -55,6 +55,7 @@ fun MovesCard(session: Session, now: Instant, onChange: (Session) -> Unit) {
     var toPocket by remember { mutableStateOf(pockets.getOrNull(1)?.id ?: "") }
     var account by remember { mutableStateOf(earning.firstOrNull()?.id ?: "") }
     var amount by remember { mutableStateOf("") }
+    var sms by remember { mutableStateOf("") }
 
     val cents = (amount.toLongOrNull() ?: 0L) * 100
 
@@ -93,6 +94,22 @@ fun MovesCard(session: Session, now: Instant, onChange: (Session) -> Unit) {
                         }
                     }
                 }
+
+                // Only a move between accounts has a message behind it. Ziidi
+                // and M-Shwari text whoever holds the account when money goes in
+                // or comes out; earmarking moves nothing, so nothing texts
+                // anybody.
+                if (move == PoolMove.MOVE) {
+                    Label("The message, if you got one")
+                    PasteField(
+                        value = sms,
+                        label = "Paste the Ziidi or M-Pesa message",
+                        hint = "Optional. Only you get it, so somebody else still " +
+                            "confirms this by hand — but the code is worth keeping.",
+                        onValue = { sms = it },
+                    )
+                    PasteReadout(sms)
+                }
             }
             Column(Modifier.width(220.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
@@ -123,12 +140,14 @@ fun MovesCard(session: Session, now: Instant, onChange: (Session) -> Unit) {
                 }
                 BigButton("Record it", enabled = valid, modifier = Modifier.fillMaxWidth()) {
                     val next = when (move) {
-                        PoolMove.MOVE -> session.moveMoney(from, to, cents, now)
+                        PoolMove.MOVE ->
+                            session.moveMoney(from, to, cents, now, sms.takeIf { it.isNotBlank() })
                         PoolMove.EARMARK -> session.earmark(fromPocket, toPocket, cents, now)
                         PoolMove.INTEREST ->
                             session.recordInterest(account, cents, pockets.firstOrNull()?.id, now)
                     }
                     amount = ""
+                    sms = ""
                     onChange(next)
                 }
                 Text(

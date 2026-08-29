@@ -4,6 +4,9 @@ import online.vyybandasky.plus365.core.DevSeed
 import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.governance.ActorConfig
 import online.vyybandasky.plus365.core.governance.Decision
+import online.vyybandasky.plus365.core.presentation.Notice
+import online.vyybandasky.plus365.core.presentation.Session
+import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.sms.Assurance
 import online.vyybandasky.plus365.core.sms.ParseOutcome
 import online.vyybandasky.plus365.core.sms.parseSms
@@ -293,5 +296,94 @@ class OneSidedEvidenceTest {
             refused.refusal.message.contains("side", ignoreCase = true),
             "the refusal should say the two are the same side: ${refused.refusal.message}",
         )
+    }
+}
+
+/**
+ * Ziidi, from a pasted message to a confirmed entry.
+ *
+ * The parser reading a string is not the same as a member being able to use it.
+ * This walks the whole way: paste the real message into a move between accounts,
+ * have somebody else agree, and check the pool is exactly where it started.
+ */
+class ZiidiEndToEndTest {
+
+    private val now = Instant.parse("2026-08-29T09:00:00Z")
+    private val config = ActorConfig.dev(DevSeed.BONNIE, DevSeed.EVERYONE)
+
+    private val investSms =
+        "You have successfully invested Ksh. 11,000.00 of transaction code UHL1I3NX68. " +
+            "Your ZIIDI balance is Ksh. 11,001.07."
+
+    private fun funded(): Session {
+        var s = Session(
+            book = LedgerBook(
+                members = DevSeed.MEMBERS,
+                accounts = DevSeed.ACCOUNTS,
+                pockets = DevSeed.POCKETS,
+            ),
+            config = config,
+            actingAs = DevSeed.BONNIE,
+        )
+        s = s.contribute(DevSeed.BONNIE, 2_000_000, now)
+        val id = s.book.pending().single().id
+        return s.actAs(DevSeed.BRIAN).confirm(id, DevSeed.BRIAN, now).actAs(DevSeed.BONNIE)
+    }
+
+    @Test
+    fun a_pasted_ziidi_message_moves_money_between_accounts_and_nowhere_else() {
+        val start = funded()
+        val cashBefore = start.book.state().poolCashCents
+
+        val moved = start.moveMoney(DevSeed.POCHI, DevSeed.ZIIDI, 1_100_000, now, investSms)
+        assertTrue(moved.notice !is Notice.Refused, "the paste was refused: ${moved.notice?.text}")
+
+        val entry = moved.book.pending().single()
+        assertEquals(EntryType.TRANSFER, entry.type)
+        assertEquals("UHL1I3NX68", entry.recordedEvidence?.reference, "the code was not kept")
+        assertEquals(1_100_107L, entry.recordedEvidence?.balanceAfterCents)
+
+        val settled = moved.actAs(DevSeed.BRIAN).confirm(entry.id, DevSeed.BRIAN, now)
+        assertTrue(settled.notice !is Notice.Refused, "unconfirmable: ${settled.notice?.text}")
+
+        val after = settled.book.state()
+        assertEquals(cashBefore, after.poolCashCents, "a transfer changed the pool's total")
+        assertEquals(1_100_000L, after.accountBalance(DevSeed.ZIIDI))
+        assertTrue(after.balances)
+    }
+
+    @Test
+    fun and_the_screen_says_the_confirmation_was_by_hand() {
+        val moved = funded().moveMoney(DevSeed.POCHI, DevSeed.ZIIDI, 1_100_000, now, investSms)
+        val id = moved.book.pending().single().id
+        val settled = moved.actAs(DevSeed.BRIAN).confirm(id, DevSeed.BRIAN, now)
+        assertEquals(
+            Assurance.ATTESTED,
+            settled.book.entries.single { it.id == id }.assurance,
+            "a Ziidi move can only ever be attested to, and must not read as code-matched",
+        )
+    }
+
+    @Test
+    fun the_notice_warns_that_only_the_recorder_has_that_message() {
+        val moved = funded().moveMoney(DevSeed.POCHI, DevSeed.ZIIDI, 1_100_000, now, investSms)
+        val text = moved.notice?.text.orEmpty()
+        assertTrue("UHL1I3NX68" in text, "the notice should name the code: $text")
+        assertTrue("by hand" in text, "and say what happens next: $text")
+    }
+
+    @Test
+    fun a_move_with_no_message_still_works() {
+        val moved = funded().moveMoney(DevSeed.POCHI, DevSeed.ZIIDI, 500_000, now)
+        assertTrue(moved.notice !is Notice.Refused)
+        assertEquals(1, moved.book.pending().size)
+    }
+
+    @Test
+    fun pasting_a_ziidi_message_into_a_contribution_is_still_refused() {
+        // The guard, reached the way a member would reach it.
+        val s = funded().contribute(DevSeed.BONNIE, 1_100_000, now, investSms)
+        assertIs<Notice.Refused>(s.notice)
+        assertTrue("own accounts" in s.notice!!.text)
     }
 }

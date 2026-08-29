@@ -175,13 +175,43 @@ data class Session(
         }
 
     /** Move cash between the pool's pockets. Needs confirming like anything else. */
-    fun transfer(from: String, to: String, amountCents: Long): Session {
+    /**
+     * Move cash between two of the pool's own accounts.
+     *
+     * [smsText] is the message that proves it, where there is one. A Ziidi
+     * invest or withdraw is exactly this: the fund texts whoever holds the
+     * account, and that message is the record of the movement.
+     *
+     * Only one person will ever hold it, so the second member confirms by hand —
+     * see `isOneSided`. The paste is still worth taking: the recorder's proof is
+     * kept either way, and losing it would leave a bare figure where there is a
+     * transaction code.
+     */
+    fun transfer(
+        from: String,
+        to: String,
+        amountCents: Long,
+        at: Instant? = null,
+        smsText: String? = null,
+    ): Session {
+        val evidence = readPaste(smsText, actingAs).getOrElse { return refuse(it) }
         val id = nextId("t")
-        return when (val r = book.transfer(id, from, to, amountCents, actingAs, config)) {
+        return when (
+            val r = book.transfer(
+                id, from, to, amountCents, actingAs, config, at = at, evidence = evidence,
+            )
+        ) {
             is Decision.Allowed -> copy(
                 book = r.value.book,
                 idCounter = idCounter + 1,
-                notice = Notice.Info("Transfer recorded. It needs confirming."),
+                notice = Notice.Info(
+                    if (evidence == null) {
+                        "Transfer recorded. It needs confirming."
+                    } else {
+                        "Recorded with code ${evidence.reference}. Only you get that " +
+                            "message, so another member confirms it by hand."
+                    },
+                ),
             )
             is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
         }
@@ -441,17 +471,8 @@ data class Session(
         to: String,
         amountCents: Long,
         at: Instant? = null,
-    ): Session = transfer(from, to, amountCents).let { s ->
-        // transfer() does not take a time, so stamp the entry it just wrote.
-        val id = s.book.pending().lastOrNull()?.id
-        if (at == null || id == null) {
-            s
-        } else {
-            s.copy(book = s.book.copy(entries = s.book.entries.map {
-                if (it.id == id) it.copy(recordedAt = at) else it
-            }))
-        }
-    }
+        smsText: String? = null,
+    ): Session = transfer(from, to, amountCents, at, smsText)
 
     /** Change what a sum is earmarked for, without moving it anywhere. */
     fun earmark(

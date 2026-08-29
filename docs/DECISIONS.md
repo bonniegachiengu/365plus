@@ -1947,6 +1947,38 @@ the recorder still cannot confirm their own entry whatever they hold.
 
 ---
 
+## D70 — Ziidi, all the way through
+
+The parser reading a string is not a member being able to use it. `moveMoney` had
+no way to take a paste, so after D69 the app could understand a Ziidi message and
+offer nobody anywhere to put one.
+
+`Session.transfer` takes `smsText` now and passes the evidence to the book, which
+had accepted it all along. Both move screens have a paste field, shown only for
+*Move money* — Ziidi and M-Shwari text whoever holds the account when money goes
+in or out, while earmarking moves nothing so nothing texts anybody.
+
+`moveMoney` also got simpler. It used to call `transfer`, find the entry it had
+just written, and stamp the time onto it afterwards, because `transfer` took no
+time. It takes one now, so the reach-back is gone.
+
+### What the member is told
+
+> Recorded with code UHL1I3NX68. Only you get that message, so another member
+> confirms it by hand.
+
+Both halves matter. Naming the code shows the paste was understood. Saying what
+happens next stops the hand confirmation reading as the app having ignored the
+message — it did not; nobody else can produce a second copy, and the entry keeps
+the recorder's proof either way.
+
+`ZiidiEndToEndTest` walks it: paste the real message into a move, have Brian
+agree, and check the pool's total is exactly where it started while Ziidi's
+balance is not. Plus the guard reached the way a member would reach it — pasting
+the same message into a contribution is still refused, in words.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

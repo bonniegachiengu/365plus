@@ -60,6 +60,7 @@ fun MoveScreen(
     var toPocket by remember(move) { mutableStateOf(pockets.getOrNull(1)?.id ?: "") }
     var account by remember(move) { mutableStateOf(earning.firstOrNull()?.id ?: "") }
     var amount by remember(move) { mutableStateOf("") }
+    var sms by remember(move) { mutableStateOf("") }
 
     val shillings = amount.toLongOrNull() ?: 0L
     val cents = shillings * 100
@@ -158,6 +159,23 @@ fun MoveScreen(
                 }
             }
 
+            // Only a move between accounts has a message behind it. Ziidi and
+            // M-Shwari text whoever holds the account when money goes in or
+            // comes out; earmarking moves nothing, so nothing texts anybody.
+            if (move == PoolMove.MOVE) {
+                Card {
+                    Label("The message, if you got one")
+                    PasteField(
+                        value = sms,
+                        label = "Paste the Ziidi or M-Pesa message",
+                        hint = "Optional. Only you get it, so somebody else still " +
+                            "confirms this by hand — but the code is worth keeping.",
+                        onValue = { sms = it },
+                    )
+                    Box(Modifier.padding(top = 10.dp)) { PasteReadout(sms) }
+                }
+            }
+
             Card(colour = Plus.PendingDim) {
                 Text(
                     "This will wait for someone else",
@@ -180,7 +198,8 @@ fun MoveScreen(
 
             BigButton("Record it", enabled = valid) {
                 val next = when (move) {
-                    PoolMove.MOVE -> session.moveMoney(from, to, cents, now)
+                    PoolMove.MOVE ->
+                        session.moveMoney(from, to, cents, now, sms.takeIf { it.isNotBlank() })
                     PoolMove.EARMARK -> session.earmark(fromPocket, toPocket, cents, now)
                     PoolMove.INTEREST -> session.recordInterest(account, cents, pockets.firstOrNull()?.id, now)
                 }
