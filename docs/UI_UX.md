@@ -140,8 +140,11 @@ sums equal cash-at-hand:
 - **Where it is** — M-Pesa Pochi, Ziidi, M-Shwari. The interest-earning ones are
   marked, because money that grows on its own should not look like money that
   does not.
-- **What it is for** — the members' pool, the Keshflo fund. Earmarking moves
-  nothing; it changes what a sum is set aside for.
+- **What it is for** — **Founder's A/C** and **Keshflo A/C**, the two accounts the
+  group's own books keep. Earmarking moves nothing; it changes what a sum is set
+  aside for. Both names can be edited on the Places screen, because a ledger
+  freezes its own definitions the day it is created and the group's wording has
+  to be able to reach an existing file.
 
 ### Beyond the four flows
 
