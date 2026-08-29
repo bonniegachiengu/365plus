@@ -10,6 +10,7 @@ import online.vyybandasky.plus365.core.governance.ActorConfig
 import online.vyybandasky.plus365.core.governance.Decision
 import online.vyybandasky.plus365.core.governance.Refusal
 import online.vyybandasky.plus365.core.governance.checkRecord
+import online.vyybandasky.plus365.core.sms.redactContactNumbers
 
 /**
  * Adding the places money can be, and the things it can be for.
@@ -75,7 +76,12 @@ fun LedgerBook.addAccount(
             Refusal.Invalid("There is already an account called \"$trimmed\"."),
         )
     }
-    return Decision.Allowed(copy(accounts = accounts + Account(id, trimmed, kind)))
+    // Typed by a person and kept verbatim, so it goes through the same redactor
+    // the pasted messages do. "Pochi 0722xxxxxx" is a plausible thing to call an
+    // account and is also a phone number.
+    return Decision.Allowed(
+        copy(accounts = accounts + Account(id, redactContactNumbers(trimmed), kind)),
+    )
 }
 
 /** Add something money can be set aside for. */
@@ -102,5 +108,13 @@ fun LedgerBook.addPocket(
             Refusal.Invalid("There is already a pocket called \"$trimmed\"."),
         )
     }
-    return Decision.Allowed(copy(pockets = pockets + Pocket(id, trimmed, blurb.trim())))
+    return Decision.Allowed(
+        copy(
+            pockets = pockets + Pocket(
+                id,
+                redactContactNumbers(trimmed),
+                redactContactNumbers(blurb.trim()),
+            ),
+        ),
+    )
 }

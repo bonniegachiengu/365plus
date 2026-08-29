@@ -189,6 +189,27 @@ private val AMOUNT_TRAILING = Regex("""([\d,]+\.\d{2})\s*(?:ksh|kes|kshs)\b""", 
  */
 private val PHONE = Regex("""(?:\+?254|0)7\d{8}|\b\d{6,16}\b|\b(?:x|\*){2,}\d{2,6}\b""")
 
+/**
+ * A phone number or an account number, and nothing else.
+ *
+ * The narrow twin of [redactNumbers], for text a person typed rather than a
+ * message a bank sent.
+ *
+ * The difference matters. An override reason is somebody explaining a decision
+ * about money, and the explanation is frequently *"this should have been
+ * 150000"* — running that through the message redactor removes the one figure
+ * the sentence exists to record. So this takes Kenyan mobile numbers and runs of
+ * ten or more digits, and leaves shorter runs alone on the grounds that they are
+ * almost always amounts.
+ *
+ * That is a deliberate trade. A ten-digit amount would be redacted; a ten-digit
+ * amount is KSh 10,000,000 and this pool does not have one.
+ */
+fun redactContactNumbers(text: String): String =
+    CONTACT_NUMBER.replace(text) { m -> "*".repeat(m.value.length.coerceAtMost(12)) }
+
+private val CONTACT_NUMBER = Regex("""(?:\+?254|0)7\d{8}|\b\d{10,16}\b""")
+
 private val SENT_MARKERS = listOf(
     "sent to", "paid to", "you have sent", "debited", "withdrawn", "withdrawal",
     "buy goods", "atm", "cash withdrawal", "purchase at", "has been debited",
@@ -336,6 +357,17 @@ internal fun parseAmountToCents(raw: String): Long? {
  * The reference code is what proves the transaction; the phone number proves
  * nothing and is the one thing in the message worth not keeping. The ledger file
  * syncs between three phones, so whatever goes in it travels.
+ */
+/**
+ * Strip anything number-shaped from a pasted message.
+ *
+ * Aggressive on purpose — it takes any run of six or more digits — because
+ * everything a message needs to prove has already been pulled into structured
+ * fields by the time this runs. The reference, the amount and the direction are
+ * kept; the raw text is only there to be read back by a person, and it can
+ * afford to lose every number in it.
+ *
+ * Do not use this on text a person typed. See [redactContactNumbers].
  */
 internal fun redactNumbers(text: String): String =
     PHONE.replace(text) { m ->

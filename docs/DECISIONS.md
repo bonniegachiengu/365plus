@@ -1628,6 +1628,52 @@ back, the ledger screen is the first thing to open.
 
 ---
 
+## D63 — A privacy claim that was not quite true
+
+The profile screen tells members:
+
+> No phone number is stored anywhere in this app, and a test that fails the build
+> makes sure of it.
+
+Those tests existed and were real — member records carry no number, and a pasted
+message is redacted before it is stored. But they covered messages and member
+records, and not a word a person types.
+
+An override reason, an account name and a pocket blurb are all free text kept
+verbatim, and the ledger file travels between three phones. *"Ring 0712345678
+about this"* in a settlement reason would have sat in that file forever.
+
+A claim an app makes on screen about somebody's privacy has to be true of
+everything, or it should not be made. All three go through a redactor now, and
+`FreeTextRedactionTest` asserts the property that actually matters: **no typed
+number reaches the encoded ledger.**
+
+### Two redactors, on purpose
+
+The message redactor takes any run of six or more digits, which is right for a
+pasted SMS — the reference, amount and direction have already been pulled into
+structured fields, so the raw text can afford to lose every number in it.
+
+It is wrong for typed text. An override reason is somebody explaining a decision
+about money, and the explanation is very often *"this should have been 150000"* —
+the message redactor would remove the one figure the sentence exists to record.
+
+So `redactContactNumbers` takes Kenyan mobile numbers and runs of ten or more
+digits, and leaves shorter runs alone on the grounds that they are amounts. A
+ten-digit amount would be caught; a ten-digit amount is KSh 10,000,000 and this
+pool does not have one. Tests hold both ends: the number goes, the disputed
+figure stays.
+
+### And a backspace in the source
+
+Getting the pattern into the file took three attempts. The second wrote a literal
+`0x08` where `` was meant — an invisible control character inside a regex, which
+`grep` renders as though it were fine. Worth recording because "the file looks
+right" and "the file is right" are not the same thing, and a scan for control
+characters across all three modules now confirms there are none.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

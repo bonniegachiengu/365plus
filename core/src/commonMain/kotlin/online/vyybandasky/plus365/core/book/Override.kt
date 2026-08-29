@@ -18,6 +18,7 @@ import online.vyybandasky.plus365.core.governance.checkRecord
 import online.vyybandasky.plus365.core.governance.withOverride
 import online.vyybandasky.plus365.core.sms.Assurance
 import online.vyybandasky.plus365.core.domain.ConfirmSource
+import online.vyybandasky.plus365.core.sms.redactContactNumbers
 
 /**
  * The third member's door.
@@ -139,7 +140,7 @@ fun LedgerBook.override(
             val record = OverrideRecord(
                 by = overrider,
                 decision = decision,
-                reason = reason,
+                reason = redactContactNumbers(reason),
                 at = at,
                 correctedAmountCents = amount,
                 replacedByEntryId = newId,
