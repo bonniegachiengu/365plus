@@ -122,3 +122,98 @@ appends a new entry rather than editing the old one, and both remain.
 - **A member row** opens their stake, loans and history.
 - **The avatar** opens the profile: who you are, what you have recorded,
   confirmed and settled, what this build allows, and where the data lives.
+
+---
+
+## 11. What was built beyond this brief
+
+*Sections 1–10 are Bonnie's brief and are left exactly as written. This section is
+the record of what the app grew afterwards, so the spec and the thing stay in the
+same conversation. Where the brief and the app disagree, the brief is the
+intention and this is the state.*
+
+### Accounts and pockets
+
+The brief says "the pool total". The app splits it two ways at once, and both
+sums equal cash-at-hand:
+
+- **Where it is** — M-Pesa Pochi, Ziidi, M-Shwari. The interest-earning ones are
+  marked, because money that grows on its own should not look like money that
+  does not.
+- **What it is for** — the members' pool, the Keshflo fund. Earmarking moves
+  nothing; it changes what a sum is set aside for.
+
+### Beyond the four flows
+
+The brief names four. `RECORDABLE_TYPES` names five, and the app now offers seven
+actions covering all of them. The four keep the tile row; the rest sit under
+them, quieter:
+
+- **Pay out** — a member taking their share. The other half of contributing, and
+  the reason the pool exists at the end of a cycle.
+- **Member lends in** / **Pay a member back** — the pool borrowing rather than
+  lending. Raises the cash without raising anybody's share.
+
+And three that are housekeeping rather than money moving between people: **Move
+money** between the pool's own accounts, **Set aside** (change the earmark), and
+**Interest earned** on a savings account.
+
+Every one of them still waits for a second member. Housekeeping is not
+administrative.
+
+### Correcting a mistake
+
+The ledger has always promised that a mistake is corrected by adding the
+correction and both stay. **Reverse this entry** on a confirmed entry is where
+that promise became something a member can do. Reversible once, and the card says
+so afterwards rather than offering a second.
+
+### Overdraw, flagged not refused
+
+An account going below zero is recorded, not blocked — the money did move, and
+pretending otherwise loses the trail. Each slip carries what happened, who was
+involved and who recorded it, because the point is finding the cause.
+
+### The ledger, narrowed
+
+The full record is the default and the wrong thing to hand somebody hunting one
+line. Four narrowings: direction, state, member, and free text over the sentence,
+the amount and the transaction code — a pasted M-Pesa code being what a person
+actually arrives holding.
+
+A narrowed view always says how much it is hiding: *"Showing 4 of 31 — money out,
+Kang'iri."* Somebody looking at four rows and believing that is the record is
+somebody about to decide their money has gone missing.
+
+Rows are grouped under Today / Yesterday / Earlier this week / month / year /
+Older. Entries with no timestamp go under **Undated** rather than being guessed
+into Today.
+
+### The laptop
+
+Not in the brief at all, and now a native Windows app pinnable to the taskbar.
+Same dark fintech look, same words — every figure and every sentence comes from
+`core/presentation`, so the two shells cannot disagree about the ledger while
+each owns its own paint.
+
+It does everything the phone does: record, confirm with paste-and-match, settle a
+conflict as the third member, reverse, housekeep, and read a member or an entry
+in full. Where the phone walks through pick → amount → review because it has one
+column and a thumb, the laptop asks everything in one card, because it has the
+room.
+
+The header carries the build name, who the device is acting as, how many
+conflicts are open, and whether the sync endpoint is up. Escape goes back.
+
+### Acting as somebody else
+
+Dev builds only, and the profile screen is where it lives. One person needs to be
+able to work both ends of a rule that takes two. It changes which member this
+device *is*; it never relaxes the rule that a recorder cannot confirm their own
+entry.
+
+### Still true from section 7
+
+Real member data still loads later. Live M-Pesa auto-capture is still not built.
+The Ziidi message format is still unknown and its entries are still marked
+`parsed_unmapped` rather than guessed at.

@@ -51,6 +51,7 @@ Rule 1 says branch, prove it, merge. Two commits went onto `main` directly:
 |---|---|---|
 | `eb23e77` | Open the window when the health endpoint cannot bind. | Found mid-verification, fixed in place, pushed without branching. |
 | `7ff2f9e` | The desktop can record, not only confirm. Removes two dead row types. | Same — kept moving and skipped the branch. |
+| `2b07e7d` | Install script: wait 30s and kill the process tree. | A tools-only fix made while an install was failing in front of me. |
 
 Both are green and installed, and rewriting pushed history to tidy this would be
 worse than the untidiness. Recorded here rather than quietly left out, because a
