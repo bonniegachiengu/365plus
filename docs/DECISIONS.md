@@ -1298,6 +1298,45 @@ the two-shell split exists to prevent, so both ask core now.
 
 ---
 
+## D54 — The half-second in which the ledger did not exist
+
+Both stores wrote whole-file to a temporary and renamed it over the real one,
+which is the right shape and was documented as such. The fallback was not:
+
+```kotlin
+if (!tmp.renameTo(file)) {
+    file.delete()
+    tmp.renameTo(file)
+}
+```
+
+`File.renameTo` refuses to replace an existing file on Windows and on some
+Android filesystems, so that fallback was not the rare path — it was the normal
+one. And between `delete()` and `renameTo()` there is **no ledger at all**. A
+crash, a power cut, a dead battery, or Android killing a backgrounded process in
+that window loses three people's entire money record, with the previous version
+already deleted.
+
+Small window. Total loss. And a phone being killed while backgrounded is not a
+rare event.
+
+`Files.move` with `REPLACE_EXISTING` and `ATOMIC_MOVE` does it in one operation,
+falling back to a replacing move where a filesystem cannot manage atomicity —
+still one call rather than two.
+
+### Atomicity is not the only way to lose a ledger
+
+A torn write is now impossible. A *wrong* write is not: a bug in the encoder, or
+a book already wrong in memory, overwrites the only copy with something
+well-formed and false, and no amount of atomicity helps.
+
+So the version being replaced is copied to `.bak` first. One generation, not a
+history — the ledger is its own history, and this exists only to survive the save
+that should not have happened. Best-effort: failing to make the backup is not a
+reason to refuse to save.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |
