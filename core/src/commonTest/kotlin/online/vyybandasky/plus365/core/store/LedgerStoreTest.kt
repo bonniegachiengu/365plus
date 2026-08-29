@@ -150,7 +150,7 @@ class LedgerStoreTest {
         val store = InMemoryStore()
         assertEquals(0, store.loadOr { LedgerBook() }.entries.size)
 
-        store.save(seeded)
+        store.trySave(seeded)
         assertEquals(seeded.entries.size, store.loadOr { LedgerBook() }.entries.size)
 
         store.clear()
@@ -162,27 +162,27 @@ class LedgerStoreTest {
         val store = InMemoryStore()
         assertTrue(store.read() == null)
 
-        val opened = store.openOrSeed { seeded }
+        val opened = store.open { seeded }.book
 
         assertEquals(seeded.entries.size, opened.entries.size)
         assertTrue(store.read() != null, "the baseline must be on disk, not just on screen")
         // A second open reads the file back rather than re-seeding.
-        assertEquals(opened.entries.size, store.openOrSeed { LedgerBook() }.entries.size)
+        assertEquals(opened.entries.size, store.open { LedgerBook() }.book.entries.size)
     }
 
     @Test
     fun opening_never_overwrites_a_book_that_read_back_fine() {
         val store = InMemoryStore()
-        store.save(seeded)
-        val opened = store.openOrSeed { LedgerBook() }
+        store.trySave(seeded)
+        val opened = store.open { LedgerBook() }.book
         assertEquals(seeded.entries.size, opened.entries.size, "the stored book wins over the seed")
     }
 
     @Test
     fun saving_twice_leaves_one_book_not_two() {
         val store = InMemoryStore()
-        store.save(seeded)
-        store.save(seeded)
+        store.trySave(seeded)
+        store.trySave(seeded)
         assertEquals(seeded.entries.size, store.loadOr { LedgerBook() }.entries.size)
     }
 }

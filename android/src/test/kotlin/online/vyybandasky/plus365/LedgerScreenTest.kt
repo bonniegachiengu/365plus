@@ -12,7 +12,7 @@ import online.vyybandasky.plus365.core.presentation.founderCards
 import online.vyybandasky.plus365.core.presentation.pendingRows
 import online.vyybandasky.plus365.core.presentation.summaryView
 import online.vyybandasky.plus365.core.store.InMemoryStore
-import online.vyybandasky.plus365.core.store.save
+import online.vyybandasky.plus365.core.store.trySave
 
 /**
  * The phone shell, exercised through exactly the calls the screens make.
@@ -119,7 +119,7 @@ class LedgerScreenTest {
         val store = InMemoryStore()
         var s = Session.restored(store)
         s = s.actAs(DevSeed.BRIAN).record(EntryType.CONTRIBUTION, DevSeed.KANGIRI, 700_00)
-        store.save(s.book)
+        store.trySave(s.book)
         val pendingBefore = s.book.pending().size
 
         // Cold start against the same store.
@@ -134,7 +134,7 @@ class LedgerScreenTest {
         val store = InMemoryStore()
         var s = Session.restored(store)
         s = s.actAs(DevSeed.BRIAN).record(EntryType.CONTRIBUTION, DevSeed.KANGIRI, 100_00)
-        store.save(s.book)
+        store.trySave(s.book)
 
         var reopened = Session.restored(store)
         val before = reopened.book.entries.size

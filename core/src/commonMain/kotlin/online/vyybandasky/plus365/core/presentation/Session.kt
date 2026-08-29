@@ -36,7 +36,6 @@ import online.vyybandasky.plus365.core.store.LedgerStore
 import online.vyybandasky.plus365.core.store.LoadFailure
 import online.vyybandasky.plus365.core.store.Opened
 import online.vyybandasky.plus365.core.store.open
-import online.vyybandasky.plus365.core.store.openOrSeed
 
 /**
  * One screen's worth of app state, as a value.

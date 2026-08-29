@@ -72,7 +72,6 @@ import online.vyybandasky.plus365.core.store.LedgerStore
 import online.vyybandasky.plus365.core.presentation.saveFailedAlarm
 import online.vyybandasky.plus365.core.store.Saved
 import online.vyybandasky.plus365.core.store.trySave
-import online.vyybandasky.plus365.core.store.save
 import online.vyybandasky.plus365.desktop.store.FileLedgerStore
 
 fun main() {

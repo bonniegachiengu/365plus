@@ -154,10 +154,21 @@ class InMemoryStore(private var text: String? = null) : LedgerStore {
 }
 
 /** Save a book. Returns it unchanged so callers can chain. */
-fun LedgerStore.save(book: LedgerBook): LedgerBook {
-    write(encodeBook(book))
-    return book
-}
+/*
+ * There is deliberately no `save(book): LedgerBook` and no
+ * `openOrSeed(seed): LedgerBook` any more.
+ *
+ * Both existed, both were the obvious thing to call, and both threw away the one
+ * fact the caller needed. `save` let the write exception out into a click
+ * handler that dropped it, so a failed save looked like a successful one.
+ * `openOrSeed` returned the book without saying whether it was the members'
+ * ledger, a recovered copy, or a baseline standing in for a file that would not
+ * parse.
+ *
+ * Leaving them beside [trySave] and [open] would leave the trap: the shorter
+ * name is the one a tired person reaches for. Use the ones that make you look at
+ * what happened.
+ */
 
 /** How saving went. */
 sealed interface Saved {
@@ -269,10 +280,4 @@ fun LedgerStore.open(seed: () -> LedgerBook): Opened {
     return Opened.Unreadable(seed(), failure)
 }
 
-/**
- * The book alone, for callers that genuinely do not care how it was obtained.
- *
- * Kept deliberately thin. Anything showing figures to a member should be using
- * [open] and saying which of the four this was.
- */
-fun LedgerStore.openOrSeed(seed: () -> LedgerBook): LedgerBook = open(seed).book
+

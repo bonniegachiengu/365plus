@@ -1455,6 +1455,31 @@ when the machine underneath it does not.
 
 ---
 
+## D57 — Deleting the twins, not just replacing them
+
+D55 and D56 added `open()` and `trySave()` and left `openOrSeed()` and `save()`
+sitting beside them, because tests used those and rewriting the call sites felt
+like churn.
+
+That is how the trap survives. Both of the removed functions are shorter to type,
+read more naturally, and throw away the one fact the caller needed:
+
+- `save(book): LedgerBook` let the write exception out into a click handler that
+  dropped it, so a failed save looked exactly like a successful one.
+- `openOrSeed(seed): LedgerBook` returned a book without saying whether it was
+  the members' ledger, a recovered copy, or a baseline standing in for a file
+  that would not parse.
+
+Leaving them available means the next person to write a save reaches for the
+shorter name, and every argument in D55 and D56 has to be had again. So they are
+gone, every call site is migrated, and a comment sits where they used to be
+saying why — because their absence is the sort of thing somebody helpfully
+re-adds.
+
+Kept: `loadOr`. It only reads and cannot lose anything, so it is not a trap.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |
