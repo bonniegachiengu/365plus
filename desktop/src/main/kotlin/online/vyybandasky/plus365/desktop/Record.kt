@@ -31,6 +31,7 @@ import online.vyybandasky.plus365.core.presentation.RepayableLoan
 import online.vyybandasky.plus365.core.presentation.Session
 import online.vyybandasky.plus365.core.presentation.founderCards
 import online.vyybandasky.plus365.core.presentation.memberCards
+import online.vyybandasky.plus365.core.presentation.payoutOverdrawLine
 import online.vyybandasky.plus365.core.presentation.repayableLoans
 
 /**
@@ -170,6 +171,16 @@ fun RecordCard(session: Session, now: Instant, onChange: (Session) -> Unit) {
                     Amount(formatKes(cents), style = BigAmount)
                     ReviewLine("Who", session.book.displayName(member))
                     loan?.let { ReviewLine("Against", "loan ${it.loanId}") }
+
+                    if (action == PoolAction.PAY_OUT) {
+                        session.book.payoutOverdrawLine(member, cents)?.let {
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Plus.Pending,
+                            )
+                        }
+                    }
 
                     // The phone quotes the loan before the button and the laptop
                     // did not, so the machine with the most room was the one

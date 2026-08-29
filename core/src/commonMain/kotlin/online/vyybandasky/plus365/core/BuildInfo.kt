@@ -14,7 +14,7 @@ package online.vyybandasky.plus365.core
 object BuildInfo {
 
     /** Bumped every slice. The name to check against what was expected. */
-    const val NAME: String = "0.28.0-fold-once"
+    const val NAME: String = "0.28.1-payout-warning"
 
     /**
      * The same build as a plain three-part number.
@@ -24,7 +24,7 @@ object BuildInfo {
      * the minor and patch in step with it; the leading 1 means "packaged", not
      * "finished".
      */
-    const val INSTALLER_VERSION: String = "1.28.0"
+    const val INSTALLER_VERSION: String = "1.28.1"
 
     /** What a shell puts in its header. */
     fun label(): String = "build $NAME"

@@ -6,6 +6,8 @@ import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.governance.ActorConfig
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -106,5 +108,58 @@ class RecordableCoverageTest {
     fun `a Keshflo borrower cannot be paid out`() {
         val s = session().payOut(DevSeed.WANJIKU, 10_000)
         assertTrue(s.notice is Notice.Refused, "there is no share to pay out")
+    }
+}
+
+/**
+ * A payout bigger than the share it comes from.
+ *
+ * Not refused — the pool may well decide to pay somebody more than they put in,
+ * and a ledger that refuses to record what happened is a ledger people stop
+ * using. But a bare negative figure under "their share after this" reads as a
+ * bug, and a member who thinks the app is broken checks nothing.
+ */
+class PayoutOverdrawTest {
+
+    private val config = ActorConfig.dev(DevSeed.BONNIE, DevSeed.EVERYONE)
+
+    private fun funded(): Session {
+        var s = Session(
+            book = LedgerBook(
+                members = DevSeed.MEMBERS,
+                accounts = DevSeed.ACCOUNTS,
+                pockets = DevSeed.POCKETS,
+            ),
+            config = config,
+            actingAs = DevSeed.BONNIE,
+        )
+        s = s.contribute(DevSeed.KANGIRI, 100_000)
+        val id = s.book.pending().last().id
+        return s.actAs(DevSeed.BRIAN).confirm(id, DevSeed.BRIAN)
+    }
+
+    @Test
+    fun `a payout within the share says nothing`() {
+        assertNull(funded().book.payoutOverdrawLine(DevSeed.KANGIRI, 50_000))
+    }
+
+    @Test
+    fun `a payout of exactly the share says nothing`() {
+        assertNull(funded().book.payoutOverdrawLine(DevSeed.KANGIRI, 100_000))
+    }
+
+    @Test
+    fun `a payout past the share names the excess and the person`() {
+        val line = funded().book.payoutOverdrawLine(DevSeed.KANGIRI, 150_000)!!
+        assertTrue("KSh 500.00" in line, "the excess is not named: $line")
+        assertTrue("Kang'iri" in line, "the person is not named: $line")
+        assertTrue("recorded, not blocked" in line, "it must not read as a refusal: $line")
+    }
+
+    @Test
+    fun `it warns but does not refuse`() {
+        val s = funded().actAs(DevSeed.BONNIE).payOut(DevSeed.KANGIRI, 150_000)
+        assertTrue(s.notice !is Notice.Refused, "flag, do not block")
+        assertEquals(1, s.book.pending().size)
     }
 }

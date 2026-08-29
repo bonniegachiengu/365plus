@@ -1579,6 +1579,30 @@ agreed to it.
 
 ---
 
+## D61 — A negative figure with no sentence next to it
+
+Reading the payout flow rather than seeing it: a payout larger than the member's
+share puts a bare **-KSh 500.00** under the words *"their share after this"*.
+
+The number is correct and the screen is wrong. The pool may perfectly well decide
+to pay somebody more than they have in it — that is the same reasoning as flagging
+an overdrawn account rather than blocking it, and a ledger that refuses to record
+what actually happened is a ledger people stop using. But an unexplained negative
+under a heading like that reads as a bug, and a member who thinks the app is
+broken checks nothing at all.
+
+`payoutOverdrawLine` says it in words, on both shells, and only when it applies:
+
+> This is KSh 500.00 more than Kang'iri has in the pool. It will be recorded, not
+> blocked — but it leaves their share below zero, so check it is what you meant.
+
+A test asserts the sentence names the excess, names the person, and contains
+*"recorded, not blocked"* — because the one way to get this wrong is to write a
+warning that reads like a refusal, and then somebody stops recording real
+payouts.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

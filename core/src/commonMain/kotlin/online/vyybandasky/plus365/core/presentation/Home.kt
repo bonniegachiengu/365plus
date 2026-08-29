@@ -375,6 +375,27 @@ fun LedgerBook.memberDetail(memberId: MemberId, now: Instant? = null): MemberDet
     )
 }
 
+/**
+ * What to say when a payout is bigger than the share it comes out of.
+ *
+ * Not a refusal. The same reasoning as flagging an overdrawn account rather than
+ * blocking it: the pool may well decide to pay somebody more than they put in,
+ * and a ledger that refuses to record what actually happened is a ledger people
+ * stop using. But a bare "-KSh 500.00" under the words "their share after this"
+ * reads as a bug rather than as a fact, and a member who thinks the app is
+ * broken checks nothing.
+ *
+ * Null when there is nothing to say.
+ */
+fun LedgerBook.payoutOverdrawLine(memberId: MemberId, amountCents: Long): String? {
+    val share = state().balanceOf(memberId).stakeCents
+    if (amountCents <= share) return null
+    val over = amountCents - share
+    return "This is ${formatKes(over)} more than ${displayName(memberId)} has in the " +
+        "pool. It will be recorded, not blocked — but it leaves their share below " +
+        "zero, so check it is what you meant."
+}
+
 // ── the lend / borrow quote ──────────────────────────────────────────────────
 
 /**

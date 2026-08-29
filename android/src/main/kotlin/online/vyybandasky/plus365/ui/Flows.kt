@@ -36,6 +36,7 @@ import online.vyybandasky.plus365.core.presentation.Session
 import online.vyybandasky.plus365.core.presentation.founderCards
 import online.vyybandasky.plus365.core.presentation.memberCards
 import online.vyybandasky.plus365.core.presentation.quoteLoan
+import online.vyybandasky.plus365.core.presentation.payoutOverdrawLine
 import online.vyybandasky.plus365.core.presentation.repayableLoans
 
 /**
@@ -390,6 +391,14 @@ private fun ReviewStep(
                     online.vyybandasky.plus365.core.money.formatKes(share - cents),
                     emphasis = true,
                 )
+                session.book.payoutOverdrawLine(member, cents)?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Plus.Pending,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
             }
 
             PoolAction.MEMBER_LENDS_IN -> {
