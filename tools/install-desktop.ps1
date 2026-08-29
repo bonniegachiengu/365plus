@@ -1,0 +1,60 @@
+# Rebuild the Windows app and reinstall it over the existing one.
+#
+# Run this after any change you want on the pinned desktop app. The MSI carries a
+# fixed upgrade UUID, so this replaces the installed build rather than adding a
+# second copy — and the pinned taskbar and Start-menu entries survive, because
+# they point at the same path.
+#
+#   pwsh -File tools\install-desktop.ps1
+#
+# Close the app first if it is running; Windows will not overwrite a running exe,
+# and the failure it gives for that is not obvious.
+
+$ErrorActionPreference = "Stop"
+$repo = Split-Path -Parent $PSScriptRoot
+Push-Location $repo
+
+if (-not $env:JAVA_HOME) {
+    $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.6.7-hotspot"
+}
+
+# Nothing can overwrite a running exe, so stop it before building rather than
+# after — the build takes a minute and there is no reason to wait to find out.
+Get-Process Plus365 -ErrorAction SilentlyContinue | ForEach-Object {
+    Write-Host "Closing the running app (pid $($_.Id))"
+    Stop-Process -Id $_.Id -Force
+    Start-Sleep -Milliseconds 500
+}
+
+Write-Host "Building the installer..."
+& .\gradlew.bat :desktop:packageMsi --offline
+if ($LASTEXITCODE -ne 0) { Pop-Location; throw "packageMsi failed" }
+
+$msi = Get-ChildItem "$repo\desktop\build\compose\binaries\main\msi\*.msi" |
+    Sort-Object LastWriteTime -Descending | Select-Object -First 1
+Write-Host "Installing $($msi.Name)"
+
+$log = Join-Path $env:TEMP "plus365-install.log"
+$p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
+    "/i", "`"$($msi.FullName)`"", "/qn", "/norestart", "/l*v", "`"$log`""
+)
+if ($p.ExitCode -ne 0) {
+    Write-Host "msiexec failed with $($p.ExitCode). Last lines of $log :"
+    Get-Content $log -Tail 20
+    Pop-Location
+    throw "install failed"
+}
+
+# Verify rather than assume. An install that silently did not replace the old one
+# looks exactly like code that silently did not work, and that has bitten here.
+$exe = "$env:LOCALAPPDATA\Plus365\Plus365.exe"
+if (-not (Test-Path $exe)) { Pop-Location; throw "installed exe not found at $exe" }
+$stamp = (Get-Item $exe).LastWriteTime
+Write-Host ""
+Write-Host "Installed : $exe"
+Write-Host "Built     : $stamp"
+Write-Host "Start menu: $env:APPDATA\Microsoft\Windows\Start Menu\Programs\365+\Plus365.lnk"
+Write-Host ""
+Write-Host "Launching. Check the build line under the title matches what you expect."
+Start-Process $exe
+Pop-Location

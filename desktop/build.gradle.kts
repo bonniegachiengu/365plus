@@ -34,8 +34,39 @@ compose.desktop {
         mainClass = "online.vyybandasky.plus365.desktop.MainKt"
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "365plus"
-            packageVersion = "1.0.0"
+
+            // "Plus365", not "365plus": Windows sorts and searches by the first
+            // character, and an app whose name starts with a digit buries itself
+            // among the numbers in the Start menu.
+            packageName = "Plus365"
+            description = "365+ — contributions and loans"
+            vendor = "vyybandasky"
+
+            // MSI will not take a label like "0.10.0-overdraw-flags", and wants a
+            // major of at least one. The readable name lives in BuildInfo and is
+            // printed in the window; these two are kept in step by hand.
+            packageVersion = "1.10.0"
+
+            windows {
+                // A Start-menu entry, which is what makes it pinnable at all.
+                menu = true
+                menuGroup = "365+"
+                shortcut = true
+
+                // Fixed, and it must stay fixed: this is how Windows recognises
+                // a new build as an upgrade of the old one rather than a second
+                // app sitting beside it. Changing it would leave every install
+                // installed. Hex only — jpackage rejects anything that is not a
+                // real UUID, and does it with a message that names the length
+                // rather than the letters.
+                upgradeUuid = "8f3d1c26-4b5a-4f7e-9a21-365b10500001"
+
+                // No admin prompt, and it lands in the user profile — this is a
+                // three-person side project, not something to make him elevate
+                // for on every rebuild.
+                perUserInstall = true
+                dirChooser = false
+            }
         }
     }
 }

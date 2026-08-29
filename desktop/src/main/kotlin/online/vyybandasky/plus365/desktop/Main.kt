@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import java.io.File
+import online.vyybandasky.plus365.core.BuildInfo
 import online.vyybandasky.plus365.core.presentation.Notice
 import online.vyybandasky.plus365.core.presentation.Session
 import online.vyybandasky.plus365.core.presentation.historyRows
@@ -90,6 +91,9 @@ fun App(store: LedgerStore) {
                         "acting as ${session.actingAsName}",
                     style = MaterialTheme.typography.bodySmall,
                 )
+                // Says which build this is, so an install that failed to replace
+                // the old one cannot be mistaken for code that failed to work.
+                Text(BuildInfo.label(), style = MaterialTheme.typography.bodySmall)
 
                 session.notice?.let { NoticeBar(it) }
 

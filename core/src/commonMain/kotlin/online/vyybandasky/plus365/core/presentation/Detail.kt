@@ -1,6 +1,7 @@
 package online.vyybandasky.plus365.core.presentation
 
 import kotlinx.datetime.Instant
+import online.vyybandasky.plus365.core.BuildInfo
 import online.vyybandasky.plus365.core.book.LedgerBook
 import online.vyybandasky.plus365.core.book.needingOverride
 import online.vyybandasky.plus365.core.book.overrideActs
@@ -231,6 +232,8 @@ data class ProfileView(
     val confirmedCount: Int,
     val overrodeCount: Int,
     val storageLine: String,
+    /** Which build this is. The only reliable way to know what is running. */
+    val buildLine: String,
 )
 
 fun LedgerBook.profile(actingAs: MemberId, config: ActorConfig): ProfileView {
@@ -255,5 +258,6 @@ fun LedgerBook.profile(actingAs: MemberId, config: ActorConfig): ProfileView {
         overrodeCount = entries.count { e -> e.overrides.any { it.by == actingAs } },
         storageLine = "Kept on this phone only. Nothing is sent anywhere, and no " +
             "phone number is stored.",
+        buildLine = BuildInfo.label(),
     )
 }

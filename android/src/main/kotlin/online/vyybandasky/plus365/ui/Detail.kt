@@ -267,6 +267,8 @@ fun ProfileScreen(
             Card {
                 Label("Your data")
                 Text(p.storageLine, style = MaterialTheme.typography.bodyMedium, color = Plus.TextMid)
+                HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 8.dp))
+                Text(p.buildLine, style = MaterialTheme.typography.bodySmall, color = Plus.TextLow)
             }
 
             // No sign-out: there is no account to sign out of. Saying so is
