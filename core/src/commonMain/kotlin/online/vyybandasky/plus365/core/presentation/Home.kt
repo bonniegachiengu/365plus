@@ -158,7 +158,7 @@ data class MemberCard(
     val initial: String,
     /** Their pool contribution. */
     val stake: String,
-    /** "owes KSh 1,673" / "clear" / "the pool owes them KSh 400" */
+    /** "pending loan amount KSh 1,633" / "no pending loan" / "the pool owes them ..." */
     val standingLine: String,
     val owesCents: Long,
     val inDebt: Boolean,

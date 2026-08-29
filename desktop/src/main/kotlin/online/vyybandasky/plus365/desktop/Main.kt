@@ -101,7 +101,7 @@ fun App(store: LedgerStore) {
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
-                        Text("Outstanding: ${summary.totalOutstanding}")
+                        Text("Pending loan amounts: ${summary.totalOutstanding}")
                         Text(
                             "Awaiting confirmation: ${summary.pendingCash} (${summary.pendingCount})",
                             style = MaterialTheme.typography.bodySmall,
@@ -111,7 +111,7 @@ fun App(store: LedgerStore) {
 
                 Section("Members")
                 for (row in session.book.memberRows()) {
-                    Text("${row.name} — stake ${row.stake}, ${row.owes}")
+                    Text("${row.name} — pool contribution ${row.stake}, ${row.owes}")
                 }
 
                 Section("Waiting on a second pair of eyes")

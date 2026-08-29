@@ -31,8 +31,11 @@ android {
         // higher floor only narrows which of the three phones can install it.
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        // Bumped every slice so the build on the phone can be named, not
+        // assumed. An APK that silently failed to replace the old one looks
+        // exactly like a feature that silently failed to work.
+        versionCode = 9
+        versionName = "0.9.0-accounts-pockets"
     }
 
     buildFeatures {
