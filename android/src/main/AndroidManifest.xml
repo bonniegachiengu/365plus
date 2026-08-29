@@ -3,14 +3,20 @@
 
     <application
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Plus365">
 
+        <!--
+          The activity inherits the application label, so repeating it here only
+          creates a second place for the app's name to drift.
+        -->
         <activity
             android:name=".MainActivity"
-            android:exported="true"
-            android:label="@string/app_name">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

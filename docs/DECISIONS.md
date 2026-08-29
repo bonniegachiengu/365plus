@@ -1789,6 +1789,52 @@ gitignored and local to this machine.
 
 ---
 
+## D67 — The phone had no icon at all
+
+Running lint for the first time (D66) surfaced this two lines below the crash:
+
+> Should explicitly set `android:icon`, there is no default.
+
+`android/src/main/res` contained `values` and nothing else. The app on Bonnie's
+phone has been showing whatever Android puts there when an app supplies nothing.
+Meanwhile the laptop got a hand-drawn interim mark days ago, precisely because a
+default icon makes an app look like it was never finished — and Brian and
+Kang'iri expect something serious.
+
+`tools/make-android-icon.ps1` draws the same tile `make-icon.ps1` draws for
+Windows, at the five densities Android wants, so the phone and the laptop are
+recognisably one app. Same interim terms: not branding, replaced when real
+artwork lands.
+
+Three details lint had opinions about, and it was right twice:
+
+- **The round icon was not round.** `ic_launcher_round` was the same rounded
+  square, and a launcher that asks for the round variant masks it to a circle —
+  cutting the corners off a square tile, which reads as a mistake rather than a
+  style. It is drawn as an actual circle now.
+- **No monochrome layer.** Android 13 tints one to the wallpaper for themed
+  icons; an app without one sits in a plain white circle beside every app that
+  has one.
+- **`targetSdk` is not the newest.** Deliberate, and left alone.
+
+### The one that was about privacy rather than looks
+
+`android:allowBackup="false"` was already set, so the ledger has never gone to
+anybody's Google account — the profile screen's *"nothing is sent anywhere"* was
+true. But from Android 12 that attribute no longer governs **device-to-device
+transfer**, and without rules a new phone would have copied the ledger across.
+
+Arguably that is what somebody moving phones wants. It is not what the screen
+promises, and until there is a sync the members have agreed to, the promise has
+to hold for every route off the device and not only the one Android used to call
+backup. `data_extraction_rules.xml` excludes everything from both.
+
+The remaining `fullBackupContent` warning is moot: with `allowBackup="false"`
+nothing is backed up on Android 11 and below regardless, and lint does not model
+that combination.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

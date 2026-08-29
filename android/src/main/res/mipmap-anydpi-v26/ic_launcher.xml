@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The adaptive icon, for Android 8 and up.
+
+  The launcher masks the foreground to whatever shape the phone uses — circle,
+  squircle, rounded square — so the mark is drawn well inside its safe area and
+  the tile itself is left to the background layer. The legacy PNGs in each
+  mipmap folder cover Android 7, where adaptive icons do not exist.
+
+  The monochrome layer is the same mark again. Android 13 tints it to the
+  wallpaper for themed icons, and an app without one sits in a plain white
+  circle beside every other app that has one, which is the opposite of looking
+  deliberate.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>
