@@ -91,6 +91,18 @@ sealed interface Refusal {
             "Only the pool's own members can record, confirm or settle entries."
     }
 
+    /**
+     * A stake was going to be moved for somebody who has no stake.
+     *
+     * Distinct from [NotAMember], which is about who may *act*. This is about
+     * who an entry may be *about*: a Keshflo borrower takes loans and repays
+     * them, and has no share of the pool to add to or draw down.
+     */
+    data class NoStake(val memberId: MemberId) : Refusal {
+        override val message =
+            "Only the pool's own members hold a share, so only they can pay in or be paid out."
+    }
+
     data class NotPending(val state: EntryState) : Refusal {
         override val message = "Only a PENDING entry can be confirmed; this one is $state."
     }

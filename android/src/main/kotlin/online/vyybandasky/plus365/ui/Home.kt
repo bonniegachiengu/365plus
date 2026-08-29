@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.presentation.ActivityRow
@@ -84,6 +85,7 @@ fun HomeScreen(
         item { TopBar(session, onOpenProfile) }
         item { CashOnHandCard(cash) }
         item { ActionRow(onAction) }
+        item { SecondaryActionRow(onAction) }
         item { MoveRow(onMove) }
 
         // The third member's work comes first: a conflict is somebody's money
@@ -248,7 +250,7 @@ private fun CashOnHandCard(cash: online.vyybandasky.plus365.core.presentation.Ca
     }
 }
 
-/** The four actions, right below the money. */
+/** The four anyone opens the app for, right below the money. */
 @Composable
 private fun ActionRow(onAction: (PoolAction) -> Unit) {
     val icons = mapOf(
@@ -258,7 +260,7 @@ private fun ActionRow(onAction: (PoolAction) -> Unit) {
         PoolAction.REPAY to Icons.Filled.CheckCircle,
     )
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        for (action in PoolAction.entries) {
+        for (action in PoolAction.entries.filter { it.primary }) {
             ActionTile(
                 icon = icons.getValue(action),
                 label = action.label,
@@ -276,6 +278,29 @@ private fun ActionRow(onAction: (PoolAction) -> Unit) {
  * in a plainer row — present because the book can do them, not promoted because
  * nobody opens the app for them.
  */
+@Composable
+private fun SecondaryActionRow(onAction: (PoolAction) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (action in PoolAction.entries.filter { !it.primary }) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(Plus.Surface, RoundedCornerShape(14.dp))
+                    .tappable { onAction(action) }
+                    .padding(vertical = 12.dp, horizontal = 6.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    action.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Plus.TextMid,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun MoveRow(onMove: (PoolMove) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

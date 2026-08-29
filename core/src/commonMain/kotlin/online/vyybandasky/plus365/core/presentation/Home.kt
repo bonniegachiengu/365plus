@@ -67,11 +67,51 @@ fun LedgerBook.lastActivityAt(): Instant? =
 // ── the actions ──────────────────────────────────────────────────────────────
 
 /** The four things a member opens the app to do. */
-enum class PoolAction(val label: String, val blurb: String) {
+enum class PoolAction(
+    val label: String,
+    val blurb: String,
+    /**
+     * The four anyone opens the app to do. The rest are real money moves that
+     * happen a handful of times a year, so they sit below rather than beside.
+     */
+    val primary: Boolean = true,
+) {
     CONTRIBUTE("Contribute", "Add money to the pool"),
     LEND("Lend", "Lend pool money to a member"),
     BORROW("Borrow", "Borrow from the pool"),
     REPAY("Repay", "Pay back a loan"),
+
+    /** A member taking their own share out. The other half of contributing. */
+    PAY_OUT("Pay out", "Take money out of the pool", primary = false),
+
+    /** The pool borrowing, rather than lending. It owes this back. */
+    MEMBER_LENDS_IN("Member lends in", "A member fronts the pool money", primary = false),
+
+    /** Settling what the pool owes a member who fronted it money. */
+    REPAY_MEMBER("Pay a member back", "Settle what the pool owes a member", primary = false),
+    ;
+
+    /**
+     * The single entry this action writes, or null when it writes several.
+     *
+     * Lending is three entries — principal, interest, cost — sharing a group, so
+     * it has no one type. Everything else is one entry and one type, which is
+     * what lets [RECORDABLE_TYPES] be checked against this list rather than
+     * drifting from it.
+     */
+    val entryType: EntryType?
+        get() = when (this) {
+            CONTRIBUTE -> EntryType.CONTRIBUTION
+            REPAY -> EntryType.LOAN_REPAYMENT
+            PAY_OUT -> EntryType.PAYOUT
+            MEMBER_LENDS_IN -> EntryType.MEMBER_LOAN_IN
+            REPAY_MEMBER -> EntryType.POOL_REPAY_MEMBER
+            LEND, BORROW -> null
+        }
+
+    /** Does this action move somebody's share, and so need a founder? */
+    val movesStake: Boolean
+        get() = this == CONTRIBUTE || this == PAY_OUT
 }
 
 /**

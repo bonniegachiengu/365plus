@@ -357,6 +357,40 @@ data class Session(
     ): Session = record(EntryType.LOAN_REPAYMENT, memberId, amountCents, loanId, at, smsText)
 
     /** Add money to the pool. */
+    /**
+     * Pay a member their share out of the pool.
+     *
+     * The other half of contributing, and the reason the pool exists at the end
+     * of a cycle. Refused for a Keshflo borrower, who has no share to draw on.
+     */
+    fun payOut(
+        memberId: MemberId,
+        amountCents: Long,
+        at: Instant? = null,
+        smsText: String? = null,
+    ): Session = record(EntryType.PAYOUT, memberId, amountCents, null, at, smsText)
+
+    /**
+     * A member fronting the pool money the pool owes back.
+     *
+     * The mirror of lending: cash goes up and so does what the pool owes, so it
+     * lifts nobody's share.
+     */
+    fun memberLendsIn(
+        memberId: MemberId,
+        amountCents: Long,
+        at: Instant? = null,
+        smsText: String? = null,
+    ): Session = record(EntryType.MEMBER_LOAN_IN, memberId, amountCents, null, at, smsText)
+
+    /** Settle what the pool owes a member who fronted it money. */
+    fun repayMember(
+        memberId: MemberId,
+        amountCents: Long,
+        at: Instant? = null,
+        smsText: String? = null,
+    ): Session = record(EntryType.POOL_REPAY_MEMBER, memberId, amountCents, null, at, smsText)
+
     fun contribute(
         memberId: MemberId,
         amountCents: Long,

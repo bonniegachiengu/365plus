@@ -13,7 +13,7 @@ concerned.
 | Branch | Purpose | State |
 |---|---|---|
 | `main` | Protected trunk. Always green, always installable. | **281 tests green** (core 259, desktop 12, android 10). Desktop installed and verified as `0.14.0-desktop-records`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
-| `docs/state-0.14` | Bring this file up to date and own a broken rule. | Open. |
+| `slice/payouts-and-member-loans` | The three recordable types no shell offered: payout, member-lends-in, pool-repays-member. Plus the stake-subject guard they exposed. | Open. |
 
 ## Merged
 

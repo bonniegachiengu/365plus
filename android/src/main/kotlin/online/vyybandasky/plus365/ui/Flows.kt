@@ -202,6 +202,9 @@ private fun PickStep(
     val question = when (action) {
         PoolAction.CONTRIBUTE -> "Who is adding money?"
         PoolAction.LEND -> "Who is borrowing?"
+        PoolAction.PAY_OUT -> "Who is being paid out?"
+        PoolAction.MEMBER_LENDS_IN -> "Who is fronting the money?"
+        PoolAction.REPAY_MEMBER -> "Who is the pool paying back?"
         else -> "Who?"
     }
     Text(question, style = MaterialTheme.typography.titleLarge, color = Plus.TextHigh)
@@ -245,6 +248,9 @@ private fun AmountStep(
         PoolAction.LEND -> "How much is $who borrowing?"
         PoolAction.BORROW -> "How much do you want to borrow?"
         PoolAction.REPAY -> "How much is $who paying?"
+        PoolAction.PAY_OUT -> "How much is $who taking out?"
+        PoolAction.MEMBER_LENDS_IN -> "How much is $who putting in?"
+        PoolAction.REPAY_MEMBER -> "How much is the pool paying $who?"
     }
     Text(heading, style = MaterialTheme.typography.titleLarge, color = Plus.TextHigh)
 
@@ -333,6 +339,9 @@ private fun ReviewStep(
                 PoolAction.LEND -> "New loan"
                 PoolAction.BORROW -> "New loan to you"
                 PoolAction.REPAY -> "Repayment"
+                PoolAction.PAY_OUT -> "Payout"
+                PoolAction.MEMBER_LENDS_IN -> "Member lends in"
+                PoolAction.REPAY_MEMBER -> "Pool repays a member"
             },
         )
         Amount(online.vyybandasky.plus365.core.money.formatKes(cents), style = HeroAmount)
@@ -365,6 +374,37 @@ private fun ReviewStep(
                 ReviewLine(
                     "Left after this",
                     online.vyybandasky.plus365.core.money.formatKes(after),
+                    emphasis = true,
+                )
+            }
+
+            PoolAction.PAY_OUT -> {
+                ReviewLine("Who", who)
+                ReviewLine("Comes out of", "Their share of the pool")
+                // The number that matters is what is left of their share, not
+                // what is leaving it — a payout is only alarming next to what it
+                // is being taken from.
+                val share = session.book.state().balanceOf(member).stakeCents
+                ReviewLine(
+                    "Their share after this",
+                    online.vyybandasky.plus365.core.money.formatKes(share - cents),
+                    emphasis = true,
+                )
+            }
+
+            PoolAction.MEMBER_LENDS_IN -> {
+                ReviewLine("Who", who)
+                ReviewLine("This is", "A loan to the pool, not a contribution")
+                ReviewLine("Their share", "Unchanged — the pool owes this back", emphasis = true)
+            }
+
+            PoolAction.REPAY_MEMBER -> {
+                ReviewLine("Who", who)
+                val owed = session.book.state().balanceOf(member).debtCents
+                ReviewLine("The pool owes them", online.vyybandasky.plus365.core.money.formatKes(owed))
+                ReviewLine(
+                    "Owing after this",
+                    online.vyybandasky.plus365.core.money.formatKes((owed - cents).coerceAtLeast(0L)),
                     emphasis = true,
                 )
             }
@@ -409,6 +449,9 @@ private fun ReviewStep(
         val paste = sms.takeIf { it.isNotBlank() }
         val next = when (action) {
             PoolAction.CONTRIBUTE -> session.contribute(member, cents, now, paste)
+            PoolAction.PAY_OUT -> session.payOut(member, cents, now, paste)
+            PoolAction.MEMBER_LENDS_IN -> session.memberLendsIn(member, cents, now, paste)
+            PoolAction.REPAY_MEMBER -> session.repayMember(member, cents, now, paste)
             PoolAction.LEND -> session.lend(member, cents, at = now, smsText = paste)
             PoolAction.BORROW -> session.borrow(member, cents, at = now, smsText = paste)
             PoolAction.REPAY -> session.repay(loan!!.loanId, member, cents, now, paste)

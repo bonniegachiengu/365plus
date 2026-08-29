@@ -145,6 +145,9 @@ data class Recorded(val book: LedgerBook, val entries: List<Entry>) {
  * balance — because a single person cannot put money on the books alone. That is
  * the same rule as [confirm], seen from the other end.
  */
+/** The entry types that move somebody's share of the pool up or down. */
+private val STAKE_TYPES = setOf(EntryType.CONTRIBUTION, EntryType.PAYOUT)
+
 fun LedgerBook.record(
     id: EntryId,
     type: EntryType,
@@ -173,6 +176,14 @@ fun LedgerBook.record(
     }
     if (!isFounder(recordedBy)) {
         return Decision.Refused(Refusal.NotAMember(recordedBy))
+    }
+    // Who may act is one question; who an entry may be *about* is another. A
+    // Keshflo borrower has no share of the pool, so there is nothing to pay into
+    // and nothing to pay out. The phone hid this by offering only founders in
+    // the picker — but a rule enforced by which buttons get drawn holds only
+    // until somebody builds a second screen.
+    if (type in STAKE_TYPES && !isFounder(memberId)) {
+        return Decision.Refused(Refusal.NoStake(memberId))
     }
     if (amountCents <= 0L) {
         return Decision.Refused(Refusal.Invalid("Amount must be more than zero."))

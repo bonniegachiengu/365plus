@@ -777,6 +777,47 @@ nothing — not the shells, not the tests, not core.
 
 ---
 
+## D37 — The pool could not pay anyone out
+
+`RECORDABLE_TYPES` in `LedgerView.kt` lists the five types a person may record
+from a shell. The shells offered two of them. The list had been right and unread
+since it was written — and it was read by nothing, so nothing complained.
+
+Missing were `PAYOUT`, `MEMBER_LOAN_IN` and `POOL_REPAY_MEMBER`. The fold handled
+all three. `actPhrase` already had a sentence for each. Only the way in was
+absent, so a savings pool could take money and lend money and had no way to give
+anybody their share back.
+
+`PoolAction` now carries all seven, split by a `primary` flag: the four anyone
+opens the app for keep the tile row, and *Pay out*, *Member lends in* and *Pay a
+member back* sit under them in a quieter row on both shells. They ride the
+existing pick → amount → review flow unchanged, because they are the same shape
+of decision.
+
+`RecordableCoverageTest` now asserts that every entry in `RECORDABLE_TYPES` is
+some action's `entryType`. Add a recordable type without a way to record it and
+the build fails. A declaration nobody checks is a comment with a type signature.
+
+### The guard this turned up
+
+`record` refused a Keshflo beneficiary who tried to *record*. It said nothing
+about a beneficiary being the *subject* of an entry that moves a share — a
+different question with the same answer, and one that had never been asked
+because the phone only ever offered founders in the picker.
+
+That is not a rule. It is a habit that holds until somebody builds a second
+screen, and building payouts was that second screen. Left alone, `PAYOUT` to
+Wanjiku would have driven a Keshflo borrower's stake negative.
+
+`Refusal.NoStake` now sits beside `NotAMember`, and `record` refuses
+`CONTRIBUTION` or `PAYOUT` whose subject is not a founder. Lending to and being
+repaid by a beneficiary are untouched — that is what a Keshflo borrower is for.
+
+Written as five failing tests first. Two failed, three passed, and the two that
+failed were the two that mattered.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

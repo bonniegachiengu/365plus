@@ -68,7 +68,17 @@ fun RecordCard(session: Session, now: Instant, onChange: (Session) -> Unit) {
     Card {
         Label("Record something")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            for (a in PoolAction.entries) Choice(a.label, a == action) { action = a }
+            for (a in PoolAction.entries.filter { it.primary }) {
+                Choice(a.label, a == action) { action = a }
+            }
+        }
+        // The three below are real money moves that happen a handful of times a
+        // year. Same row height, less weight, so they read as available rather
+        // than as something you were about to do.
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for (a in PoolAction.entries.filter { !it.primary }) {
+                Choice(a.label, a == action) { action = a }
+            }
         }
         Text(action.blurb, style = MaterialTheme.typography.bodyMedium, color = Plus.TextMid)
         HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 8.dp))
@@ -108,7 +118,15 @@ fun RecordCard(session: Session, now: Instant, onChange: (Session) -> Unit) {
                     }
 
                     else -> {
-                        Label(if (action == PoolAction.LEND) "Lend to" else "Who is paying")
+                        Label(
+                            when (action) {
+                                PoolAction.LEND -> "Lend to"
+                                PoolAction.PAY_OUT -> "Who is being paid out"
+                                PoolAction.MEMBER_LENDS_IN -> "Who is fronting the money"
+                                PoolAction.REPAY_MEMBER -> "Who the pool is paying back"
+                                else -> "Who is paying"
+                            },
+                        )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             for (m in people) {
                                 Choice(m.name, m.id == member) { member = m.id }
@@ -165,6 +183,11 @@ fun RecordCard(session: Session, now: Instant, onChange: (Session) -> Unit) {
                             session.borrow(session.actingAs, cents, at = now, smsText = paste)
                         PoolAction.REPAY ->
                             session.repay(loan!!.loanId, member, cents, now, paste)
+                        PoolAction.PAY_OUT -> session.payOut(member, cents, now, paste)
+                        PoolAction.MEMBER_LENDS_IN ->
+                            session.memberLendsIn(member, cents, now, paste)
+                        PoolAction.REPAY_MEMBER ->
+                            session.repayMember(member, cents, now, paste)
                     }
                     amount = ""
                     sms = ""
