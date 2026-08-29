@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **359 tests green** (core 332, desktop 17, android 10), and the build compiles with no warnings. Desktop installed and verified as `0.25.0-never-overwrite`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+| `main` | Protected trunk. Always green, always installable. | **362 tests green** (core 335, desktop 17, android 10), and the build compiles with no warnings. Desktop installed and verified as `0.26.0-save-failures`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
 
 
 ## Merged
@@ -55,6 +55,7 @@ concerned.
 | `slice/add-accounts` | Accounts and pockets can finally be added — including the bank account Brian asked for. | 2026-08-29 | see `main` |
 | `fix/durable-writes` | The delete-then-rename fallback had a window with no ledger in it. Atomic move, and a copy of the version being replaced. | 2026-08-29 | see `main` |
 | `fix/never-overwrite-unreadable` | Startup wrote the seed over any ledger that failed to parse. The worst defect found in this session. | 2026-08-29 | see `main` |
+| `fix/save-can-fail` | A failed write showed as a recorded entry. Both shells now say so. | 2026-08-29 | see `main` |
 
 ## Committed straight to `main` (rule 1 broken)
 

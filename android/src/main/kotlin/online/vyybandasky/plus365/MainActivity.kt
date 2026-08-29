@@ -23,6 +23,9 @@ import online.vyybandasky.plus365.core.presentation.PoolAction
 import online.vyybandasky.plus365.core.presentation.PoolMove
 import online.vyybandasky.plus365.core.presentation.Session
 import online.vyybandasky.plus365.core.store.LedgerStore
+import online.vyybandasky.plus365.core.presentation.saveFailedAlarm
+import online.vyybandasky.plus365.core.store.Saved
+import online.vyybandasky.plus365.core.store.trySave
 import online.vyybandasky.plus365.core.store.save
 import online.vyybandasky.plus365.store.FileLedgerStore
 import online.vyybandasky.plus365.ui.ConfirmScreen
@@ -80,10 +83,13 @@ fun Plus365App(store: LedgerStore) {
     BackHandler(enabled = screen != Screen.Home) { screen = Screen.Home }
 
     // The single path from a change to disk. Every callback goes through it, so
-    // there is no route that updates the screen without also saving.
+    // there is no route that updates the screen without also saving — and none
+    // that updates the screen while quietly failing to.
     val commit: (Session) -> Unit = { next ->
-        session = next
-        store.save(next.book)
+        session = when (val r = store.trySave(next.book)) {
+            is Saved.Ok -> next
+            is Saved.Failed -> next.copy(storeAlarm = saveFailedAlarm(r.reason))
+        }
     }
 
     Plus365Theme {

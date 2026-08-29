@@ -159,6 +159,36 @@ fun LedgerStore.save(book: LedgerBook): LedgerBook {
     return book
 }
 
+/** How saving went. */
+sealed interface Saved {
+    data object Ok : Saved
+
+    /**
+     * The write threw. A disk that is full, a file another process has open, a
+     * phone that has run out of room.
+     */
+    data class Failed(val reason: String) : Saved
+}
+
+/**
+ * Save, and say whether it worked.
+ *
+ * [save] lets the exception out, and both shells called it from a click handler
+ * that ignored it. Compose swallows a throw in a click handler and carries on
+ * drawing, so a failed write showed as a recorded entry: on screen, agreed to,
+ * and not on disk. The next cold start would simply not have it.
+ *
+ * An entry a member watched themselves make and can no longer find is worse
+ * than an error, because the error at least tells them to write it down
+ * somewhere else.
+ */
+fun LedgerStore.trySave(book: LedgerBook): Saved = try {
+    write(encodeBook(book))
+    Saved.Ok
+} catch (e: Exception) {
+    Saved.Failed(e.message ?: e::class.simpleName ?: "unknown")
+}
+
 /** Load a book, or [fallback] if there is nothing readable stored. Reads only. */
 fun LedgerStore.loadOr(fallback: () -> LedgerBook): LedgerBook =
     decodeBook(read()).getOrElse { fallback() }

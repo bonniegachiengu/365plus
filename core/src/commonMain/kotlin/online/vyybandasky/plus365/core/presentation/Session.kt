@@ -627,6 +627,23 @@ private fun LoadFailure.shortCause(): String {
     return if (first.length <= 140) first else first.take(137) + "..."
 }
 
+/**
+ * The alarm for a write that did not happen.
+ *
+ * Severe without qualification. Everything else in this app is careful to say
+ * when it is unsure; this one is certain, and what it is certain of is that
+ * something on screen is not in the record.
+ */
+fun saveFailedAlarm(reason: String): StoreAlarm = StoreAlarm(
+    headline = "That was not saved",
+    detail = "It is on this screen but it did not reach the file, so it will not be " +
+        "here next time the app opens. Write down what you just did before you " +
+        "close this, and check the device has room. Nothing already in the ledger " +
+        "has been damaged.",
+    technical = reason.lineSequence().firstOrNull()?.trim()?.take(140),
+    severe = true,
+)
+
 /** What to say about how the store opened, or null when it opened normally. */
 fun Opened.alarm(): StoreAlarm? = when (this) {
     is Opened.Loaded -> null

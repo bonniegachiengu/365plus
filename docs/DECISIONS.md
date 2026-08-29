@@ -1406,6 +1406,55 @@ somebody who has just been told their ledger will not open.
 
 ---
 
+## D56 — A save that fails must not look like one that worked
+
+Last of the three store defects, and the same family as D54 and D55.
+
+```kotlin
+val commit: (Session) -> Unit = { next ->
+    session = next
+    store.save(next.book)   // throws
+}
+```
+
+`save` let the exception out and both shells called it from a click handler that
+ignored it. Compose swallows a throw in a click handler and carries on drawing —
+so a full disk, a locked file, or a phone out of room produced an entry that was
+on screen, agreed to, and not in the record. The next cold start simply would not
+have it.
+
+An entry a member watched themselves make and can no longer find is worse than an
+error, because an error at least tells them to write it down somewhere else.
+
+`trySave` returns `Ok` or `Failed(reason)`, and both shells raise the same severe
+`StoreAlarm` the store-open failures use:
+
+> **That was not saved.** It is on this screen but it did not reach the file, so
+> it will not be here next time the app opens. Write down what you just did
+> before you close this, and check the device has room. Nothing already in the
+> ledger has been damaged.
+
+Two sentences in that are load-bearing and both are tested for by name. *"Write
+down what you just did"* is the only useful instruction available. *"Nothing
+already in the ledger has been damaged"* is there because somebody told a save
+failed will assume the worst about everything else, and in this case the worst is
+not true — D54's atomic move means a failed write leaves the previous ledger
+exactly where it was.
+
+### The three together
+
+| | what was silently lost |
+|---|---|
+| D54 | the whole ledger, in the window between `delete()` and `rename()` |
+| D55 | the whole ledger, overwritten by the seed whenever it would not parse |
+| D56 | the entry you just made, whenever the write threw |
+
+All three looked like a working app. None would have been found by a test that
+asked whether the code did what it said — they were found by asking what happens
+when the machine underneath it does not.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

@@ -35,7 +35,7 @@ android {
         // assumed. An APK that silently failed to replace the old one looks
         // exactly like a feature that silently failed to work.
         versionCode = 12
-        versionName = "0.25.0-never-overwrite"
+        versionName = "0.26.0-save-failures"
     }
 
     buildFeatures {

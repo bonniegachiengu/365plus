@@ -69,6 +69,9 @@ import online.vyybandasky.plus365.core.presentation.pendingActs
 import online.vyybandasky.plus365.core.sms.Assurance
 import online.vyybandasky.plus365.core.sms.label
 import online.vyybandasky.plus365.core.store.LedgerStore
+import online.vyybandasky.plus365.core.presentation.saveFailedAlarm
+import online.vyybandasky.plus365.core.store.Saved
+import online.vyybandasky.plus365.core.store.trySave
 import online.vyybandasky.plus365.core.store.save
 import online.vyybandasky.plus365.desktop.store.FileLedgerStore
 
@@ -179,8 +182,13 @@ fun App(store: LedgerStore) {
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
 
     val commit: (Session) -> Unit = { next ->
-        session = next
-        store.save(next.book)
+        // The write is not a formality. If it fails, the entry is on screen and
+        // not in the record, and the member has to be told before they close the
+        // window on it.
+        session = when (val r = store.trySave(next.book)) {
+            is Saved.Ok -> next
+            is Saved.Failed -> next.copy(storeAlarm = saveFailedAlarm(r.reason))
+        }
     }
 
     // Escape goes back one level. Not out of the app — closing a ledger by
