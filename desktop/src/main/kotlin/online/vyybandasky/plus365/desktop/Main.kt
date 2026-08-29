@@ -249,57 +249,17 @@ private fun HomeBody(
 
     // A conflict is somebody's money stuck. It outranks a routine confirmation.
     if (toSettle.isNotEmpty()) {
-        Card(colour = Plus.DebtDim) {
-            Text(
-                if (toSettle.size == 1) "1 entry needs settling" else "${toSettle.size} entries need settling",
-                style = MaterialTheme.typography.titleMedium,
-                color = Plus.Debt,
-            )
-            Text(
-                "Two members could not agree. The member who was not involved decides.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Plus.TextMid,
-            )
-            for (t in toSettle) {
-                Text(
-                    "· ${t.sentence} — ${t.amount}" +
-                        (t.settledBy.firstOrNull()?.let { " · ${it.name} settles it" } ?: ""),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Plus.TextMid,
-                )
-            }
-        }
+        SectionHeading(
+            if (toSettle.size == 1) "1 entry needs settling" else "${toSettle.size} entries need settling",
+        )
+        for (t in toSettle) SettleCard(t, session, now, onChange)
     }
 
     if (waiting.isNotEmpty()) {
-        Card(colour = Plus.PendingDim) {
-            Text(
-                if (waiting.size == 1) "1 entry needs confirming" else "${waiting.size} entries need confirming",
-                style = MaterialTheme.typography.titleMedium,
-                color = Plus.Pending,
-            )
-            for (act in waiting) {
-                Column(Modifier.padding(top = 8.dp), Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        "${act.sentence} · ${act.amount}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = Plus.TextHigh,
-                    )
-                    Text(
-                        "Recorded by ${act.recordedBy}, who cannot confirm it.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Plus.TextMid,
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        for (who in act.eligibleConfirmers) {
-                            BigButton("Confirm as ${who.name}") {
-                                onChange(session.confirmAct(act.actId, who.id, now))
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        SectionHeading(
+            if (waiting.size == 1) "1 entry needs confirming" else "${waiting.size} entries need confirming",
+        )
+        for (act in waiting) ConfirmCard(act, session, now, onChange)
     }
 
     if (overdraw.any) {
@@ -322,6 +282,11 @@ private fun HomeBody(
                     color = Plus.TextMid,
                 )
             }
+            HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 6.dp))
+            Label("Each occasion")
+            // The tallies say how often. These say what happened, which is what
+            // anyone actually needs to go and fix the cause.
+            OverdrawRows(overdraw.rows, onOpenEntry)
         }
     }
 

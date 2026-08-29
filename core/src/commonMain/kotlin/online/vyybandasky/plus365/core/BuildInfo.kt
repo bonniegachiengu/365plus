@@ -14,7 +14,7 @@ package online.vyybandasky.plus365.core
 object BuildInfo {
 
     /** Bumped every slice. The name to check against what was expected. */
-    const val NAME: String = "0.11.0-desktop-design"
+    const val NAME: String = "0.12.0-desktop-parity"
 
     /**
      * The same build as a plain three-part number.
@@ -24,7 +24,7 @@ object BuildInfo {
      * the minor and patch in step with it; the leading 1 means "packaged", not
      * "finished".
      */
-    const val INSTALLER_VERSION: String = "1.11.0"
+    const val INSTALLER_VERSION: String = "1.12.0"
 
     /** What a shell puts in its header. */
     fun label(): String = "build $NAME"

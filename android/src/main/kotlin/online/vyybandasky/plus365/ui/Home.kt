@@ -104,6 +104,11 @@ fun HomeScreen(
         if (overdraw.any) {
             item { SectionHeading("Accounts that went below zero") }
             item { OverdrawCard(overdraw) }
+            // The tallies say how often. These say what happened, which is what
+            // anyone actually needs to go and fix the cause.
+            items(overdraw.rows) { row ->
+                OverdrawRow(row) { onOpenEntry(row.entryId) }
+            }
         }
 
         item { SectionHeading("Members") }
@@ -312,6 +317,36 @@ private fun SectionHeading(text: String, action: String? = null, onAction: (() -
             )
         }
     }
+}
+
+@Composable
+private fun OverdrawRow(
+    row: online.vyybandasky.plus365.core.presentation.OverdrawRow,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().tappable(onClick).padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(Modifier.size(9.dp).background(Plus.Debt, CircleShape))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(row.headline, style = MaterialTheme.typography.bodyLarge, color = Plus.TextHigh)
+            Text(
+                "${row.detail} · recorded by ${row.recordedBy} · ${row.whenIt}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Plus.TextLow,
+            )
+        }
+        Amount(row.shortfall, colour = Plus.Debt)
+        Icon(
+            Icons.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = Plus.TextLow,
+            modifier = Modifier.size(18.dp),
+        )
+    }
+    HorizontalDivider(color = Plus.Divider, thickness = 1.dp)
 }
 
 @Composable
