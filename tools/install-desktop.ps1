@@ -26,18 +26,23 @@ if (-not $env:JAVA_HOME) {
 # A single pass is not enough. The launcher and its child die at different
 # speeds, and a fixed sleep long enough to cover the slow case is a sleep you
 # pay on every run. Kill, wait, look again, up to ten seconds.
-$deadline = 10
+# `taskkill /F /T` rather than Stop-Process: the jpackage launcher spawns a child
+# of the same name, and killing the tree is the only way to be sure both go. Ten
+# seconds was not always enough — a process that has just started can take longer
+# than that to go down — so this waits thirty and says which pid it is waiting on.
+$deadline = 30
 for ($i = 0; $i -lt $deadline; $i++) {
     $running = @(Get-Process Plus365 -ErrorAction SilentlyContinue)
     if ($running.Count -eq 0) { break }
     foreach ($p in $running) {
-        Write-Host "Closing the running app (pid $($p.Id))"
-        Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+        if ($i -eq 0) { Write-Host "Closing the running app (pid $($p.Id))" }
+        & taskkill /F /T /PID $p.Id 2>&1 | Out-Null
     }
     Start-Sleep -Seconds 1
 }
-if (Get-Process Plus365 -ErrorAction SilentlyContinue) {
-    throw "The app is still running after ${deadline}s. Close it and try again."
+$stuck = @(Get-Process Plus365 -ErrorAction SilentlyContinue)
+if ($stuck.Count -gt 0) {
+    throw "Still running after ${deadline}s (pid $($stuck.Id -join ', ')). Close it and try again."
 }
 
 Write-Host "Building the installer..."
