@@ -63,7 +63,21 @@ fun main() {
 
     // The API comes up first so the phones can reach the master as soon as the
     // window is on screen. Non-blocking — Compose owns the main thread.
-    val server = startHealthServer()
+    //
+    // If the port is already taken — a second copy of the app, or anything else
+    // on 8443 — the window still opens. The ledger is the app; the endpoint the
+    // phones sync through is a convenience, and losing it is not a reason to
+    // deny somebody the sight of their own money. The header says so instead.
+    // Ktor binds on a coroutine, so a port clash surfaces as a stack trace on a
+    // background thread and takes the process with it rather than as something
+    // catchable here. Asking the OS for the port first turns that into a
+    // question with an answer.
+    val server = if (portIsFree(DEFAULT_HOST, DEFAULT_PORT)) {
+        startHealthServer()
+    } else {
+        apiFailure = "port $DEFAULT_PORT is taken"
+        null
+    }
     try {
         application {
             Window(
@@ -78,8 +92,27 @@ fun main() {
             }
         }
     } finally {
-        server.stop(gracePeriodMillis = 1_000, timeoutMillis = 3_000)
+        server?.stop(gracePeriodMillis = 1_000, timeoutMillis = 3_000)
     }
+}
+
+/**
+ * Why the API is not running, if it is not.
+ *
+ * A top-level var rather than something threaded through `App`, because it is
+ * settled once before the first frame and never changes afterwards.
+ */
+private var apiFailure: String? = null
+
+/** Can we have this port? A closed socket is the only honest way to ask. */
+private fun portIsFree(host: String, port: Int): Boolean = try {
+    java.net.ServerSocket().use {
+        it.reuseAddress = false
+        it.bind(java.net.InetSocketAddress(host, port))
+        true
+    }
+} catch (_: java.io.IOException) {
+    false
 }
 
 /** Where the window currently is. Same shape as the phone's. */
@@ -159,9 +192,12 @@ private fun Header(session: Session, screen: Screen, onHome: () -> Unit) {
                 Text("365+", style = MaterialTheme.typography.headlineMedium, color = Plus.TextHigh)
                 Text(
                     "Master ledger · acting as ${session.actingAsName} · " +
-                        "API on http://$DEFAULT_HOST:$DEFAULT_PORT/health",
+                        (
+                            apiFailure?.let { "API off ($it)" }
+                                ?: "API on http://$DEFAULT_HOST:$DEFAULT_PORT/health"
+                            ),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Plus.TextLow,
+                    color = if (apiFailure != null) Plus.Pending else Plus.TextLow,
                 )
                 // Says which build this is, so an install that failed to replace
                 // the old one cannot be mistaken for code that failed to work.

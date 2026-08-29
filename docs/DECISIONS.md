@@ -709,6 +709,33 @@ same rule rather than each deciding for itself what is reversible.
 
 ---
 
+## D35 — The window opens even when the API cannot
+
+Verifying D34 on screen meant running a second copy of the app beside the
+installed one. It died on startup with a Ktor stack trace: port 8443 was already
+taken, and the health endpoint failing to bind took the whole process with it.
+
+Nobody would have found this by using the app normally, and everybody would have
+found it the first time they double-clicked the icon twice.
+
+The endpoint is a convenience — it is how a phone will sync from the master. The
+ledger is the app. Losing the first is not a reason to deny somebody the sight of
+their own money, so the window now opens regardless and the header says
+`API off (port 8443 is taken)` in amber instead of the usual address.
+
+The check is a `ServerSocket` bind before Ktor rather than a `try` around it.
+Ktor CIO binds on a coroutine, so the clash arrives as an exception on a
+background thread that no `catch` at the call site can see; asking the OS for the
+port first turns it into a question that has an answer.
+
+`tools/shot-desktop.ps1` came out of the same session — window-only capture via
+`PrintWindow`, because verifying a build means photographing it and a full-screen
+grab would collect whatever else happens to be on the screen. It takes a
+`-Process` now, since the installed app runs as `Plus365` and a `gradlew
+:desktop:run` copy runs as `java`.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

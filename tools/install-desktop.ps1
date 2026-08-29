@@ -23,13 +23,21 @@ if (-not $env:JAVA_HOME) {
 # The jpackage launcher spawns a child of the same name, so killing the parent
 # takes the child with it. Ignore the ones that are already gone by the time the
 # loop reaches them, or the script dies on its own success.
-Get-Process Plus365 -ErrorAction SilentlyContinue | ForEach-Object {
-    Write-Host "Closing the running app (pid $($_.Id))"
-    Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+# A single pass is not enough. The launcher and its child die at different
+# speeds, and a fixed sleep long enough to cover the slow case is a sleep you
+# pay on every run. Kill, wait, look again, up to ten seconds.
+$deadline = 10
+for ($i = 0; $i -lt $deadline; $i++) {
+    $running = @(Get-Process Plus365 -ErrorAction SilentlyContinue)
+    if ($running.Count -eq 0) { break }
+    foreach ($p in $running) {
+        Write-Host "Closing the running app (pid $($p.Id))"
+        Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Seconds 1
 }
-Start-Sleep -Milliseconds 800
 if (Get-Process Plus365 -ErrorAction SilentlyContinue) {
-    throw "The app is still running. Close it and try again."
+    throw "The app is still running after ${deadline}s. Close it and try again."
 }
 
 Write-Host "Building the installer..."
