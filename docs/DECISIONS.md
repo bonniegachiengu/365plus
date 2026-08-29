@@ -57,7 +57,11 @@ would fail to build.
 
 ## D4 — 7% flat, rounded to the shilling
 
-**Decided:** 2026-08-26. **Status:** settled.
+**Decided:** 2026-08-26. **Status: the rate here is SUPERSEDED by D22** — 5% for
+founders, 10% for Keshflo beneficiaries. Everything else in this entry (charged
+once at disbursement, rounding, each loan storing its own actual interest) still
+stands. Left in place because a decision log that quietly edits its own history
+is not a log.
 
 Loan interest is 7% flat on principal, charged **once at disbursement**. Not
 annualised, not a monthly accrual.
@@ -1832,6 +1836,46 @@ backup. `data_extraction_rules.xml` excludes everything from both.
 The remaining `fullBackupContent` warning is moot: with `allowBackup="false"`
 nothing is backed up on Android 11 and below regardless, and lint does not model
 that combination.
+
+---
+
+## D68 — The README said 7% three times
+
+Applying the claims-versus-truth lens to the first thing anybody reads:
+
+> Loan interest is **7% flat on principal**.
+
+The code says 500 and 1000 basis points. Brian changed it to **5% for founders
+and 10% for Keshflo beneficiaries** on the 26th, D22 recorded that, both shells
+implement it, and the README went on saying 7% in the prose, in the model
+section, and in the layout listing.
+
+The single most important number in a lending app, wrong in the document a new
+reader starts from. Nothing in the code was affected; the risk is a person
+building the wrong mental model and then trusting it over the screen.
+
+Also stale in there:
+
+- **"Accounts are the pockets the pool's cash sits in."** Written before pockets
+  became a separate idea. It now reads as though the two words mean the same
+  thing, on the one page explaining that they answer different questions.
+- **"A loan is three components."** Four, since the charge split into M-Pesa and
+  bank.
+- **"M-Pesa SMS confirmation ... still ahead."** Paste-and-match shipped days
+  ago. What is still ahead is *automatic* capture, which is a different thing and
+  is now what it says.
+- The layout listing was missing `sms/` and `store/` entirely.
+
+### The two other places 7% survives
+
+`docs/DECISIONS.md` D4 still says it, and should: a decision log that quietly
+edits its own history is not a log. It is marked **superseded by D22**, with the
+parts of D4 that still stand named so the marking cannot be read as deleting the
+whole entry.
+
+`docs/UI_UX.md` §4 is Bonnie's brief and stays as he wrote it. §11 — the section
+that exists to record what the app grew afterwards — now carries the correction
+rather than leaving a reader to find the contradiction themselves.
 
 ---
 

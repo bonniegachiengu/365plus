@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **388 tests green** (core 360, desktop 18, android 10). **`./gradlew build` is green including lint** — see D66; `--offline` had been silently skipping lint all session. Desktop installed and verified as `0.33.1-green-means-build`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+| `main` | Protected trunk. Always green, always installable. | **388 tests green** (core 360, desktop 18, android 10). **`./gradlew build` is green including lint** — see D66; `--offline` had been silently skipping lint all session. Desktop installed and verified as `0.33.2-readme-rate`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
 
 
 ## Merged
@@ -67,6 +67,8 @@ concerned.
 | `fix/health-version` | `/health` had reported 0.1.0 since the first slice. It reads the build stamp now. | 2026-08-29 | see `main` |
 | `fix/no-nio-on-android` | The durability fix used `java.nio.file`, which needs API 26 against a minSdk of 24 — it would have crashed the phone at save time. Found by finally running lint. | 2026-08-29 | see `main` |
 | `slice/android-icon-and-backup` | The phone had no launcher icon at all, and Android 12+ device transfer could have copied the ledger to a new phone. | 2026-08-29 | see `main` |
+| `docs/green-means-build` | "Green" means `./gradlew build`, not `test` — the rule that let lint hide. | 2026-08-29 | see `main` |
+| `docs/readme-says-seven-percent` | The README stated the superseded 7% rate three times, plus four other stale claims. | 2026-08-29 | see `main` |
 
 ## Committed straight to `main` (rule 1 broken)
 

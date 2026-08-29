@@ -212,6 +212,15 @@ able to work both ends of a rule that takes two. It changes which member this
 device *is*; it never relaxes the rule that a recorder cannot confirm their own
 entry.
 
+### The interest rate in section 4 is out of date
+
+Section 4 says the Lend screen shows "the 7% charge". Brian later set **two**
+rates — **5% for a founder, 10% for a Keshflo beneficiary** — and the screen
+names which one it applied, because a borrower seeing a figure they did not
+expect should be able to see why without asking.
+
+The brief is left as written. This is the correction.
+
 ### Still true from section 7
 
 Real member data still loads later. Live M-Pesa auto-capture is still not built.
