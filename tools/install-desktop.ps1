@@ -36,7 +36,12 @@ for ($i = 0; $i -lt $deadline; $i++) {
     if ($running.Count -eq 0) { break }
     foreach ($p in $running) {
         if ($i -eq 0) { Write-Host "Closing the running app (pid $($p.Id))" }
-        & taskkill /F /T /PID $p.Id 2>&1 | Out-Null
+        # Stderr stays inside cmd. Redirecting a native command's stderr in
+        # PowerShell wraps each line in an ErrorRecord, which with
+        # $ErrorActionPreference = "Stop" kills the script — so a process that
+        # had already exited between the listing and the kill would fail an
+        # install that was about to succeed.
+        cmd /c "taskkill /F /T /PID $($p.Id) >nul 2>&1"
     }
     Start-Sleep -Seconds 1
 }
