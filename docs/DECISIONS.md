@@ -877,6 +877,48 @@ words. A stale link should read as absent, not take the app down.
 
 ---
 
+## D40 — Narrowing the ledger, and never lying about it
+
+The full ledger was an unfiltered flat list. With the dev seed that is a dozen
+rows and any of this looks like over-engineering. With the years of history still
+waiting to be loaded, it is the difference between a record and a wall.
+
+Four narrowings: direction (money in / money out / housekeeping), state (agreed /
+waiting / needs settling), member, and free text over the sentence, the amount
+and the transaction code — because a pasted M-Pesa code is the thing a person
+actually arrives holding.
+
+All of it in `core/presentation`. Two shells filtering separately are two shells
+that will eventually disagree about what the ledger says, and disagreeing about
+the ledger is the one thing this app must never do.
+
+### The property the tests actually defend
+
+Not the filtering — that is arithmetic. The danger is somebody looking at four
+rows, believing that is the record, and concluding their money has gone missing.
+
+So every narrowed view carries `narrowedLine`: *"Showing 4 of 31 — money out,
+Kang'iri."* An empty result says *"Nothing here matches. The other 31 are still in
+the record."* An empty **book** says something different — *"Nothing has been
+recorded yet"* — because a new ledger and a failed search look identical and mean
+opposite things.
+
+`FilterTest` asserts the in/out/housekeeping sets never overlap and together
+cover every classified entry, and separately that every `EntryType` bar `REVERSAL`
+is classified at all. A type nobody classified would drop out of all three
+filters at once, which is exactly the failure that is hardest to see by looking
+at a screen.
+
+The filter always starts from `activity(everything = true)`. The ledger's promise
+is that it shows every leg of every loan; a filter narrows what you asked for, and
+must never quietly redefine what "everything" means.
+
+The phone stacks the chips because it has one column. The laptop puts them on two
+rows with the search box inline, which is most of the point of having a laptop
+version of something you also carry.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

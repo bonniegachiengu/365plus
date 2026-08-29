@@ -20,6 +20,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import online.vyybandasky.plus365.core.presentation.LedgerFilter
+import online.vyybandasky.plus365.core.presentation.LedgerKind
+import online.vyybandasky.plus365.core.presentation.LedgerStanding
+import online.vyybandasky.plus365.core.presentation.filteredActivity
+import online.vyybandasky.plus365.core.presentation.memberCards
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.datetime.Instant
@@ -315,8 +324,10 @@ fun LedgerScreen(
     onBack: () -> Unit,
     onOpenEntry: (String) -> Unit = {},
 ) {
-    val rows = session.book.activity(now, everything = true)
-    val counts = rows.groupingBy { it.standing }.eachCount()
+    var filter by remember { mutableStateOf(LedgerFilter()) }
+    val view = session.book.filteredActivity(filter, now)
+    val counts = session.book.activity(now, everything = true)
+        .groupingBy { it.standing }.eachCount()
 
     ScreenScaffold(title = "Ledger", onBack = onBack, notice = null) {
         Column(
@@ -330,8 +341,9 @@ fun LedgerScreen(
                     color = Plus.TextHigh,
                 )
                 Text(
-                    "${rows.size} entries. Only ever added, never changed or deleted — " +
-                        "a mistake is corrected by adding the correction, and both stay.",
+                    "${view.totalCount} entries. Only ever added, never changed or " +
+                        "deleted — a mistake is corrected by adding the correction, " +
+                        "and both stay.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Plus.TextMid,
                 )
@@ -345,8 +357,111 @@ fun LedgerScreen(
                     Tally("rejected", counts[Standing.REJECTED] ?: 0, Plus.Debt)
                 }
             }
-            for (row in rows) ActivityLine(row) { onOpenEntry(row.entryId) }
+
+            LedgerFilterBar(session, filter) { filter = it }
+
+            // A narrowed list that looks like the whole one is how somebody
+            // decides their money has gone missing. Say what is hidden.
+            view.narrowedLine?.let { line ->
+                Card(colour = Plus.PendingDim) {
+                    Text(line, style = MaterialTheme.typography.bodyMedium, color = Plus.Pending)
+                    view.shownTotal?.let {
+                        ReviewLine("These add up to", it, emphasis = true)
+                    }
+                }
+            }
+
+            view.emptyLine?.let { line ->
+                Card {
+                    Text(line, style = MaterialTheme.typography.bodyMedium, color = Plus.TextMid)
+                }
+            }
+
+            for (row in view.rows) ActivityLine(row) { onOpenEntry(row.entryId) }
             Box(Modifier.height(24.dp))
         }
+    }
+}
+
+/**
+ * The narrowing controls.
+ *
+ * Chips rather than a menu: on a phone a hidden control is a control nobody uses,
+ * and there are few enough of these to show them all. Search comes last because
+ * reaching for the keyboard is the slowest way to narrow anything.
+ */
+@Composable
+private fun LedgerFilterBar(
+    session: Session,
+    filter: LedgerFilter,
+    onFilter: (LedgerFilter) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            for (k in LedgerKind.entries) {
+                Chip(k.label, k == filter.kind) { onFilter(filter.copy(kind = k)) }
+            }
+        }
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            for (st in LedgerStanding.entries) {
+                Chip(st.label, st == filter.standing) { onFilter(filter.copy(standing = st)) }
+            }
+        }
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Chip("Anyone", filter.memberId == null) { onFilter(filter.copy(memberId = null)) }
+            for (m in session.book.memberCards()) {
+                Chip(m.name, m.id == filter.memberId) {
+                    onFilter(filter.copy(memberId = if (filter.memberId == m.id) null else m.id))
+                }
+            }
+        }
+        OutlinedTextField(
+            value = filter.text,
+            onValueChange = { onFilter(filter.copy(text = it)) },
+            label = { Text("Search a code, a name, an amount") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Plus.Money,
+                unfocusedBorderColor = Plus.Divider,
+                focusedTextColor = Plus.TextHigh,
+                unfocusedTextColor = Plus.TextHigh,
+                focusedLabelColor = Plus.Money,
+                unfocusedLabelColor = Plus.TextLow,
+                cursorColor = Plus.Money,
+            ),
+        )
+        if (filter.isNarrowed) {
+            BigButton("Show everything", filled = false) { onFilter(LedgerFilter()) }
+        }
+    }
+}
+
+@Composable
+private fun Chip(text: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .background(
+                if (selected) Plus.MoneyDim else Plus.Surface,
+                RoundedCornerShape(12.dp),
+            )
+            .tappable(onClick)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (selected) Plus.Money else Plus.TextMid,
+        )
     }
 }

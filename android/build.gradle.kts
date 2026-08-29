@@ -35,7 +35,7 @@ android {
         // assumed. An APK that silently failed to replace the old one looks
         // exactly like a feature that silently failed to work.
         versionCode = 12
-        versionName = "0.16.1-empty-book"
+        versionName = "0.17.0-ledger-filters"
     }
 
     buildFeatures {

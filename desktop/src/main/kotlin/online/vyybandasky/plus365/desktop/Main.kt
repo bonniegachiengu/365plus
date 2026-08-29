@@ -24,6 +24,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import online.vyybandasky.plus365.core.presentation.LedgerFilter
+import online.vyybandasky.plus365.core.presentation.LedgerKind
+import online.vyybandasky.plus365.core.presentation.LedgerStanding
+import online.vyybandasky.plus365.core.presentation.filteredActivity
+import online.vyybandasky.plus365.core.presentation.memberCards
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
@@ -606,8 +614,11 @@ private fun EntryBody(
 
 @Composable
 private fun LedgerBody(session: Session, now: Instant, onOpenEntry: (String) -> Unit) {
-    val rows = session.book.activity(now, everything = true)
-    val counts = rows.groupingBy { it.standing }.eachCount()
+    var filter by remember { mutableStateOf(LedgerFilter()) }
+    val view = session.book.filteredActivity(filter, now)
+    val counts = session.book.activity(now, everything = true)
+        .groupingBy { it.standing }.eachCount()
+
     Card(colour = Plus.SurfaceRaised) {
         Text(
             "Everything that has ever happened",
@@ -615,8 +626,8 @@ private fun LedgerBody(session: Session, now: Instant, onOpenEntry: (String) -> 
             color = Plus.TextHigh,
         )
         Text(
-            "${rows.size} entries. Only ever added, never changed or deleted — a mistake " +
-                "is corrected by adding the correction, and both stay.",
+            "${view.totalCount} entries. Only ever added, never changed or deleted — a " +
+                "mistake is corrected by adding the correction, and both stay.",
             style = MaterialTheme.typography.bodyMedium,
             color = Plus.TextMid,
         )
@@ -627,7 +638,72 @@ private fun LedgerBody(session: Session, now: Instant, onOpenEntry: (String) -> 
             Tally("rejected", counts[Standing.REJECTED] ?: 0, Plus.Debt)
         }
     }
-    for (row in rows) ActivityLine(row) { onOpenEntry(row.entryId) }
+
+    // The phone stacks these because it has one column. Here they fit on one
+    // line with the search box, which is the whole reason to have a laptop
+    // version of a thing you also carry.
+    Card {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            for (k in LedgerKind.entries) {
+                Choice(k.label, k == filter.kind) { filter = filter.copy(kind = k) }
+            }
+            Box(Modifier.width(8.dp))
+            for (st in LedgerStanding.entries) {
+                Choice(st.label, st == filter.standing) { filter = filter.copy(standing = st) }
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Choice("Anyone", filter.memberId == null) { filter = filter.copy(memberId = null) }
+            for (m in session.book.memberCards()) {
+                Choice(m.name, m.id == filter.memberId) {
+                    filter = filter.copy(memberId = if (filter.memberId == m.id) null else m.id)
+                }
+            }
+            OutlinedTextField(
+                value = filter.text,
+                onValueChange = { filter = filter.copy(text = it) },
+                label = { Text("Search a code, a name, an amount") },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Plus.Money,
+                    unfocusedBorderColor = Plus.Divider,
+                    focusedTextColor = Plus.TextHigh,
+                    unfocusedTextColor = Plus.TextHigh,
+                    focusedLabelColor = Plus.Money,
+                    unfocusedLabelColor = Plus.TextLow,
+                    cursorColor = Plus.Money,
+                ),
+            )
+            if (filter.isNarrowed) {
+                BigButton("Show everything", filled = false) { filter = LedgerFilter() }
+            }
+        }
+    }
+
+    // A narrowed list that looks like the whole one is how somebody decides
+    // their money has gone missing. Say what is hidden.
+    view.narrowedLine?.let { line ->
+        Card(colour = Plus.PendingDim) {
+            Text(line, style = MaterialTheme.typography.bodyMedium, color = Plus.Pending)
+            view.shownTotal?.let { ReviewLine("These add up to", it, emphasis = true) }
+        }
+    }
+
+    view.emptyLine?.let { line ->
+        Card { Text(line, style = MaterialTheme.typography.bodyMedium, color = Plus.TextMid) }
+    }
+
+    for (row in view.rows) ActivityLine(row) { onOpenEntry(row.entryId) }
 }
 
 @Composable
