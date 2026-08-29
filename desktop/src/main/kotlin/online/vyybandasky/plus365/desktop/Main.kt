@@ -56,6 +56,7 @@ import online.vyybandasky.plus365.core.presentation.entryDetail
 import online.vyybandasky.plus365.core.presentation.founderCards
 import online.vyybandasky.plus365.core.presentation.memberDetail
 import online.vyybandasky.plus365.core.presentation.overdrawReport
+import online.vyybandasky.plus365.core.presentation.overrideCount
 import online.vyybandasky.plus365.core.presentation.overrideTasks
 import online.vyybandasky.plus365.core.presentation.pendingActs
 import online.vyybandasky.plus365.core.sms.Assurance
@@ -213,6 +214,9 @@ private fun Header(
                 Text("365+", style = MaterialTheme.typography.headlineMedium, color = Plus.TextHigh)
                 Text(
                     "Master ledger · acting as ${session.actingAsName} · " +
+                        session.book.overrideCount().let {
+                            if (it == 0) "" else "$it to settle · "
+                        } +
                         (
                             apiFailure?.let { "API off ($it)" }
                                 ?: "API on http://$DEFAULT_HOST:$DEFAULT_PORT/health"

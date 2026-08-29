@@ -919,6 +919,29 @@ version of something you also carry.
 
 ---
 
+## D41 — Two things the laptop was not saying
+
+Listing which `core/presentation` functions each shell calls turns the two-shell
+split into a checklist. Everything appeared on both sides except two, and both
+gaps were on the laptop:
+
+- **`quoteLoan`.** The phone quotes a loan before the button — interest, the rate
+  applied, and the total to repay. The laptop did not, so the machine with the
+  most screen was the one recording a debt without showing what clearing it would
+  cost. The rate depends on who is borrowing, since founders and Keshflo
+  borrowers are not on the same terms, so the tier is named rather than silently
+  applied.
+- **`overrideCount`.** The phone puts open conflicts in one number. The laptop
+  showed the settle cards but never the count, so a window scrolled past them
+  looked like a window with nothing wrong. It is in the header line now, and only
+  when it is not zero.
+
+Neither was a bug. Both were the kind of thing that only shows up when you ask
+the question mechanically instead of by eye — which is the argument for asking it
+mechanically every time a slice lands.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

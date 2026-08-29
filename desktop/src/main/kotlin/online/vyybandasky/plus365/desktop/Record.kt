@@ -24,6 +24,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.money.formatKes
+import online.vyybandasky.plus365.core.domain.MemberKind
+import online.vyybandasky.plus365.core.presentation.quoteLoan
 import online.vyybandasky.plus365.core.presentation.PoolAction
 import online.vyybandasky.plus365.core.presentation.RepayableLoan
 import online.vyybandasky.plus365.core.presentation.Session
@@ -168,6 +170,32 @@ fun RecordCard(session: Session, now: Instant, onChange: (Session) -> Unit) {
                     Amount(formatKes(cents), style = BigAmount)
                     ReviewLine("Who", session.book.displayName(member))
                     loan?.let { ReviewLine("Against", "loan ${it.loanId}") }
+
+                    // The phone quotes the loan before the button and the laptop
+                    // did not, so the machine with the most room was the one
+                    // recording a debt without showing what it would cost to
+                    // clear. The rate depends on who is borrowing — founders and
+                    // Keshflo borrowers are not on the same terms — so the tier
+                    // is named, not just applied.
+                    if (action == PoolAction.LEND || action == PoolAction.BORROW) {
+                        val kind = session.book.member(member)?.kind ?: MemberKind.FOUNDER
+                        val q = quoteLoan(cents, kind)
+                        HorizontalDivider(
+                            color = Plus.Divider,
+                            modifier = Modifier.padding(vertical = 6.dp),
+                        )
+                        ReviewLine("Interest (${q.rateLabel})", q.interest)
+                        ReviewLine("Rate applied", q.tierLabel)
+                        ReviewLine(
+                            if (action == PoolAction.BORROW) {
+                                "You repay in total"
+                            } else {
+                                "They repay in total"
+                            },
+                            q.totalRepayable,
+                            emphasis = true,
+                        )
+                    }
                 }
 
                 val valid = cents > 0L &&

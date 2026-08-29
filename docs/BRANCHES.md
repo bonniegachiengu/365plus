@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **315 tests green** (core 293, desktop 12, android 10). Desktop installed and verified as `0.17.0-ledger-filters`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+| `main` | Protected trunk. Always green, always installable. | **315 tests green** (core 293, desktop 12, android 10). Desktop installed and verified as `0.17.1-parity`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
 
 
 ## Merged
@@ -39,6 +39,7 @@ concerned.
 | `slice/payouts-and-member-loans` | The three recordable types no shell offered — payout, member-lends-in, pool-repays-member — and the stake-subject guard they exposed. | 2026-08-29 | see `main` |
 | `slice/acting-as` | Switch which member this device is, in dev builds only. Desktop gains the profile screen it never had. Then the empty-book pass, and two functions that threw on a stale link. | 2026-08-29 | see `main` |
 | `slice/ledger-filters` | Narrow the ledger by direction, state, member and text — and never let a narrowed view read as the whole record. | 2026-08-29 | see `main` |
+| `slice/shell-parity` | The two things the laptop was not saying: the loan quote before the button, and the count of open conflicts. | 2026-08-29 | see `main` |
 
 ## Committed straight to `main` (rule 1 broken)
 
