@@ -46,6 +46,10 @@ data class CashOnHand(
 fun LedgerBook.cashOnHand(now: Instant? = null): CashOnHand {
     val s = state()
     val pendingCount = pendingActs().size
+    // Once, not twice. It was called separately for the accounts and for the
+    // pockets, which is two passes over both lists on the home screen's hottest
+    // path for a value that cannot differ between the two calls.
+    val summary = summaryView()
     return CashOnHand(
         total = formatKes(s.cashAtHandCents),
         memberCountLine = "across ${founders().size} members",
@@ -55,8 +59,8 @@ fun LedgerBook.cashOnHand(now: Instant? = null): CashOnHand {
             1 -> "1 entry waiting to be confirmed"
             else -> "$pendingCount entries waiting to be confirmed"
         },
-        accounts = summaryView().accounts,
-        pockets = summaryView().pockets,
+        accounts = summary.accounts,
+        pockets = summary.pockets,
     )
 }
 

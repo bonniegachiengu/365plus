@@ -2118,6 +2118,35 @@ was a pipeline that could not fail, here a check that failed on success.
 
 ---
 
+## D76 — `summaryView()` twice on the home screen
+
+`cashOnHand` built its two splits like this:
+
+```kotlin
+accounts = summaryView().accounts,
+pockets  = summaryView().pockets,
+```
+
+Two passes over both lists, on every home render, for a value that cannot differ
+between the calls. Once now.
+
+Small, and worth the entry for where it sat: the same function D60 memoised the
+fold for. That change made `state()` cheap and left this doing the mapping over
+it twice regardless.
+
+### A build that failed and then passed
+
+The first `gradlew build` after this change failed; the next passed from cache.
+That is the shape most worth not waving through — a real failure that
+subsequently "passes" because its task is cached is the worst possible outcome,
+and it looks identical to a flake.
+
+Re-run with `--rerun-tasks`, which rebuilds and re-tests everything from nothing.
+Green. Whatever it was did not survive contact with a clean run, and now that is
+a fact rather than an assumption.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |
