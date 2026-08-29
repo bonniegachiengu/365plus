@@ -542,6 +542,7 @@ fun ScreenScaffold(
     title: String,
     onBack: (() -> Unit)?,
     notice: Pair<String, Boolean>?,
+    onDismissNotice: (() -> Unit)? = null,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
     Column(
@@ -571,7 +572,7 @@ fun ScreenScaffold(
                 fontWeight = FontWeight.Bold,
             )
         }
-        if (notice != null) NoticeBanner(notice.first, notice.second)
+        if (notice != null) NoticeBanner(notice.first, notice.second, onDismissNotice)
         content()
     }
 }

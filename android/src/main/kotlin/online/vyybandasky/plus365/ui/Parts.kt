@@ -185,29 +185,30 @@ fun ReviewLine(label: String, value: String, emphasis: Boolean = false) {
 
 /** The bar that carries a refusal or a confirmation back to the person. */
 @Composable
-fun NoticeBanner(text: String, isRefusal: Boolean) {
+fun NoticeBanner(text: String, isRefusal: Boolean, onDismiss: (() -> Unit)? = null) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                if (isRefusal) Plus.DebtDim else Plus.MoneyDim,
-                RoundedCornerShape(14.dp),
-            )
+            .background(if (isRefusal) Plus.DebtDim else Plus.MoneyDim, RoundedCornerShape(14.dp))
+            .then(if (onDismiss != null) Modifier.tappable(onDismiss) else Modifier)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Box(
-            Modifier.size(8.dp).background(
-                if (isRefusal) Plus.Debt else Plus.Money,
-                CircleShape,
-            ),
-        )
+        Box(Modifier.size(8.dp).background(if (isRefusal) Plus.Debt else Plus.Money, CircleShape))
         Text(
             text,
             style = MaterialTheme.typography.bodyMedium,
             color = if (isRefusal) Plus.Debt else Plus.Money,
+            modifier = Modifier.weight(1f),
         )
+        if (onDismiss != null) {
+            Text(
+                "Dismiss",
+                style = MaterialTheme.typography.labelMedium,
+                color = if (isRefusal) Plus.Debt else Plus.Money,
+            )
+        }
     }
 }
 

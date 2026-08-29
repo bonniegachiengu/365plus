@@ -16,6 +16,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import java.io.File
 import kotlinx.datetime.Clock
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
+import online.vyybandasky.plus365.core.presentation.Notice
 import online.vyybandasky.plus365.core.presentation.PoolAction
 import online.vyybandasky.plus365.core.presentation.PoolMove
 import online.vyybandasky.plus365.core.presentation.Session
@@ -89,6 +92,24 @@ fun Plus365App(store: LedgerStore) {
             // Read the clock once per recomposition rather than per row, so every
             // "2 min ago" on one screen is relative to the same instant.
             val now = Clock.System.now()
+
+            // A banner that never goes away stops being news, and a refusal
+            // still on screen after the problem is fixed says the app refused
+            // something it did not.
+            //
+            // Good news clears itself: nobody needs telling twice that a thing
+            // they watched happen happened. A refusal stays until it is tapped
+            // or another action replaces it, because the point of a refusal is
+            // that somebody has to read it. Changing screens counts as reading.
+            LaunchedEffect(screen) {
+                if (session.notice != null) commit(session.clearNotice())
+            }
+            (session.notice as? Notice.Info)?.let { n ->
+                LaunchedEffect(n) {
+                    delay(6_000)
+                    commit(session.clearNotice())
+                }
+            }
 
             when (val s = screen) {
                 is Screen.Home -> HomeScreen(

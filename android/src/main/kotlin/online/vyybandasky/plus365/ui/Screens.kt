@@ -61,6 +61,7 @@ fun ConfirmScreen(
         title = "Needs confirming",
         onBack = onBack,
         notice = session.notice?.let { it.text to (it is online.vyybandasky.plus365.core.presentation.Notice.Refused) },
+        onDismissNotice = { onChange(session.clearNotice()) },
     ) {
         Column(
             modifier = Modifier.verticalScroll(rememberScrollState()),

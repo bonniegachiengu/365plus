@@ -46,6 +46,7 @@ import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import java.io.File
+import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.BuildInfo
@@ -186,6 +187,12 @@ fun App(store: LedgerStore) {
         if (escapePressed > 0 && screen !is Screen.Home) screen = Screen.Home
     }
 
+    // Changing screens is an acknowledgement. Carrying "Recorded by Bonnie" onto
+    // the ledger three clicks later is carrying stale news.
+    LaunchedEffect(screen) {
+        if (session.notice != null) commit(session.clearNotice())
+    }
+
     Plus365Theme {
         Surface(modifier = Modifier.fillMaxSize(), color = Plus.Background) {
             val now = Clock.System.now()
@@ -203,7 +210,24 @@ fun App(store: LedgerStore) {
                     onHome = { screen = Screen.Home },
                     onProfile = { screen = Screen.Profile },
                 )
-                session.notice?.let { NoticeBanner(it.text, it is Notice.Refused) }
+                // A banner that never goes away stops being news. Worse, a
+                // refusal still on screen after the problem is fixed says the
+                // app refused something it did not.
+                //
+                // The two kinds are not treated the same. Good news clears
+                // itself after a few seconds — nobody needs to be told twice
+                // that a thing they watched happen happened. A refusal stays
+                // until it is dismissed or another action replaces it, because
+                // the whole point of a refusal is that somebody has to read it.
+                session.notice?.let { n ->
+                    NoticeBanner(n.text, n is Notice.Refused) { commit(session.clearNotice()) }
+                    if (n is Notice.Info) {
+                        LaunchedEffect(n) {
+                            delay(6_000)
+                            commit(session.clearNotice())
+                        }
+                    }
+                }
 
                 when (val s = screen) {
                     is Screen.Home -> HomeBody(

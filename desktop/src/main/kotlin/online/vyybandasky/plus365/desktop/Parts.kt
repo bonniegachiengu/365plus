@@ -135,11 +135,12 @@ fun ReviewLine(label: String, value: String, emphasis: Boolean = false) {
 }
 
 @Composable
-fun NoticeBanner(text: String, isRefusal: Boolean) {
+fun NoticeBanner(text: String, isRefusal: Boolean, onDismiss: (() -> Unit)? = null) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(if (isRefusal) Plus.DebtDim else Plus.MoneyDim, RoundedCornerShape(14.dp))
+            .then(if (onDismiss != null) Modifier.tappable(onDismiss) else Modifier)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -149,7 +150,15 @@ fun NoticeBanner(text: String, isRefusal: Boolean) {
             text,
             style = MaterialTheme.typography.bodyMedium,
             color = if (isRefusal) Plus.Debt else Plus.Money,
+            modifier = Modifier.weight(1f),
         )
+        if (onDismiss != null) {
+            Text(
+                "Dismiss",
+                style = MaterialTheme.typography.labelMedium,
+                color = if (isRefusal) Plus.Debt else Plus.Money,
+            )
+        }
     }
 }
 

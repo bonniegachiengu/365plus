@@ -989,6 +989,32 @@ else.
 
 ---
 
+## D44 — Banners that go away
+
+`Session.clearNotice` existed and neither shell called it. So every notice — "Recorded
+by Bonnie. Waiting for someone else to confirm", or a refusal explaining why
+something did not happen — stayed on screen until some later action happened to
+replace it.
+
+The success case is merely stale. The refusal case is worse: a refusal still
+showing after the problem has been fixed says the app refused something it did
+not, and on a screen about money that is not a cosmetic complaint.
+
+The two are not treated the same, on purpose:
+
+- **Good news clears itself** after six seconds. Nobody needs telling twice that
+  a thing they watched happen happened.
+- **A refusal stays** until it is dismissed or another action replaces it,
+  because the entire point of a refusal is that somebody has to read it.
+- **Changing screens clears either.** Navigating away is an acknowledgement, and
+  carrying "Recorded by Bonnie" onto the ledger three clicks later is carrying
+  stale news.
+
+Both banners are tappable now and say *Dismiss*, so the way out is visible rather
+than something you discover by waiting.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |
