@@ -42,7 +42,7 @@ class FileLedgerStore(private val file: File) : LedgerStore {
         if (file.exists()) runCatching { file.readText() }.getOrNull() else null
 
     /** The copy of the version before the current one, if there is one. */
-    fun readBackup(): String? =
+    override fun readBackup(): String? =
         if (backup.exists()) runCatching { backup.readText() }.getOrNull() else null
 
     override fun write(text: String) {

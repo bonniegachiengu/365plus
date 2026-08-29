@@ -86,6 +86,29 @@ fun HomeScreen(
     ) {
         item { TopBar(session, onOpenProfile) }
         item { CashOnHandCard(cash, onOpenPlaces) }
+        session.storeAlarm?.let { a ->
+            item {
+                // A condition, not an event: above everything, and no way to
+                // tap it away. If the figures below are not the members' money,
+                // that must not be dismissable.
+                Card(colour = if (a.severe) Plus.DebtDim else Plus.PendingDim) {
+                    Text(
+                        a.headline,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (a.severe) Plus.Debt else Plus.Pending,
+                    )
+                    Text(a.detail, style = MaterialTheme.typography.bodyMedium, color = Plus.TextMid)
+                    a.technical?.let {
+                        Text(
+                            it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Plus.TextLow,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                    }
+                }
+            }
+        }
         item { ActionRow(onAction) }
         item { SecondaryActionRow(onAction) }
         item { MoveRow(onMove) }

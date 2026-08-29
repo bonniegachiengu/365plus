@@ -221,6 +221,31 @@ fun App(store: LedgerStore) {
                 // that a thing they watched happen happened. A refusal stays
                 // until it is dismissed or another action replaces it, because
                 // the whole point of a refusal is that somebody has to read it.
+                // A condition, not an event: above the notice, and no way to
+                // tap it away. If the figures below are not the members' money,
+                // that must not be dismissable.
+                session.storeAlarm?.let { a ->
+                    Card(colour = if (a.severe) Plus.DebtDim else Plus.PendingDim) {
+                        Text(
+                            a.headline,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (a.severe) Plus.Debt else Plus.Pending,
+                        )
+                        Text(
+                            a.detail,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Plus.TextMid,
+                        )
+                        a.technical?.let {
+                            Text(
+                                it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Plus.TextLow,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                        }
+                    }
+                }
                 session.notice?.let { n ->
                     NoticeBanner(n.text, n is Notice.Refused) { commit(session.clearNotice()) }
                     if (n is Notice.Info) {

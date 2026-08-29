@@ -1337,6 +1337,75 @@ reason to refuse to save.
 
 ---
 
+## D55 — The startup that destroyed the ledger
+
+The worst defect found in this whole session, and it was three lines:
+
+```kotlin
+fun LedgerStore.openOrSeed(seed: () -> LedgerBook): LedgerBook {
+    val stored = decodeBook(read())
+    stored.getOrNull()?.let { return it }
+    val fresh = seed()
+    write(encodeBook(fresh))     // <- on ANY failure
+    return fresh
+}
+```
+
+If the stored file failed to parse for *any* reason, the seed was written over
+it. Not "fell back to". **Over it.** A truncated write, or a ledger saved by a
+newer build and opened by an older one, and three people's entire money record
+was gone at startup — silently, with the app looking perfectly healthy
+afterwards, showing sample data as though it were savings.
+
+Its own doc comment said "it never overwrites a book that read back fine", which
+was true and beside the point. The dangerous case is precisely a book that did
+*not* read back fine, and that is the one it overwrote.
+
+### The rule now
+
+**The only failure that permits a write is `Empty`** — nothing was there, so
+nothing can be lost. Anything else keeps its hands off the file.
+
+`open()` returns which of four things happened, because three of them look
+identical on screen and mean completely different things about whether the
+numbers are the members' money:
+
+| | what it means | is the file touched |
+|---|---|---|
+| `Loaded` | the stored ledger, read fine | no |
+| `Seeded` | nothing was stored; baseline written | written, safely |
+| `Recovered` | current file unreadable, previous copy used | **no** |
+| `Unreadable` | nothing readable anywhere; showing a fresh baseline | **no** |
+
+`Recovered` exists because D54 started keeping a `.bak`. A previous version is
+worth more than a seed whatever went wrong.
+
+### And the shells say so
+
+`StoreAlarm` is not a `Notice`. A notice is an event and clears; this is a
+condition that stays true until somebody deals with the file, and a banner a
+member can tap away is the wrong shape for *"the figures on this screen are not
+your money"*. It sits above everything, in red, and cannot be dismissed.
+
+Verified by pointing a dev build at a deliberately truncated copy — never the
+real ledger, which was copied aside first. The file came back byte-identical
+afterwards.
+
+### The copy defect that verification caught
+
+The first version put `failure.message` inline, so the screen told Brian:
+
+> Use 'allowTrailingComma = true' in 'Json {}' builder to support them.
+
+about his own savings, with the prefix doubled and a fragment of raw JSON. The
+paragraph a member reads is now plain English, the parser's own words are one dim
+line underneath for whoever fixes the file, and a test asserts the member-facing
+text contains none of "JSON", "builder", "token", "offset" — and does contain
+*"Nothing has been overwritten"*, which is the only sentence that matters to
+somebody who has just been told their ledger will not open.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

@@ -131,6 +131,14 @@ interface LedgerStore {
 
     /** For tests and for a "start over" action. */
     fun clear()
+
+    /**
+     * The version before the current one, where the platform keeps one.
+     *
+     * Null by default, because an in-memory store has no previous version and
+     * should not pretend to. The file-backed stores keep exactly one.
+     */
+    fun readBackup(): String? = null
 }
 
 /** A store that keeps the book in memory. The default in tests. */
@@ -156,20 +164,85 @@ fun LedgerStore.loadOr(fallback: () -> LedgerBook): LedgerBook =
     decodeBook(read()).getOrElse { fallback() }
 
 /**
- * Load the stored book, or lay down [seed] as the baseline and keep it.
+ * How opening the store went.
  *
- * The write matters. Without it the app re-seeds on every cold start until
- * somebody happens to record something, so the book it shows is not the book it
- * has — and the first real entry would land on top of a baseline that had never
- * been agreed to. Opening the app should settle what the starting position is.
- *
- * Note what this does NOT do: it never overwrites a book that read back fine.
- * A file that exists and parses is always preferred to the seed.
+ * The shells need to know, because three of these four look identical on screen
+ * and mean completely different things about whether the numbers are the
+ * members' money.
  */
-fun LedgerStore.openOrSeed(seed: () -> LedgerBook): LedgerBook {
-    val stored = decodeBook(read())
-    stored.getOrNull()?.let { return it }
-    val fresh = seed()
-    write(encodeBook(fresh))
-    return fresh
+sealed interface Opened {
+    val book: LedgerBook
+
+    /** The stored ledger, read back fine. The ordinary case. */
+    data class Loaded(override val book: LedgerBook) : Opened
+
+    /** Nothing was stored. The baseline has been written down. */
+    data class Seeded(override val book: LedgerBook) : Opened
+
+    /**
+     * The stored ledger would not read, and the previous version did.
+     *
+     * The unreadable file has **not** been touched. Somebody should look at it
+     * before anything is saved over the top.
+     */
+    data class Recovered(
+        override val book: LedgerBook,
+        val failure: LoadFailure,
+    ) : Opened
+
+    /**
+     * Nothing readable anywhere. [book] is a fresh baseline that has **not**
+     * been written, so whatever is on disk is still on disk.
+     */
+    data class Unreadable(
+        override val book: LedgerBook,
+        val failure: LoadFailure,
+    ) : Opened
 }
+
+/**
+ * Open the store, and never destroy what is in it.
+ *
+ * The version this replaced wrote the seed over the stored file whenever the
+ * file failed to parse — for *any* reason. A truncated write, or a ledger saved
+ * by a newer build, and three people's entire money record was gone at startup,
+ * silently, with the app looking perfectly healthy afterwards.
+ *
+ * That is the worst thing this program could do, so the rule is now explicit:
+ * **the only failure that permits a write is [LoadFailure.Empty]** — nothing was
+ * there, so nothing can be lost. Anything else keeps its hands off the file and
+ * says so, and the shells put it on screen rather than showing a seed as though
+ * it were somebody's savings.
+ *
+ * Seeding when the store is genuinely empty still writes, and still matters:
+ * without it the app re-seeds on every cold start until somebody records
+ * something, so the book it shows is not the book it has, and the first real
+ * entry lands on a baseline nobody agreed to.
+ */
+fun LedgerStore.open(seed: () -> LedgerBook): Opened {
+    val stored = decodeBook(read())
+    stored.getOrNull()?.let { return Opened.Loaded(it) }
+
+    val failure = (stored.exceptionOrNull() as? LoadException)?.failure
+        ?: LoadFailure.Unreadable("unknown")
+
+    // A previous version is worth more than a seed, whatever went wrong.
+    decodeBook(readBackup()).getOrNull()?.let { return Opened.Recovered(it, failure) }
+
+    if (failure is LoadFailure.Empty) {
+        val fresh = seed()
+        write(encodeBook(fresh))
+        return Opened.Seeded(fresh)
+    }
+
+    // Something is there and cannot be read. Leave it exactly where it is.
+    return Opened.Unreadable(seed(), failure)
+}
+
+/**
+ * The book alone, for callers that genuinely do not care how it was obtained.
+ *
+ * Kept deliberately thin. Anything showing figures to a member should be using
+ * [open] and saying which of the four this was.
+ */
+fun LedgerStore.openOrSeed(seed: () -> LedgerBook): LedgerBook = open(seed).book

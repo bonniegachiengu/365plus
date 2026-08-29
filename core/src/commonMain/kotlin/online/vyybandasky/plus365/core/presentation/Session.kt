@@ -33,6 +33,9 @@ import online.vyybandasky.plus365.core.sms.SmsEvidence
 import online.vyybandasky.plus365.core.sms.message
 import online.vyybandasky.plus365.core.sms.parseSms
 import online.vyybandasky.plus365.core.store.LedgerStore
+import online.vyybandasky.plus365.core.store.LoadFailure
+import online.vyybandasky.plus365.core.store.Opened
+import online.vyybandasky.plus365.core.store.open
 import online.vyybandasky.plus365.core.store.openOrSeed
 
 /**
@@ -53,6 +56,11 @@ data class Session(
     /** Who this device is currently acting as. In dev, switchable. */
     val actingAs: MemberId,
     val notice: Notice? = null,
+    /**
+     * Set when the stored ledger did not open cleanly. Stays for the session:
+     * it is a condition, not an event.
+     */
+    val storeAlarm: StoreAlarm? = null,
     private val idCounter: Long = 1L,
 ) {
     val actingAsName: String get() = book.displayName(actingAs)
@@ -571,15 +579,80 @@ data class Session(
          * silently swallowed by record()'s idempotency check.
          */
         fun restored(store: LedgerStore, now: Instant? = null): Session {
-            val book = store.openOrSeed { DevSeed.book(now) }
+            val opened = store.open { DevSeed.book(now) }
             return Session(
-                book = book,
+                book = opened.book,
                 config = DevSeed.DEV_CONFIG,
                 actingAs = DevSeed.BONNIE,
-                idCounter = book.nextSeq,
+                storeAlarm = opened.alarm(),
+                idCounter = opened.book.nextSeq,
             )
         }
     }
+}
+
+/**
+ * Something wrong with the stored ledger, said plainly and not dismissable.
+ *
+ * Separate from [Notice] on purpose. A notice is an event — you did a thing, here
+ * is what happened — and it clears. This is a *condition*: it stays true until
+ * somebody deals with the file, and a banner a member can tap away is the wrong
+ * shape for "the figures on this screen are not your money".
+ */
+data class StoreAlarm(
+    val headline: String,
+    val detail: String,
+    /**
+     * The parser's own words, for whoever fixes the file.
+     *
+     * Kept apart from [detail] and shown small, because it is written for a
+     * programmer. The first version put it inline and Brian would have been told
+     * to "use allowTrailingComma = true in the Json {} builder" about his own
+     * savings.
+     */
+    val technical: String?,
+    /** True when the figures on screen are not the members' ledger at all. */
+    val severe: Boolean,
+)
+
+/**
+ * The cause, trimmed to something that fits on a line.
+ *
+ * A serialization failure carries the offending input, the path, a suggested
+ * builder flag and a stack of context. All of that is useful in a bug report and
+ * none of it belongs in a paragraph a member is reading about their money.
+ */
+private fun LoadFailure.shortCause(): String {
+    val first = message.lineSequence().firstOrNull()?.trim().orEmpty()
+    return if (first.length <= 140) first else first.take(137) + "..."
+}
+
+/** What to say about how the store opened, or null when it opened normally. */
+fun Opened.alarm(): StoreAlarm? = when (this) {
+    is Opened.Loaded -> null
+    is Opened.Seeded -> null
+
+    is Opened.Recovered -> StoreAlarm(
+        headline = "Opened from the previous copy",
+        detail = "The current ledger file would not open, so the version before it " +
+            "was used instead. Nothing has been overwritten and the file that " +
+            "would not open is still there. What you see may be missing the most " +
+            "recent entries, so check the last few before recording anything.",
+        technical = failure.shortCause(),
+        severe = false,
+    )
+
+    is Opened.Unreadable -> StoreAlarm(
+        headline = "This is not your ledger",
+        detail = "The stored ledger could not be opened and there was no earlier " +
+            "copy to fall back on. Nothing has been overwritten — your file is " +
+            "still on disk exactly as it was. The figures below are a fresh " +
+            "starting point, not your record. Do not record anything until " +
+            "somebody has looked at the file, because saving now would write over " +
+            "it.",
+        technical = failure.shortCause(),
+        severe = true,
+    )
 }
 
 sealed interface Notice {
