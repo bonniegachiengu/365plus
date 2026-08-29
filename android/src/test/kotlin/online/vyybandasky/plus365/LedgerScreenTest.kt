@@ -9,7 +9,7 @@ import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.presentation.Notice
 import online.vyybandasky.plus365.core.presentation.Session
 import online.vyybandasky.plus365.core.presentation.founderCards
-import online.vyybandasky.plus365.core.presentation.pendingRows
+import online.vyybandasky.plus365.core.presentation.pendingActs
 import online.vyybandasky.plus365.core.presentation.summaryView
 import online.vyybandasky.plus365.core.store.InMemoryStore
 import online.vyybandasky.plus365.core.store.trySave
@@ -35,13 +35,16 @@ class LedgerScreenTest {
 
     @Test
     fun the_confirm_screen_never_offers_the_recorder_as_a_confirmer() {
+        // Against pendingActs, which is what the confirm screen renders. This
+        // used to ask pendingRows the same question — a function the screen does
+        // not use, so a screen that broke this would have passed.
         val s = Session.dev()
-        val rows = s.book.pendingRows(s.config)
-        assertTrue(rows.isNotEmpty())
-        for (row in rows) {
+        val acts = s.book.pendingActs(s.config)
+        assertTrue(acts.isNotEmpty())
+        for (act in acts) {
             assertFalse(
-                row.eligibleConfirmers.any { it.id == row.recordedById },
-                "${row.entryId} offered its own recorder",
+                act.eligibleConfirmers.any { it.id == act.recordedById },
+                "${act.actId} offered its own recorder",
             )
         }
     }

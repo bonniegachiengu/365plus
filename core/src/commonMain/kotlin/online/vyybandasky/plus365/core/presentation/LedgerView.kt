@@ -70,16 +70,6 @@ data class LoanRow(
     val settled: Boolean,
 )
 
-data class PendingRow(
-    val entryId: String,
-    val what: String,
-    val amount: String,
-    val recordedBy: String,
-    val recordedById: MemberId,
-    /** Who this device may tap to confirm — never includes the recorder. */
-    val eligibleConfirmers: List<MemberRef>,
-)
-
 data class MemberRef(val id: MemberId, val name: String)
 
 /** A human label for an entry type. */
@@ -152,19 +142,6 @@ fun LedgerBook.loanRows(): List<LoanRow> {
         )
     }
 }
-
-fun LedgerBook.pendingRows(config: ActorConfig): List<PendingRow> =
-    pending().map { e ->
-        PendingRow(
-            entryId = e.id,
-            what = describe(e),
-            amount = formatKes(e.amountCents),
-            recordedBy = displayName(e.recordedByMemberId ?: "?"),
-            recordedById = e.recordedByMemberId ?: "?",
-            eligibleConfirmers = eligibleConfirmers(e, memberIds(), config)
-                .map { MemberRef(it, displayName(it)) },
-        )
-    }
 
 /** The types a person can record from the shell. Reversal has its own path. */
 val RECORDABLE_TYPES: List<EntryType> = listOf(

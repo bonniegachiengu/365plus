@@ -2085,6 +2085,39 @@ data to duplicate coverage that exists would have been a poor trade.
 
 ---
 
+## D75 — A test that asked the wrong function
+
+`pendingRows` was the older, worse twin of `pendingActs`: it lists pending
+*entries*, so a loan appears as three rows where the confirm screen shows one
+decision. Nothing in either shell used it.
+
+One thing did — a test, and an important one:
+
+> `the_confirm_screen_never_offers_the_recorder_as_a_confirmer`
+
+It asked `pendingRows` that question. **The confirm screen renders
+`pendingActs`.** So the test guarded the two-person rule on a function the screen
+does not use: a screen that started offering the recorder as a confirmer would
+have gone out with this passing.
+
+The test now asks `pendingActs`, and `pendingRows` and `PendingRow` are gone —
+same argument as `save` and `openOrSeed` in D57. Leaving the worse twin available
+means somebody eventually calls it, and here that means a loan's three legs
+rendered as three separate decisions.
+
+Kept, deliberately: `matchedSummary` and `loadOr`. Neither is superseded by
+anything and neither can lose money — an unused formatter is not a trap, and
+removing tested code for tidiness is its own kind of churn.
+
+### And a reminder about exit codes
+
+Verifying the removal with `grep -rn "PendingRow" ... ` reported failure, because
+`grep` exits 1 when it finds nothing — which was the result I wanted. Two
+commits after D73, the same family of mistake in the opposite direction: there it
+was a pipeline that could not fail, here a check that failed on success.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

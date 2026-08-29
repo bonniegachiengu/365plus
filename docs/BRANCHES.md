@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **415 tests green** (core 387, desktop 18, android 10). **`./gradlew build` is green including lint** — see D66; `--offline` had been silently skipping lint all session. Desktop installed and verified as `0.36.0-reported-balance`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+| `main` | Protected trunk. Always green, always installable. | **415 tests green** (core 387, desktop 18, android 10). **`./gradlew build` is green including lint** — see D66; `--offline` had been silently skipping lint all session. Desktop installed and verified as `0.36.1-pending-rows-gone`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
 
 
 ## Merged
@@ -76,6 +76,7 @@ concerned.
 | `fix/red-main` | Repair the test that change broke, and record how a red build got pushed. | 2026-08-29 | see `main` |
 | `docs/ziidi-is-read` | The brief and the README still said Ziidi's format was unknown. | 2026-08-29 | see `main` |
 | `slice/show-reported-balance` | The balance a Ziidi message reports reaches the entry screen. | 2026-08-29 | see `main` |
+| `cleanup/pending-rows` | A two-person-control test was asking a function the confirm screen does not use. | 2026-08-29 | see `main` |
 
 ## Committed straight to `main` (rule 1 broken)
 
