@@ -9,7 +9,6 @@ import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.presentation.Notice
 import online.vyybandasky.plus365.core.presentation.Session
 import online.vyybandasky.plus365.core.presentation.founderCards
-import online.vyybandasky.plus365.core.presentation.memberRows
 import online.vyybandasky.plus365.core.presentation.pendingRows
 import online.vyybandasky.plus365.core.presentation.summaryView
 import online.vyybandasky.plus365.core.store.InMemoryStore

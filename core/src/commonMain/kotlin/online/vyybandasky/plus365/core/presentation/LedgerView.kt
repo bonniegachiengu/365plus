@@ -50,15 +50,6 @@ data class AccountRow(
     val earns: Boolean = false,
 )
 
-data class MemberRow(
-    val id: MemberId,
-    val name: String,
-    val stake: String,
-    /** Human-readable, already resolved from the pool's signed view. */
-    val owes: String,
-    val owesCents: Long,
-)
-
 /** A loan in the parts the pool keeps it in, plus the roll-ups. */
 data class LoanRow(
     val loanId: String,
@@ -87,14 +78,6 @@ data class PendingRow(
     val recordedById: MemberId,
     /** Who this device may tap to confirm — never includes the recorder. */
     val eligibleConfirmers: List<MemberRef>,
-)
-
-data class HistoryRow(
-    val entryId: String,
-    val what: String,
-    val amount: String,
-    val recordedBy: String,
-    val confirmedBy: String,
 )
 
 data class MemberRef(val id: MemberId, val name: String)
@@ -146,24 +129,6 @@ fun LedgerBook.summaryView(): SummaryView {
     )
 }
 
-fun LedgerBook.memberRows(): List<MemberRow> {
-    val s = state()
-    return members.map { m ->
-        val b = s.balanceOf(m.id)
-        MemberRow(
-            id = m.id,
-            name = m.displayName,
-            stake = formatKes(b.stakeCents),
-            owes = when {
-                b.debtCents < 0L -> "pending loan amount ${formatKes(-b.debtCents)}"
-                b.debtCents > 0L -> "the pool owes them ${formatKes(b.debtCents)}"
-                else -> "no pending loan"
-            },
-            owesCents = b.debtCents,
-        )
-    }
-}
-
 fun LedgerBook.loanRows(): List<LoanRow> {
     val s = state()
     return loans.map { loan ->
@@ -198,17 +163,6 @@ fun LedgerBook.pendingRows(config: ActorConfig): List<PendingRow> =
             recordedById = e.recordedByMemberId ?: "?",
             eligibleConfirmers = eligibleConfirmers(e, memberIds(), config)
                 .map { MemberRef(it, displayName(it)) },
-        )
-    }
-
-fun LedgerBook.historyRows(): List<HistoryRow> =
-    confirmed().map { e ->
-        HistoryRow(
-            entryId = e.id,
-            what = describe(e),
-            amount = formatKes(e.amountCents),
-            recordedBy = displayName(e.recordedByMemberId ?: "?"),
-            confirmedBy = displayName(e.confirmedByMemberId ?: "?"),
         )
     }
 

@@ -1,7 +1,5 @@
 package online.vyybandasky.plus365.desktop
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -61,7 +59,7 @@ fun MovesCard(session: Session, now: Instant, onChange: (Session) -> Unit) {
         Label("Housekeeping")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             for (m in PoolMove.entries) {
-                Pill(m.label, m == move) { move = m }
+                Choice(m.label, m == move) { move = m }
             }
         }
         Text(move.blurb, style = MaterialTheme.typography.bodyMedium, color = Plus.TextMid)
@@ -190,31 +188,7 @@ private fun Chooser(
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Label(label)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            for ((id, text) in options) Pill(text, id == selected) { onSelect(id) }
+            for ((id, text) in options) Choice(text, id == selected) { onSelect(id) }
         }
-    }
-}
-
-@Composable
-private fun Pill(text: String, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .background(
-                if (selected) Plus.MoneyDim else Plus.SurfaceRaised,
-                RoundedCornerShape(12.dp),
-            )
-            .then(
-                if (selected) Modifier.border(1.dp, Plus.Money, RoundedCornerShape(12.dp))
-                else Modifier,
-            )
-            .tappable(onClick)
-            .padding(horizontal = 14.dp, vertical = 9.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text,
-            style = MaterialTheme.typography.labelMedium,
-            color = if (selected) Plus.Money else Plus.TextMid,
-        )
     }
 }

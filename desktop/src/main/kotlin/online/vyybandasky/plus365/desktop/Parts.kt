@@ -153,4 +153,34 @@ fun NoticeBanner(text: String, isRefusal: Boolean) {
     }
 }
 
+/**
+ * One option out of a handful.
+ *
+ * A dropdown would be more work to operate than the whole set is to display, and
+ * on a money screen seeing every choice at once is worth the room it costs.
+ */
+@Composable
+fun Choice(text: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .background(
+                if (selected) Plus.MoneyDim else Plus.SurfaceRaised,
+                RoundedCornerShape(12.dp),
+            )
+            .then(
+                if (selected) Modifier.border(1.dp, Plus.Money, RoundedCornerShape(12.dp))
+                else Modifier,
+            )
+            .tappable(onClick)
+            .padding(horizontal = 14.dp, vertical = 9.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (selected) Plus.Money else Plus.TextMid,
+        )
+    }
+}
+
 fun Modifier.tappable(onClick: () -> Unit): Modifier = this.clickable(onClick = onClick)

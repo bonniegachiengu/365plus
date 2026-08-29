@@ -736,6 +736,47 @@ grab would collect whatever else happens to be on the screen. It takes a
 
 ---
 
+## D36 — The master ledger can now write to itself
+
+The same audit that found D34 kept going and turned up something worse. Listing
+every `session.*` call the desktop makes:
+
+    overrideAct  reverse  rejectAct  recordInterest  moveMoney
+    escalateAct  earmark  confirmAct
+
+Confirm, reject, escalate, settle, correct, housekeep — and not one of
+contribute, lend, borrow, repay. The machine holding the master copy was the one
+machine that could not record money into it.
+
+That is not a missing convenience. Brian keeps the book. A laptop that can look
+at a contribution and confirm it, but cannot enter it, sends him to a phone for
+the one action he does most — and the entry that does not get typed is the entry
+that ends up in a notebook.
+
+`RecordCard` is one card rather than the phone's three steps. The phone walks
+through pick → amount → review because it has one column and a thumb; the laptop
+has the room to ask everything at once, so who, how much, the pasted message and
+what it will do all sit in a single glance. The calls underneath are identical —
+`session.contribute` / `lend` / `borrow` / `repay` — so the two shells cannot
+diverge about what recording means.
+
+Two details carried over from the phone deliberately:
+
+- The `remember`s are keyed on the action. Lend and Borrow are the same call
+  site, and a member left selected across that switch records a debt against
+  someone who never borrowed anything. This bug has already been shipped once on
+  the phone; it is not being shipped twice.
+- The card says which kind of assurance the entry will carry *before* the button,
+  not after — a pasted message that a second member matches, or somebody's word.
+
+`Pill` moved to `Parts.kt` as `Choice` now that two cards use it.
+
+Removed in the same pass: `memberRows`/`MemberRow` and `historyRows`/`HistoryRow`,
+superseded by `MemberCard` and `activity(everything = true)` and called by
+nothing — not the shells, not the tests, not core.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

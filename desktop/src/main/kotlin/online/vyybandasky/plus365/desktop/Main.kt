@@ -335,6 +335,9 @@ private fun HomeBody(
         for (m in borrowers) MemberLine(m) { onOpenMember(m.id) }
     }
 
+    SectionHeading("Record something")
+    RecordCard(session, now, onChange)
+
     SectionHeading("Housekeeping")
     MovesCard(session, now, onChange)
 
