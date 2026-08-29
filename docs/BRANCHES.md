@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **415 tests green** (core 387, desktop 18, android 10). **`./gradlew build` is green including lint** — see D66; `--offline` had been silently skipping lint all session. Desktop installed and verified as `0.35.3-fix-red-main`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+| `main` | Protected trunk. Always green, always installable. | **415 tests green** (core 387, desktop 18, android 10). **`./gradlew build` is green including lint** — see D66; `--offline` had been silently skipping lint all session. Desktop installed and verified as `0.35.4-docs-ziidi`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
 
 
 ## Merged
@@ -74,6 +74,7 @@ concerned.
 | `fix/say-ziidi-too` | Four user-facing strings still said "M-Pesa or KCB" after Ziidi started reading. | 2026-08-29 | see `main` |
 | `fix/unmapped-message-precision` | "Cannot read those yet" was false of Ziidi once two of its shapes read. | 2026-08-29 | see `main` |
 | `fix/red-main` | Repair the test that change broke, and record how a red build got pushed. | 2026-08-29 | see `main` |
+| `docs/ziidi-is-read` | The brief and the README still said Ziidi's format was unknown. | 2026-08-29 | see `main` |
 
 ## Committed straight to `main` (rule 1 broken)
 

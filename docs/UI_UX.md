@@ -231,8 +231,27 @@ for a member's page is now the figure itself rather than a sentence about them.
 
 The brief is left as written. Both of these are the correction.
 
+### Ziidi reads now
+
+Section 7 said the Ziidi format was unknown. Brian supplied two real messages on
+the 29th and both are read: **invested** puts money into the Ziidi account,
+**withdrawn** takes it out, and each gives an amount, a transaction code and the
+resulting balance.
+
+An invest or a withdraw is a **move between the pool's own accounts**, never
+money arriving or leaving — cash-at-hand cannot change. The app refuses a Ziidi
+message offered as proof of a contribution, and says why.
+
+Only the account holder is texted, and the matching M-Pesa leg is a separate
+transaction with its own code, so a second member confirms these **by hand** and
+the entry says so. That is not a weaker version of paste-and-match; for a move
+between your own accounts there is no second message anywhere to match against.
+
+Every other Ziidi notice is still unread and says so, in those words rather than
+in words implying Ziidi is unsupported.
+
 ### Still true from section 7
 
-Real member data still loads later. Live M-Pesa auto-capture is still not built.
-The Ziidi message format is still unknown and its entries are still marked
-`parsed_unmapped` rather than guessed at.
+Real member data still loads later. Live M-Pesa auto-capture is still not built —
+messages are pasted, not read off the phone. The **M-Shwari** format is still
+unknown and its messages are still kept unparsed rather than guessed at.

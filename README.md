@@ -157,6 +157,12 @@ Opening the store **never overwrites a file it could not read** — a ledger tha
 will not parse is left exactly where it is and the app says so in red rather than
 showing sample data as though it were savings. A save that fails says so too.
 
+Ziidi is read: its **invested** and **withdrawn** messages give an amount, a
+transaction code and the resulting balance. Both are moves between the pool's own
+accounts, so the app refuses one offered as proof that money came in — and since
+only the account holder is texted, a second member confirms them by hand. Every
+other Ziidi notice, and all of M-Shwari, is kept unparsed rather than guessed at.
+
 Still ahead: sync between the phones and the master, *automatic* capture of M-Pesa
 messages rather than pasting them, and `cloudflared` as a native Windows service.
 
