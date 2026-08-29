@@ -67,16 +67,28 @@ phone and the laptop disagreed about a balance, the app is worthless.
 ## Build and test
 
 ```bash
-./gradlew test              # every module
+./gradlew build             # compile + test + LINT. This is what "green" means.
 ./gradlew :core:test        # the shared fold — the tests that matter most
 ./gradlew :android:assembleDebug
 ./gradlew :desktop:run      # Compose window + API on 127.0.0.1:8443
 ```
 
+`build`, not `test`. Lint is the only one of the three that knows the phone has a
+`minSdk`, and a change that passed every test on a desktop JVM once shipped a
+call that would have thrown on an Android 7 phone at the moment of saving. See
+`docs/DECISIONS.md` D66.
+
 Health check once the desktop app is up:
 
 ```bash
 curl http://127.0.0.1:8443/health
+```
+
+It answers with the build it is actually running, so it doubles as a way to check
+which version is installed without looking at the window:
+
+```json
+{"status":"ok","service":"365plus","version":"0.33.0-android-icon"}
 ```
 
 ## This machine

@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **388 tests green** (core 360, desktop 18, android 10). **`./gradlew build` is green including lint** — see D66; `--offline` had been silently skipping lint all session. Desktop installed and verified as `0.33.0-android-icon`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+| `main` | Protected trunk. Always green, always installable. | **388 tests green** (core 360, desktop 18, android 10). **`./gradlew build` is green including lint** — see D66; `--offline` had been silently skipping lint all session. Desktop installed and verified as `0.33.1-green-means-build`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
 
 
 ## Merged
@@ -106,8 +106,23 @@ decision from Bonnie.
 ## Rules for this repo
 
 1. **Never commit directly to `main`.** Branch, prove it, merge.
-2. **A branch merges only when `./gradlew test` is green** and, for anything that
-   changes the app, the APK installs and launches on the device.
+2. **A branch merges only when `./gradlew build` is green** — not `test`, and not
+   a hand-picked list of test tasks. `build` compiles every module, runs every
+   test **and runs lint**, which is the only one of the three that knows the
+   phone has a `minSdk`.
+
+   This rule used to say `test`. Under it, a change that used `java.nio.file`
+   passed every test on a desktop JVM and would have thrown on an Android 7
+   phone the moment somebody saved an entry. See D66. `--offline` made it worse
+   by failing an unrelated lint task quietly, so lint did not run at all for a
+   whole session while "green" was being reported.
+
+   `./gradlew build --offline` works once the dependencies are cached, so there
+   is no excuse for running less.
+
+   And for anything that changes the app: the APK installs and launches on the
+   device, and the screen is **looked at**. Several defects this session were
+   invisible to every test and obvious in a screenshot.
 3. **One slice per branch.** If a branch grows a second purpose, fork again.
 4. **Record decisions in `docs/DECISIONS.md`** as they are made, not afterwards.
    A decision that only exists in a commit message is a decision that will be
