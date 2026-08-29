@@ -1015,6 +1015,35 @@ than something you discover by waiting.
 
 ---
 
+## D45 — A test that asserted nothing
+
+`no_fields_are_invented_from_an_unmapped_message` ended:
+
+```kotlin
+val outcome = assertIs<ParseOutcome.Unmapped>(parseSms(ziidi, BONNIE))
+assertTrue(outcome !is ParseOutcome.Parsed)
+```
+
+The compiler had already narrowed `outcome` to `Unmapped` on the line above, so
+the second line is always true. It read like the most important assertion in the
+file and checked nothing at all. The build had been saying so — *"Check for
+instance is always 'true'"* — and the warning had been scrolling past for days.
+
+The risk it was reaching for is real, and is not this one string. It is somebody
+extending the parser six months from now and a Ziidi message quietly starting to
+match the M-Pesa branch, at which point a guessed reference becomes proof of a
+transaction nobody verified. So the test now feeds it the shapes most likely to
+slip through: a code-shaped token, a `Ref` word, and M-Pesa's own phrasing, all
+wrapped in Ziidi and M-Shwari text. Every one must come back `Unmapped`.
+
+All of them do, today. The point is the day they stop.
+
+Also cleared the six deprecated `Icons.Filled` arrows for their `AutoMirrored`
+equivalents, so the build compiles clean. Warnings that are always there are
+warnings nobody reads, and this one had a real test hiding behind it.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

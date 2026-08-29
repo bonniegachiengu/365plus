@@ -16,11 +16,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -255,8 +255,8 @@ private fun CashOnHandCard(cash: online.vyybandasky.plus365.core.presentation.Ca
 private fun ActionRow(onAction: (PoolAction) -> Unit) {
     val icons = mapOf(
         PoolAction.CONTRIBUTE to Icons.Filled.Add,
-        PoolAction.LEND to Icons.Filled.ArrowForward,
-        PoolAction.BORROW to Icons.Filled.ArrowBack,
+        PoolAction.LEND to Icons.AutoMirrored.Filled.ArrowForward,
+        PoolAction.BORROW to Icons.AutoMirrored.Filled.ArrowBack,
         PoolAction.REPAY to Icons.Filled.CheckCircle,
     )
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -397,7 +397,7 @@ private fun OverdrawRow(
         }
         Amount(row.shortfall, colour = Plus.Debt)
         Icon(
-            Icons.Filled.KeyboardArrowRight,
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
             tint = Plus.TextLow,
             modifier = Modifier.size(18.dp),
@@ -491,7 +491,7 @@ fun MemberRow(m: MemberCard, onClick: () -> Unit) {
             }
         }
         Icon(
-            Icons.Filled.KeyboardArrowRight,
+            Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
             tint = Plus.TextLow,
             modifier = Modifier.size(20.dp),
@@ -524,7 +524,7 @@ fun ActivityLine(row: ActivityRow, onClick: (() -> Unit)? = null) {
         Amount(row.amount, colour = Plus.TextHigh)
         if (onClick != null) {
             Icon(
-                Icons.Filled.KeyboardArrowRight,
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
                 tint = Plus.TextLow,
                 modifier = Modifier.size(18.dp).padding(start = 4.dp),
@@ -562,7 +562,7 @@ fun ScreenScaffold(
                         .tappable(onBack),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = Plus.TextHigh)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Plus.TextHigh)
                 }
             }
             Text(

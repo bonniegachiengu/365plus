@@ -215,8 +215,27 @@ class UnmappedProviderTest {
         // The point of the outcome. A half-read money message is worse than an
         // admittedly unread one, so nothing is offered that could be mistaken
         // for a reference or an amount.
-        val outcome = assertIs<ParseOutcome.Unmapped>(parseSms(ziidi, DevSeed.BONNIE))
-        assertTrue(outcome !is ParseOutcome.Parsed)
+        //
+        // The real risk is not this one string. It is somebody extending the
+        // parser and a Ziidi message quietly starting to match the M-Pesa
+        // branch, at which point a guessed reference becomes proof of a
+        // transaction nobody verified. So the shapes tested here are the ones
+        // most likely to slip through: a code-shaped token, a reference-shaped
+        // word, and the phrasing M-Pesa itself uses.
+        val temptations = listOf(
+            ziidi,
+            mshwari,
+            "Ziidi: RTY4M8N2PQ Your investment of KES 4,000.00 was successful.",
+            "Ziidi confirmed. Ref ABC123XYZ. KES 4,000.00 invested.",
+            "M-Shwari: QWE7T2K9LM Confirmed. Ksh1,000.00 deposited.",
+        )
+        for (text in temptations) {
+            val outcome = parseSms(text, DevSeed.BONNIE)
+            assertIs<ParseOutcome.Unmapped>(
+                outcome,
+                "this was read as evidence when the format is still unknown: $text",
+            )
+        }
     }
 
     @Test
