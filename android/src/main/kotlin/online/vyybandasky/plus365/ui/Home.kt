@@ -41,6 +41,7 @@ import online.vyybandasky.plus365.core.presentation.activity
 import online.vyybandasky.plus365.core.presentation.cashOnHand
 import online.vyybandasky.plus365.core.presentation.beneficiaryCards
 import online.vyybandasky.plus365.core.presentation.founderCards
+import online.vyybandasky.plus365.core.presentation.overdrawReport
 import online.vyybandasky.plus365.core.presentation.overrideCount
 import online.vyybandasky.plus365.core.presentation.pendingActs
 
@@ -69,6 +70,7 @@ fun HomeScreen(
     val beneficiaries = session.book.beneficiaryCards()
     val recent = session.book.activity(now, limit = 4)
     val toSettle = session.book.overrideCount()
+    val overdraw = session.book.overdrawReport(now)
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(Plus.Background),
@@ -95,6 +97,13 @@ fun HomeScreen(
                     onClick = onOpenConfirm,
                 )
             }
+        }
+
+        // Not a warning to dismiss — a standing record of where the books and
+        // the real accounts drifted apart, kept so the drift can be traced.
+        if (overdraw.any) {
+            item { SectionHeading("Accounts that went below zero") }
+            item { OverdrawCard(overdraw) }
         }
 
         item { SectionHeading("Members") }
@@ -301,6 +310,53 @@ private fun SectionHeading(text: String, action: String? = null, onAction: (() -
                     .padding(horizontal = 12.dp, vertical = 6.dp)
                     .tappable(onAction),
             )
+        }
+    }
+}
+
+@Composable
+private fun OverdrawCard(r: online.vyybandasky.plus365.core.presentation.OverdrawReport) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Plus.DebtDim, RoundedCornerShape(Plus.CardCorner))
+            .padding(18.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(r.headline, style = MaterialTheme.typography.titleMedium, color = Plus.Debt)
+        Text(
+            "These entries were recorded, not blocked — the money did move. They are " +
+                "kept here so the cause can be traced.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Plus.TextMid,
+        )
+        for (a in r.byAccount) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    "${a.account} · ${a.times} " + if (a.times == 1) "time" else "times",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Plus.TextHigh,
+                )
+                Text(
+                    "worst ${a.worstShortfall}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Plus.Debt,
+                )
+            }
+        }
+        if (r.byMember.isNotEmpty()) {
+            HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 6.dp))
+            Label("Who the slips involve", Plus.TextLow)
+            for (m in r.byMember) {
+                Text(
+                    "${m.name} — in ${m.involvedIn}, recorded ${m.recorded}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Plus.TextMid,
+                )
+            }
         }
     }
 }
