@@ -246,9 +246,29 @@ data class ProfileView(
     val storageLine: String,
     /** Which build this is. The only reliable way to know what is running. */
     val buildLine: String,
+    /**
+     * Whether this device may become somebody else.
+     *
+     * True only in a dev build. A production device holds one identity, and a
+     * switcher on it would be the impersonation the whole design refuses.
+     */
+    val canSwitch: Boolean,
 )
 
-fun LedgerBook.profile(actingAs: MemberId, config: ActorConfig): ProfileView {
+/**
+ * Which app is asking.
+ *
+ * Core owns every sentence the user reads, including the one about where the
+ * ledger is kept — and that sentence differs between a phone and a laptop. The
+ * shell says which it is; core still says the words.
+ */
+enum class Shell { PHONE, DESKTOP }
+
+fun LedgerBook.profile(
+    actingAs: MemberId,
+    config: ActorConfig,
+    shell: Shell = Shell.PHONE,
+): ProfileView {
     val card = memberCards().first { it.id == actingAs }
     return ProfileView(
         name = card.name,
@@ -268,8 +288,13 @@ fun LedgerBook.profile(actingAs: MemberId, config: ActorConfig): ProfileView {
         recordedCount = entries.count { it.recordedByMemberId == actingAs },
         confirmedCount = entries.count { it.confirmedByMemberId == actingAs },
         overrodeCount = entries.count { e -> e.overrides.any { it.by == actingAs } },
-        storageLine = "Kept on this phone only. Nothing is sent anywhere, and no " +
-            "phone number is stored.",
+        storageLine = when (shell) {
+            Shell.PHONE -> "Kept on this phone only. Nothing is sent anywhere, and no " +
+                "phone number is stored."
+            Shell.DESKTOP -> "Kept on this laptop, in the app's own folder. Nothing is " +
+                "sent anywhere, and no phone number is stored."
+        },
         buildLine = BuildInfo.label(),
+        canSwitch = config.mayActAs.size > 1,
     )
 }

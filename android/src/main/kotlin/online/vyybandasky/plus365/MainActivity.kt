@@ -158,6 +158,7 @@ fun Plus365App(store: LedgerStore) {
                 is Screen.Profile -> ProfileScreen(
                     session = session,
                     onBack = { screen = Screen.Home },
+                    onChange = commit,
                 )
 
                 is Screen.Move -> MoveScreen(

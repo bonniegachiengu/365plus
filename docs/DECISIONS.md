@@ -818,6 +818,39 @@ failed were the two that mattered.
 
 ---
 
+## D38 — Being somebody else, on purpose and only in dev
+
+`Session.actAs` was called by neither shell. The phone's profile screen listed
+who this device *could* act as and gave no way to become any of them; the laptop
+had no profile screen at all, so the machine holding the master copy could not
+say whose hands it was in.
+
+That is not a small omission. Dev mode exists so one person can work both ends of
+a rule that needs two — record as Kang'iri, confirm as Brian, watch the refusal
+when they are the same. Without a switcher, dev mode was a sentence in a card.
+
+Both shells now offer it, and only when `canSwitch` is true — which is
+`mayActAs.size > 1`, which is only ever a dev build. A switcher on a production
+device is impersonation with a nice label on it, so there must not be one there,
+and now there cannot be.
+
+The rule it must not weaken is written down as a test: switching changes *which
+member this device is*, never *whether a recorder may confirm*. `ActingAsTest`
+records as Bonnie, switches to Bonnie, is refused; switches to Brian, is allowed.
+That test would have passed before this change too — which is the point of
+writing it now, while the switcher is new and the temptation to special-case it
+is at its highest.
+
+The laptop's profile is otherwise the phone's, in two columns. One sentence had
+to move into core properly: `storageLine` said "kept on this phone only", which
+is false on a laptop. Rather than let the desktop write its own copy — the one
+thing the two-shell split is meant to prevent — `profile()` takes a `Shell` and
+core still owns the words.
+
+The header avatar opens it. It is the only thing up there shaped like a person.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

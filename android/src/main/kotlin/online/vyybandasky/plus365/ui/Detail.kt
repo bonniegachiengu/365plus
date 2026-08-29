@@ -268,6 +268,7 @@ private fun CorrectionCard(
 fun ProfileScreen(
     session: Session,
     onBack: () -> Unit,
+    onChange: (Session) -> Unit = {},
 ) {
     val p = session.book.profile(session.actingAs, session.config)
 
@@ -302,9 +303,41 @@ fun ProfileScreen(
             Card(colour = Plus.PendingDim) {
                 Label("This build", Plus.Pending)
                 Text(p.modeLine, style = MaterialTheme.typography.bodyMedium, color = Plus.TextMid)
-                if (p.canActAs.size > 1) {
+                if (p.canSwitch) {
+                    // Listing who this device could be, with no way to become
+                    // any of them, was a description of a capability rather than
+                    // the capability. Testing both ends of a two-person rule is
+                    // the entire reason dev mode exists.
                     Text(
-                        "Can act as: ${p.canActAs.joinToString(", ") { it.name }}",
+                        "Act as",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Plus.TextLow,
+                        modifier = Modifier.padding(top = 10.dp),
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        for (who in p.canActAs) {
+                            val isYou = who.id == p.memberId
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        if (isYou) Plus.MoneyDim else Plus.Surface,
+                                        RoundedCornerShape(12.dp),
+                                    )
+                                    .tappable { if (!isYou) onChange(session.actAs(who.id)) }
+                                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                            ) {
+                                Text(
+                                    who.name,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (isYou) Plus.Money else Plus.TextMid,
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        "Switching changes who records and who confirms. It does not " +
+                            "let the same person do both — that is refused whoever " +
+                            "this device says it is.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Plus.TextLow,
                     )

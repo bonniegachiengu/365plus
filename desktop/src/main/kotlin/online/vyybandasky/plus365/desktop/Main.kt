@@ -121,6 +121,7 @@ private sealed interface Screen {
     data class MemberDetail(val memberId: String) : Screen
     data class EntryDetail(val entryId: String) : Screen
     data object Ledger : Screen
+    data object Profile : Screen
 }
 
 /**
@@ -150,7 +151,12 @@ fun App(store: LedgerStore) {
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 Box(Modifier.height(20.dp))
-                Header(session, screen) { screen = Screen.Home }
+                Header(
+                    session = session,
+                    screen = screen,
+                    onHome = { screen = Screen.Home },
+                    onProfile = { screen = Screen.Profile },
+                )
                 session.notice?.let { NoticeBanner(it.text, it is Notice.Refused) }
 
                 when (val s = screen) {
@@ -170,6 +176,8 @@ fun App(store: LedgerStore) {
                     is Screen.EntryDetail -> EntryBody(session, s.entryId, now, commit)
 
                     is Screen.Ledger -> LedgerBody(session, now) { screen = Screen.EntryDetail(it) }
+
+                    is Screen.Profile -> ProfileBody(session, commit)
                 }
                 Box(Modifier.height(28.dp))
             }
@@ -178,7 +186,12 @@ fun App(store: LedgerStore) {
 }
 
 @Composable
-private fun Header(session: Session, screen: Screen, onHome: () -> Unit) {
+private fun Header(
+    session: Session,
+    screen: Screen,
+    onHome: () -> Unit,
+    onProfile: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -204,7 +217,9 @@ private fun Header(session: Session, screen: Screen, onHome: () -> Unit) {
                 Text(BuildInfo.label(), style = MaterialTheme.typography.labelSmall, color = Plus.TextLow)
             }
         }
-        Avatar(session.actingAsName.take(1).uppercase())
+        Box(Modifier.tappable(onProfile)) {
+            Avatar(session.actingAsName.take(1).uppercase())
+        }
     }
 }
 
