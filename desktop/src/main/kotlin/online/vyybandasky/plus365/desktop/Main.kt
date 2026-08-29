@@ -668,6 +668,14 @@ private fun EntryBody(
             ReviewLine("Amount", e.amount)
             ReviewLine("Direction", e.direction)
             ReviewLine("Pasted by", e.whose)
+            e.atmCaveat?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Plus.Pending,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
             Text(
                 e.raw,
                 style = MaterialTheme.typography.bodySmall,

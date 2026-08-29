@@ -1,6 +1,8 @@
 package online.vyybandasky.plus365.core.presentation
 
 import online.vyybandasky.plus365.core.DevSeed
+import online.vyybandasky.plus365.core.book.LedgerBook
+import online.vyybandasky.plus365.core.governance.ActorConfig
 import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.money.formatKes
 import kotlinx.datetime.Instant
@@ -244,5 +246,63 @@ class MemberHeroTest {
         val d = DevSeed.book(now).memberDetail(DevSeed.WANJIKU, now)!!
         assertEquals("KSh 0.00", d.stake, "if this is ever non-zero the page is lying somewhere")
         assertTrue(d.owesCents > 0L, "which is why the debt has to be the figure")
+    }
+}
+
+/**
+ * An ATM withdrawal is the weakest evidence this app accepts, and says so.
+ *
+ * Every other message has something on the other side: an M-Pesa transfer leaves
+ * a matching message in somebody else's phone, which is the whole basis of
+ * paste-and-match. A withdrawal leaves a note that money left an account and says
+ * nothing about where it went next.
+ *
+ * Both are "evidence". Treating them as the same strength is how a pool ends up
+ * satisfied by a receipt that proves the wrong thing, so the entry says which
+ * kind it is holding.
+ */
+class AtmCaveatTest {
+
+    private val now = Instant.parse("2026-08-29T09:00:00Z")
+    private val config = ActorConfig.dev(DevSeed.BONNIE, DevSeed.EVERYONE)
+
+    private val atmSms =
+        "Dear Customer, KES 5,000.00 has been debited from your account 1234567890 " +
+            "via ATM on 26/08/2026. Ref: ATM88231X. Available balance KES 12,300.00"
+
+    private fun session() = Session(
+        book = LedgerBook(
+            members = DevSeed.MEMBERS,
+            accounts = DevSeed.ACCOUNTS,
+            pockets = DevSeed.POCKETS,
+        ),
+        config = config,
+        actingAs = DevSeed.BONNIE,
+    )
+
+    @Test
+    fun `an entry backed by an ATM slip says what the slip does not prove`() {
+        val s = session().payOut(DevSeed.KANGIRI, 500_000, now, atmSms)
+        val id = s.book.pending().single().id
+        val e = s.book.entryDetail(id, config, now)!!.recordedEvidence!!
+
+        assertTrue(e.isAtmWithdrawal)
+        assertNotNull(e.atmCaveat)
+        assertTrue(
+            e.atmCaveat.contains("does not show where it went"),
+            "the caveat has to name the thing the slip cannot prove",
+        )
+    }
+
+    @Test
+    fun `an ordinary message carries no caveat`() {
+        val mpesa = "RTY4M8N2PQ Confirmed. Ksh500.00 sent to KANGIRI 0712345678 " +
+            "on 26/8/26 at 4:10 PM. New M-PESA balance is Ksh1,200.00."
+        val s = session().payOut(DevSeed.KANGIRI, 50_000, now, mpesa)
+        val id = s.book.pending().single().id
+        val e = s.book.entryDetail(id, config, now)!!.recordedEvidence!!
+
+        assertTrue(!e.isAtmWithdrawal)
+        assertNull(e.atmCaveat, "a caveat on every entry is a caveat nobody reads")
     }
 }

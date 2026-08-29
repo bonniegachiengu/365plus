@@ -138,6 +138,14 @@ private fun EvidenceCard(title: String, e: EvidenceView) {
         e.counterparty?.let { ReviewLine("Other party", it) }
         e.occurredAt?.let { ReviewLine("When", it) }
         ReviewLine("Pasted by", e.whose)
+        e.atmCaveat?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodySmall,
+                color = Plus.Pending,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
         HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 8.dp))
         Text(
             e.raw,

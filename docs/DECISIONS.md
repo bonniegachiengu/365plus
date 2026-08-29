@@ -1183,6 +1183,40 @@ one string ASCII would only have moved the trap.
 
 ---
 
+## D51 — Not all evidence is the same strength
+
+Brian asked for bank and ATM tracking. The parser had `isAtmWithdrawal()` since
+that slice, with tests, and nothing anywhere showed it. Another capability the
+book had and no screen offered — but this one is not a missing convenience, it is
+a missing distinction.
+
+Every other message this app accepts has something on the other side. An M-Pesa
+transfer leaves a matching message in somebody else's phone, and that matching is
+the entire basis of paste-and-match: two people, two codes, one transaction.
+
+An ATM slip has no other side. It says money left an account. It says nothing
+whatever about where the money went next.
+
+Both are "evidence" and the app was treating them as the same strength. That is
+how a pool ends up satisfied by a receipt that proves the wrong thing — the
+money did leave, everyone can see that it left, and nobody has established the
+part that was actually in question.
+
+So an entry backed by an ATM slip now says, in the pending amber:
+
+> Cash out of a machine. This message shows the money left the account. It does
+> not show where it went, so the second member is vouching for that part from
+> what they know.
+
+On both shells, and only when it applies — a caveat on every entry is a caveat
+nobody reads.
+
+This is the same principle as `parsed_unmapped` for Ziidi and as the two
+assurance levels: the app is allowed to know less than it would like, and is
+never allowed to round that up.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

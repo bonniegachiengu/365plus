@@ -15,6 +15,7 @@ import online.vyybandasky.plus365.core.governance.label
 import online.vyybandasky.plus365.core.money.formatKes
 import online.vyybandasky.plus365.core.sms.Assurance
 import online.vyybandasky.plus365.core.sms.SmsEvidence
+import online.vyybandasky.plus365.core.sms.isAtmWithdrawal
 import online.vyybandasky.plus365.core.sms.blurb
 import online.vyybandasky.plus365.core.sms.label
 
@@ -36,6 +37,19 @@ data class EvidenceView(
     val counterparty: String?,
     val occurredAt: String?,
     val raw: String,
+    /**
+     * Cash taken out of a machine.
+     *
+     * Worth saying out loud, because it is the one movement with nothing on the
+     * other side. An M-Pesa transfer leaves a matching message in somebody
+     * else's phone; a withdrawal leaves a note that money left an account and
+     * says nothing whatever about where it went next. Both are "evidence", and
+     * treating them as the same strength is how a pool ends up satisfied by a
+     * receipt that proves the wrong thing.
+     */
+    val isAtmWithdrawal: Boolean = false,
+    /** Said on screen when [isAtmWithdrawal]. Core owns the sentence. */
+    val atmCaveat: String? = null,
 )
 
 data class OverrideView(
@@ -107,6 +121,14 @@ private fun LedgerBook.evidenceView(e: SmsEvidence): EvidenceView = EvidenceView
     counterparty = e.counterparty,
     occurredAt = e.occurredAtText,
     raw = e.raw,
+    isAtmWithdrawal = e.isAtmWithdrawal(),
+    atmCaveat = if (e.isAtmWithdrawal()) {
+        "Cash out of a machine. This message shows the money left the account. " +
+            "It does not show where it went, so the second member is vouching for " +
+            "that part from what they know."
+    } else {
+        null
+    },
 )
 
 fun LedgerBook.entryDetail(
