@@ -12,8 +12,8 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **281 tests green** (core 259, desktop 12, android 10). Desktop installed and verified as `0.14.0-desktop-records`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
-| `slice/payouts-and-member-loans` | The three recordable types no shell offered: payout, member-lends-in, pool-repays-member. Plus the stake-subject guard they exposed. | Open. |
+| `main` | Protected trunk. Always green, always installable. | **291 tests green** (core 269, desktop 12, android 10). Desktop installed and verified as `0.15.0-payouts`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+
 
 ## Merged
 
@@ -35,6 +35,8 @@ concerned.
 | `slice/desktop-installer` | Native Windows MSI via jpackage, per-user install, Start-menu entry, one-command rebuild script. | 2026-08-29 | `e2aeb79` |
 | `slice/desktop-design` | Dark fintech desktop matching the phone, interim 365+ icon, and a persistence fix: pocket definitions were being dropped on save. | 2026-08-29 | see below |
 | `slice/desktop-parity` | The laptop can act, not only look: confirm and settle with paste-and-match, overdraw detail. Then the four moves the book had and no shell offered — reverse, move, earmark, interest. | 2026-08-29 | `629ef4e`, `adab1b2` |
+| `docs/state-0.14` | Bring the branch map up to date and record a broken rule. | 2026-08-29 | `dba870e` |
+| `slice/payouts-and-member-loans` | The three recordable types no shell offered — payout, member-lends-in, pool-repays-member — and the stake-subject guard they exposed. | 2026-08-29 | see `main` |
 
 ## Committed straight to `main` (rule 1 broken)
 
