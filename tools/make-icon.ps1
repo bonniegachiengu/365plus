@@ -1,4 +1,4 @@
-# Draw the interim 365+ mark and assemble it into a multi-size .ico.
+﻿# Draw the interim 365+ mark and assemble it into a multi-size .ico.
 #
 # Interim on purpose: a dark tile with a teal "365+" in the app's own accent, so
 # the taskbar entry looks deliberate rather than like a default. It is not

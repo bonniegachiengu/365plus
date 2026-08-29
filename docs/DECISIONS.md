@@ -1149,6 +1149,40 @@ promises something the button will not do.
 
 ---
 
+## D50 — A screenshot that lied, and the check that nearly lied too
+
+A capture of `0.21.0` came back almost entirely black: one avatar circle and
+nothing else. That looks exactly like the app launching and rendering nothing,
+and the whole reason version-stamping exists is that a build which *looks* broken
+and a build which *is* broken must be told apart. Re-shooting showed a perfectly
+painted window. The capture had simply landed between the window opening and its
+first frame.
+
+So `shot-desktop.ps1` refuses an unpainted frame instead of saving it.
+
+The first attempt at that check asked whether more than one colour was present.
+Run against the actual blank capture, it passed — the title bar and that one grey
+circle were enough. A guard that does not catch the case that produced it is
+worse than no guard, because now the blank frame arrives with a clean bill of
+health.
+
+Measured against the real captures instead: an unpainted window samples **2**
+distinct colours, painted ones sample **60 to 96**. The threshold is 12, which
+sits in the gap with room on both sides, and the sample starts below the title
+bar because the title bar has colours of its own whatever the app has drawn.
+
+### And a Windows footgun
+
+The first version would not parse at all. PowerShell 5.1 reads a `.ps1` as ANSI
+unless the file carries a BOM, so an em dash inside a string became mojibake and
+took the quoting with it. Em dashes in *comments* had been surviving in these
+scripts for days, which is why nothing had noticed.
+
+All three `tools/*.ps1` are UTF-8 with a BOM now. That is the general fix; making
+one string ASCII would only have moved the trap.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

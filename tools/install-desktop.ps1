@@ -1,4 +1,4 @@
-# Rebuild the Windows app and reinstall it over the existing one.
+﻿# Rebuild the Windows app and reinstall it over the existing one.
 #
 # Run this after any change you want on the pinned desktop app. The MSI carries a
 # fixed upgrade UUID, so this replaces the installed build rather than adding a
