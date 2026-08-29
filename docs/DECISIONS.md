@@ -1740,6 +1740,55 @@ running, plus one that asserts the stale constant has not come back.
 
 ---
 
+## D66 — The durability fix would have crashed the phone on save
+
+The single worst thing in this session, and I wrote it.
+
+D54 gave both stores `Files.move` with `ATOMIC_MOVE` and `Files.copy` for the
+backup. `java.nio.file` requires **API 26**. This app's `minSdk` is **24**.
+
+So on an Android 7 phone, `FileLedgerStore.write` would compile cleanly, run
+fine through every unit test, and throw the moment somebody saved an entry.
+Failing at *save* is the worst possible place: the member has done the work, been
+told it was recorded, and the app dies with the entry in memory.
+
+Every unit test passed. They run on a desktop JVM where `java.nio.file` exists.
+
+### Why it took this long to find
+
+`--offline`. Every build this session used it, out of habit, and it had been
+failing on `:android:generateDebugAndroidTestLintModel` — an uncached dependency
+for a classpath nothing runs — so **lint never ran once**. I had been verifying
+with `:core:test`, `:desktop:test`, `:android:testDebugUnitTest` and
+`assembleDebug`, calling that green, and never running `gradlew build`.
+
+"Main is green" meant "the tests I chose to run passed". Lint had been sitting
+there the whole time with the answer.
+
+### The fix, which is better than raising minSdk
+
+The obvious response is `minSdk = 26`, and it would work, and it narrows what the
+app runs on to settle a problem that does not need settling.
+
+Android never needed NIO. `rename(2)` on a POSIX filesystem replaces the
+destination atomically — that *is* the guarantee the laptop had to reach for
+`ATOMIC_MOVE` to obtain. The reason the laptop needs NIO is Windows, where
+`File.renameTo` refuses to replace and the delete-then-rename fallback opens the
+window D54 was written to close.
+
+So the phone uses `renameTo` (atomic in practice, no API floor) with the
+delete-then-rename fallback it should never reach, and `File.copyTo` for the
+backup. The laptop keeps NIO, where it is both available and necessary. Same
+guarantee, arrived at differently because the two platforms are different.
+
+### Also fixed
+
+`local.properties` had `sdk.dir=C:/...` — a Java properties file needs the colon
+escaped, so lint failed on it before it could reach anything else. It is
+gitignored and local to this machine.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

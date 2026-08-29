@@ -35,7 +35,7 @@ android {
         // assumed. An APK that silently failed to replace the old one looks
         // exactly like a feature that silently failed to work.
         versionCode = 12
-        versionName = "0.31.1-health-version"
+        versionName = "0.32.0-android-save-safe"
     }
 
     buildFeatures {

@@ -1,9 +1,6 @@
 package online.vyybandasky.plus365.store
 
 import java.io.File
-import java.nio.file.AtomicMoveNotSupportedException
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 import online.vyybandasky.plus365.core.store.LedgerStore
 
 /**
@@ -15,16 +12,22 @@ import online.vyybandasky.plus365.core.store.LedgerStore
  * one, so what is on disk is always a complete book or the previous complete
  * book, never something in between.
  *
- * ## The window that used to exist
+ * ## No `java.nio.file` here
  *
- * `File.renameTo` refuses to replace an existing file on some filesystems, so
- * the old fallback was `delete()` then `renameTo()`. Between those two calls
- * there is no ledger at all: a crash, a dead battery, or Android killing the
- * process right there loses the whole record, and the previous version has
- * already gone. Small window, total loss — and a phone being killed while
- * backgrounded is not a rare event.
+ * The laptop's store uses `Files.move` with `ATOMIC_MOVE`, because Windows'
+ * `File.renameTo` refuses to replace an existing file and the delete-then-rename
+ * fallback leaves a window with no ledger in it at all.
  *
- * `Files.move` with `ATOMIC_MOVE` replaces in one operation.
+ * Android has neither the problem nor room for that cure. `java.nio.file` needs
+ * API 26 and this app's `minSdk` is 24, so the same code here compiles cleanly
+ * and then throws at the moment of saving on an Android 7 phone — the one moment
+ * where failing costs somebody an entry. Lint caught it; the unit tests could
+ * not, because they run on a desktop JVM where the class exists.
+ *
+ * It does not need it either. `rename(2)` on a POSIX filesystem replaces the
+ * destination atomically, which is the guarantee the laptop had to reach for NIO
+ * to obtain. The delete-then-rename path below is a last resort for a filesystem
+ * that refuses a replacing rename, and on Android it should never be reached.
  *
  * ## And a copy of the last one
  *
@@ -50,26 +53,17 @@ class FileLedgerStore(private val file: File) : LedgerStore {
         tmp.writeText(text)
 
         // Best-effort: failing to make a backup is not a reason to refuse to
-        // save the ledger.
+        // save the ledger. copyTo is Kotlin stdlib and has no API floor.
         if (file.exists()) {
-            runCatching {
-                Files.copy(
-                    file.toPath(),
-                    backup.toPath(),
-                    StandardCopyOption.REPLACE_EXISTING,
-                )
-            }
+            runCatching { file.copyTo(backup, overwrite = true) }
         }
 
-        try {
-            Files.move(
-                tmp.toPath(),
-                file.toPath(),
-                StandardCopyOption.REPLACE_EXISTING,
-                StandardCopyOption.ATOMIC_MOVE,
-            )
-        } catch (_: AtomicMoveNotSupportedException) {
-            Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        if (!tmp.renameTo(file)) {
+            // Only reachable on a filesystem that will not replace on rename.
+            // There is a moment in here with no ledger on disk, which is why it
+            // is the fallback and not the path.
+            file.delete()
+            tmp.renameTo(file)
         }
     }
 
