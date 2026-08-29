@@ -1517,6 +1517,30 @@ a threshold I had guessed would have absorbed a real change silently.
 
 ---
 
+## D59 — The warning was under the number it was warning about
+
+The phone has not been reachable all session, so every phone change has gone in
+unseen. The substitute is reading the composition, and reading it found this:
+
+```kotlin
+item { TopBar(session, onOpenProfile) }
+item { CashOnHandCard(cash, onOpenPlaces) }
+session.storeAlarm?.let { ... }        // <- after the money
+```
+
+with a comment two lines below it reading *"above everything"*.
+
+So a member whose ledger would not open saw **KSh 3,658.00** in the largest type
+on the screen, and only underneath it the sentence explaining that the figure is
+not their money. That is the wrong order for the only thing on the screen that
+matters, and the desktop had it right.
+
+It is now between the identity line and the hero. Nothing about the code was
+wrong, no test could have caught it, and the comment had been describing what
+somebody intended rather than what the file did.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

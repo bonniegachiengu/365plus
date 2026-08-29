@@ -85,12 +85,12 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { TopBar(session, onOpenProfile) }
-        item { CashOnHandCard(cash, onOpenPlaces) }
         session.storeAlarm?.let { a ->
             item {
-                // A condition, not an event: above everything, and no way to
-                // tap it away. If the figures below are not the members' money,
-                // that must not be dismissable.
+                // Above the money, not below it. A condition rather than an
+                // event, with no way to tap it away — and if the hero figure is
+                // not the members' money, they must read that before they read
+                // the figure, not after.
                 Card(colour = if (a.severe) Plus.DebtDim else Plus.PendingDim) {
                     Text(
                         a.headline,
@@ -109,6 +109,7 @@ fun HomeScreen(
                 }
             }
         }
+        item { CashOnHandCard(cash, onOpenPlaces) }
         item { ActionRow(onAction) }
         item { SecondaryActionRow(onAction) }
         item { MoveRow(onMove) }
