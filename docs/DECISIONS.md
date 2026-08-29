@@ -2147,6 +2147,59 @@ a fact rather than an assumption.
 
 ---
 
+## D77 — Matching the books the group already keeps
+
+The real ledger came back from the chat history. Most of this is the model being
+checked against it rather than changed, which is the outcome worth having.
+
+### What matched
+
+- **Two accounts, and cash at hand is their sum.** Exactly what `Pocket` already
+  was, and the invariant was already tested.
+- **A loan in four figures**: principal, interest, transaction cost, total. All
+  four already existed on `LoanRow`.
+- **5% for a founder.** The worked example from the books is 1,000 + 50 + 7 =
+  1,057, and `quoteLoan` produces precisely that. `RealLedgerShapeTest` now
+  asserts it with those figures rather than invented ones.
+
+### What changed: the names
+
+The two accounts are called **Founder's A/C** and **Keshflo A/C** in the group's
+books. The app called them "Members' pool" and "Keshflo fund". Brian asked for
+the same wording as the old system, and he is right to: a ledger that renames
+what people have called something for a year makes them check twice on every
+screen to be sure it is the same thing.
+
+Note the two axes stay separate. **Where** the money physically sits — M-Pesa
+Pochi, Ziidi, M-Shwari — is a real distinction the group does not track in
+writing but the app needs, because Ziidi sends messages and money genuinely moves
+between them. **What it is for** is the two A/Cs. Both sum to cash-at-hand.
+
+### What was actually missing: the total
+
+Both loan cards showed principal, interest, the charges, and the **outstanding**
+in the header. Never `totalDue`.
+
+Until something is repaid those two are the same number, which is why it went
+unnoticed. The moment anybody pays, the outstanding moves and the total does not
+— and the total is the figure written in the books when the loan was made. A
+member comparing the app against the group's record would have found the app
+showing 557 where the books say 1,057.
+
+Both shells show *"Total to repay"* now, and a test walks the worked example
+through a part-repayment to hold the two apart.
+
+### Nothing historical is seeded
+
+The per-transaction history since 8 November lives in about 46 screenshots that
+are not data yet. The 25 August resolution — the group owes 16,652, repaid at
+2,000 a month, the 652 remainder recouped from surplus contributions once they
+pass the target, 13,334 borrowed to date — is recorded here as context and is
+**not** in the seed. Inventing entries to make those totals appear would be the
+exact opposite of what this ledger is for.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

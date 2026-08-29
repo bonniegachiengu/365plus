@@ -101,8 +101,12 @@ object DevSeed {
      * is why moving money between accounts leaves these untouched.
      */
     val POCKETS: List<Pocket> = listOf(
-        Pocket(POOL, "Members' pool", "The three members' own savings."),
-        Pocket(KESHFLO, "Keshflo fund", "Set aside for lending outward."),
+        // The names the group already uses in its own books. Brian asked for the
+        // same wording as the old system, and a ledger that renames what people
+        // have been calling something for a year makes them check twice on every
+        // screen to be sure it is the same thing.
+        Pocket(POOL, "Founder's A/C", "The three founders' pool."),
+        Pocket(KESHFLO, "Keshflo A/C", "Set aside for lending outward."),
     )
 
     /**

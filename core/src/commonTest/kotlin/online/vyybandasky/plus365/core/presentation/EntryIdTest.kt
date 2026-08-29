@@ -110,3 +110,53 @@ class EntryIdTest {
         assertTrue(pendingIds.all { it.isNotBlank() })
     }
 }
+
+/**
+ * Constructing a Session over a book that already has entries.
+ *
+ * `record` treats a repeated id as the same fact and returns the existing entry
+ * as allowed — right for a retried save, silent loss for a new entry. The id
+ * counter used to default to 1, so `Session(book = aBookWithEntriesInIt, ...)`
+ * handed out an id the book already had and the member was told "Recorded"
+ * while nothing was added.
+ *
+ * `Session.restored` always passed `book.nextSeq`. Anybody building one directly
+ * had to know to, and the first person who did not was me, writing a test for
+ * something else entirely.
+ */
+class SessionOverExistingBookTest {
+
+    private val config = ActorConfig.dev(DevSeed.BONNIE, DevSeed.EVERYONE)
+
+    @Test
+    fun `a session built over an existing book does not swallow the next entry`() {
+        var first = Session(
+            book = LedgerBook(
+                members = DevSeed.MEMBERS,
+                accounts = DevSeed.ACCOUNTS,
+                pockets = DevSeed.POCKETS,
+            ),
+            config = config,
+            actingAs = DevSeed.BONNIE,
+        )
+        repeat(3) { first = first.contribute(DevSeed.BONNIE, 1_000) }
+        val before = first.book.entries.size
+
+        // The dangerous construction: a fresh Session wrapping a used book.
+        var second = Session(book = first.book, config = config, actingAs = DevSeed.BONNIE)
+        second = second.contribute(DevSeed.BONNIE, 5_000)
+
+        assertEquals(before + 1, second.book.entries.size, "the entry was swallowed as a duplicate")
+        val ids = second.book.entries.map { it.id }
+        assertEquals(ids.size, ids.toSet().size, "an id was handed out twice")
+    }
+
+    @Test
+    fun `and the seeded book behaves the same way`() {
+        val seeded = DevSeed.book()
+        val before = seeded.entries.size
+        val s = Session(book = seeded, config = config, actingAs = DevSeed.BONNIE)
+            .contribute(DevSeed.BONNIE, 1_000)
+        assertEquals(before + 1, s.book.entries.size)
+    }
+}

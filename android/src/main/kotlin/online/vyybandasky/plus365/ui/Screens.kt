@@ -316,6 +316,12 @@ fun MemberScreen(
                         ReviewLine("Interest (${loan.rateLabel})", loan.interest)
                         ReviewLine("M-Pesa charge", loan.mpesaCharge)
                         if (loan.hasBankCharge) ReviewLine("Bank charge", loan.bankCharge)
+                        // The figure the group's own books carry: principal plus
+                        // interest plus the cost of moving it. The header shows what
+                        // is still owed, which is a different number the moment
+                        // anything has been repaid — and only one of the two is what
+                        // was written down when the loan was made.
+                        ReviewLine("Total to repay", loan.totalDue, emphasis = true)
                         ReviewLine("Paid back so far", loan.repaid)
                     }
                 }

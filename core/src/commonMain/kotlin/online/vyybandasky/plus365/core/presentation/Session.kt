@@ -60,7 +60,21 @@ data class Session(
      * it is a condition, not an event.
      */
     val storeAlarm: StoreAlarm? = null,
-    private val idCounter: Long = 1L,
+    /**
+     * Where the next entry id comes from.
+     *
+     * Defaults from the book rather than from 1, and that is not a tidiness
+     * preference. `record` treats a repeated id as *the same fact* and returns
+     * the existing entry as allowed — correct for a retried save, and silent
+     * data loss for a genuinely new entry.
+     *
+     * So `Session(book = aBookWithEntriesInIt, ...)` with a counter of 1 hands
+     * out `e-1`, which the book already has, and the member is told "Recorded"
+     * while nothing is added. `Session.restored` always passed `book.nextSeq`;
+     * anybody constructing a Session directly had to know to, and the first
+     * person who did not was me, writing a test.
+     */
+    private val idCounter: Long = book.nextSeq,
 ) {
     val actingAsName: String get() = book.displayName(actingAs)
 
