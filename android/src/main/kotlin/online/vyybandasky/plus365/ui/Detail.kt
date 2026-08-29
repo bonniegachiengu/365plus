@@ -271,6 +271,12 @@ fun ProfileScreen(
     onChange: (Session) -> Unit = {},
 ) {
     val p = session.book.profile(session.actingAs, session.config)
+    if (p == null) {
+        ScreenScaffold(title = "Profile", onBack = onBack, notice = null) {
+            Card { Text("This device is acting as somebody the book does not have.", color = Plus.TextMid) }
+        }
+        return
+    }
 
     ScreenScaffold(title = "Profile", onBack = onBack, notice = null) {
         Column(

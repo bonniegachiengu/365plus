@@ -35,6 +35,10 @@ import online.vyybandasky.plus365.core.presentation.profile
 @Composable
 fun ProfileBody(session: Session, onChange: (Session) -> Unit) {
     val p = session.book.profile(session.actingAs, session.config, Shell.DESKTOP)
+    if (p == null) {
+        Card { Text("This device is acting as somebody the book does not have.", color = Plus.TextMid) }
+        return
+    }
 
     Card {
         Row(

@@ -331,8 +331,15 @@ data class MemberDetail(
     val activity: List<ActivityRow>,
 )
 
-fun LedgerBook.memberDetail(memberId: MemberId, now: Instant? = null): MemberDetail {
-    val card = memberCards().first { it.id == memberId }
+/**
+ * One member, in full — or null if the book has never heard of them.
+ *
+ * Nullable to match `entryDetail`, which had it right. A screen holding an id
+ * the book no longer contains is a stale link, and a stale link should render
+ * "not in the book" rather than take the app down.
+ */
+fun LedgerBook.memberDetail(memberId: MemberId, now: Instant? = null): MemberDetail? {
+    val card = memberCards().firstOrNull { it.id == memberId } ?: return null
     val theirLoans = loanRows().filter { row ->
         loans.firstOrNull { it.id == row.loanId }?.counterpartyMemberId == memberId
     }

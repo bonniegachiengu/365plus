@@ -851,6 +851,32 @@ The header avatar opens it. It is the only thing up there shaped like a person.
 
 ---
 
+## D39 — The empty book, and two functions that threw on a stale link
+
+Everything anybody has ever looked at in this app has had the dev seed behind it,
+and the seed always has entries. So the empty case — three members, three
+accounts, no money, no history — had never once been rendered.
+
+It is not hypothetical. It is precisely what the real ledger will be on its first
+day: the plan has always been members first, Brian's entries afterwards. The very
+first thing the live app ever shows is the one state nothing had tested.
+
+`EmptyBookTest` renders every screen against it: home, member cards, member
+detail, profile, the ledger, the overdraw report, and the ledger's first-ever
+entry from record through confirm with the balance invariant holding. All of it
+passed. That is the good outcome and it is still worth the test — an empty state
+that works by accident goes on working until somebody adds a `.first()`.
+
+Which is exactly what had already happened twice. `memberDetail` and `profile`
+both did `memberCards().first { it.id == … }` and threw on an id the book does
+not hold, while their sibling `entryDetail` returned null and rendered "not in
+the book". Same situation, same right answer, two of three getting it wrong.
+
+Both are nullable now, and all four call sites across the two shells say so in
+words. A stale link should read as absent, not take the app down.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

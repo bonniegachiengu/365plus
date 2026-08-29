@@ -229,6 +229,12 @@ fun MemberScreen(
     onOpenEntry: (String) -> Unit = {},
 ) {
     val detail = session.book.memberDetail(memberId, now)
+    if (detail == null) {
+        ScreenScaffold(title = "Member", onBack = onBack, notice = null) {
+            Card { Text("That member is not in the book.", color = Plus.TextMid) }
+        }
+        return
+    }
 
     ScreenScaffold(title = detail.name, onBack = onBack, notice = null) {
         Column(

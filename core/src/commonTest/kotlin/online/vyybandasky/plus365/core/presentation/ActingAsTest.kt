@@ -33,14 +33,14 @@ class ActingAsTest {
 
     @Test
     fun `a dev build offers the switch`() {
-        val p = book().profile(DevSeed.BONNIE, dev)
+        val p = book().profile(DevSeed.BONNIE, dev)!!
         assertTrue(p.canSwitch, "one person has to be able to test both ends")
         assertTrue(p.canActAs.size > 1)
     }
 
     @Test
     fun `a live build does not`() {
-        val p = book().profile(DevSeed.BONNIE, live)
+        val p = book().profile(DevSeed.BONNIE, live)!!
         assertTrue(!p.canSwitch, "a switcher here would be impersonation with a label on it")
         assertEquals(1, p.canActAs.size)
     }
@@ -78,7 +78,7 @@ class ActingAsTest {
 
     @Test
     fun `the storage sentence names the machine it is on`() {
-        assertTrue(book().profile(DevSeed.BONNIE, dev, Shell.PHONE).storageLine.contains("phone"))
-        assertTrue(book().profile(DevSeed.BONNIE, dev, Shell.DESKTOP).storageLine.contains("laptop"))
+        assertTrue(book().profile(DevSeed.BONNIE, dev, Shell.PHONE)!!.storageLine.contains("phone"))
+        assertTrue(book().profile(DevSeed.BONNIE, dev, Shell.DESKTOP)!!.storageLine.contains("laptop"))
     }
 }

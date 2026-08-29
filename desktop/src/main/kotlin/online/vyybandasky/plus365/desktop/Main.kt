@@ -450,6 +450,10 @@ private fun MemberBody(
     onOpenEntry: (String) -> Unit,
 ) {
     val d = session.book.memberDetail(memberId, now)
+    if (d == null) {
+        Card { Text("That member is not in the book.", color = Plus.TextMid) }
+        return
+    }
     Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Card {

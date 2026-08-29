@@ -268,8 +268,8 @@ fun LedgerBook.profile(
     actingAs: MemberId,
     config: ActorConfig,
     shell: Shell = Shell.PHONE,
-): ProfileView {
-    val card = memberCards().first { it.id == actingAs }
+): ProfileView? {
+    val card = memberCards().firstOrNull { it.id == actingAs } ?: return null
     return ProfileView(
         name = card.name,
         initial = card.initial,
