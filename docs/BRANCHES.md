@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **253 tests green** (core 231, desktop 12, android 10). APK installs on the Redmi; persistence verified on device. |
+| `main` | Protected trunk. Always green, always installable. | **268 tests green** (core 246, desktop 12, android 10). APK installs on the Redmi; persistence verified on device. |
 
 Nothing else is open right now.
 
@@ -30,7 +30,10 @@ Nothing else is open right now.
 | `slice/third-member-override` | Two-of-three arbitration: fallouts route to the uninvolved member, who confirms, corrects or rejects with a logged reason. Plus tap-through to entry, member and profile views. | 2026-08-26 | `da99197`.. |
 | `slice/flows-and-ledger` | All four flows end-to-end through paste-and-match and the full lifecycle; loans escalate and settle as one act; the ledger shows every leg; disputed money reads differently from queued money. | 2026-08-26 | `cc75edb` |
 | `slice/keshflo-and-tiers` | Brian's feedback: two interest tiers, Keshflo external lending, the charge split, bank/ATM parsing, and his wording throughout. | 2026-08-26 | `a5e9e21` |
-| `slice/accounts-and-pockets` | Real accounts (Pochi, Ziidi, M-Shwari, bank later) with interest-earning kinds, virtual pockets over the total, and Ziidi recognised-but-unparsed pending a real sample. | 2026-08-26 | see below |
+| `slice/accounts-and-pockets` | Real accounts with interest-earning kinds, virtual pockets over the total, Ziidi recognised-but-unparsed. | 2026-08-26 | `f7c2d4d` |
+| `fix/wording-and-build-stamp` | Finish Brian's relabel on desktop; stamp the APK so the loaded build can be named. | 2026-08-29 | `merged` |
+| `slice/overdraw-flags` | Flag-not-refuse for account overdraw, with enough on each flag to trace the slip. | 2026-08-29 | `9ba5b98` |
+| `slice/desktop-installer` | Native Windows MSI via jpackage, per-user install, Start-menu entry, one-command rebuild script. | 2026-08-29 | see below |
 
 > `5d794d6`'s message says 118 tests. The true count at that commit was **116** —
 > it double-counted two core tests that run on both the jvm and android targets.

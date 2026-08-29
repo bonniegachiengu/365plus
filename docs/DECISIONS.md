@@ -583,6 +583,53 @@ the new expectations go, and its "recognised but not parsed" tests become
 Until then Ziidi movements are recorded by hand and confirmed by a second member
 — the `ATTESTED` path, which the screen labels as lower assurance.
 
+## D30 - Every build says its own name
+
+**Decided:** 2026-08-29. **Status:** settled, and a working practice.
+
+`BuildInfo.NAME` is bumped every slice and printed by both shells — the desktop
+under its title, the phone on the profile screen. The Android APK carries the
+same string as its `versionName`.
+
+This is not bookkeeping. **An install that silently fails to replace the previous
+one looks exactly like a feature that silently fails to work**, and that has
+already happened here: an `adb install` printed nothing, left the old version in
+place, and would have been read as broken code rather than a failed install. The
+stamp caught it on its first use.
+
+`INSTALLER_VERSION` is the same build as a plain three-part number, because
+Windows installers reject a label and MSI wants a major of at least one. The two
+are kept in step by hand; the leading 1 means "packaged", not "finished".
+
+**Depends on it:** `core/BuildInfo.kt`, `android/build.gradle.kts`,
+`desktop/build.gradle.kts`.
+
+## D31 - The desktop app is installed, not run from Gradle
+
+**Decided:** 2026-08-29. **Status:** settled.
+
+Packaged with jpackage through Compose's `packageMsi`. Compose downloads WiX
+itself, so nothing had to be installed by hand.
+
+- **Named `Plus365`, not `365plus`.** Windows sorts and searches by first
+  character, and an app whose name starts with a digit buries itself among the
+  numbers in the Start menu. The window title and the branding stay "365+".
+- **Per-user install**, into `%LOCALAPPDATA%\Plus365`. No admin prompt on every
+  rebuild for a three-person side project.
+- **Fixed `upgradeUuid`, and it must stay fixed.** It is how Windows recognises a
+  new build as an upgrade rather than a second app beside the first. Changing it
+  would leave every build installed. It must also be real hex — jpackage rejects
+  anything else, and reports it as a length problem rather than naming the
+  letters.
+- **Start-menu group "365+"**, which is what makes it pinnable at all.
+
+`tools/install-desktop.ps1` rebuilds and reinstalls in one command, stopping the
+running app first (Windows will not overwrite a running exe, and says so
+unhelpfully) and verifying the install afterwards rather than assuming it.
+
+**Follow-up:** the icon is the Compose placeholder. Real 365+ branding is
+outstanding.
+
 ---
 
 ## Still open
