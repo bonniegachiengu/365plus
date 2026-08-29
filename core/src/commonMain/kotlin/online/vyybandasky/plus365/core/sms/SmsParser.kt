@@ -161,11 +161,38 @@ sealed interface ParseOutcome {
     data class Rejected(val reason: RejectReason) : ParseOutcome
 }
 
-/** What to tell a member when their message is recognised but unreadable. */
-fun ParseOutcome.Unmapped.message(): String =
+/**
+ * What to tell a member when their message is recognised but unreadable.
+ *
+ * Two different situations, and telling a member the wrong one costs trust for
+ * no reason:
+ *
+ *  * **A provider nothing is known about.** M-Shwari. "Cannot read those yet" is
+ *    exactly right.
+ *  * **A provider partly known.** Ziidi: its invest and withdraw messages read
+ *    perfectly, and this is some other sentence it sends. Telling somebody 365+
+ *    cannot read Ziidi messages, when the two they actually paste work, would be
+ *    false and would stop them pasting the ones that do.
+ */
+fun ParseOutcome.Unmapped.message(): String = if (provider.isPartlyKnown()) {
+    "This looks like a ${provider.label()} message, but not one of the kinds 365+ " +
+        "knows. Its money-in and money-out messages are read; this is some other " +
+        "notice. Record it by hand for now — the message is kept."
+} else {
     "This looks like a ${provider.label()} message. 365+ cannot read those yet — " +
         "the exact wording is still being confirmed. Record it by hand for now; " +
         "the message is kept so it can be matched later."
+}
+
+/**
+ * Whether some of this provider's messages are understood.
+ *
+ * Ziidi is the only one so far: two verified shapes out of however many it
+ * sends. The distinction exists because "we cannot read this provider" and "we
+ * cannot read this sentence" are different sentences to be told about your own
+ * money.
+ */
+private fun SmsProvider.isPartlyKnown(): Boolean = this == SmsProvider.ZIIDI
 
 /** A transaction SMS is a couple of hundred characters. Anything past this is not one. */
 private const val MAX_SMS_LENGTH = 1_000

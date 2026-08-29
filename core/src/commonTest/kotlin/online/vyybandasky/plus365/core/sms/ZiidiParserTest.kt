@@ -144,3 +144,36 @@ class ZiidiParserTest {
         )
     }
 }
+
+/**
+ * What a member is told when the message is recognised but not one of the
+ * shapes that read.
+ *
+ * "365+ cannot read Ziidi messages" would be false — the two they actually paste
+ * work — and a person told that would stop pasting the ones that do.
+ */
+class UnmappedMessageTest {
+
+    private fun unmapped(text: String) =
+        assertIs<ParseOutcome.Unmapped>(parseSms(text, DevSeed.BONNIE))
+
+    @Test
+    fun an_unknown_ziidi_notice_says_it_is_this_sentence_not_this_provider() {
+        val m = unmapped(
+            "Ziidi: your fund statement for August is ready. Balance Ksh. 11,001.07.",
+        ).message()
+        assertTrue("not one of the kinds" in m, m)
+        assertTrue(
+            "cannot read those yet" !in m,
+            "this would tell a member Ziidi is unsupported when it is not: $m",
+        )
+    }
+
+    @Test
+    fun an_m_shwari_message_still_says_the_provider_is_unknown() {
+        val m = unmapped(
+            "M-Shwari: You have deposited Ksh1,000.00 to M-Shwari account. Balance Ksh8,000.00.",
+        ).message()
+        assertTrue("cannot read those yet" in m, m)
+    }
+}

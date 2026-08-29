@@ -2001,6 +2001,30 @@ Fourth defect this session found by looking at a screen rather than by any test.
 
 ---
 
+## D72 — "Cannot read those yet" stopped being true of Ziidi
+
+The unmapped message told a member:
+
+> This looks like a Ziidi message. 365+ cannot read those yet.
+
+False the moment D69 landed. Ziidi's invest and withdraw messages read perfectly;
+what is unread is *some other notice* Ziidi sends. A member told the app cannot
+read Ziidi would reasonably stop pasting the two that work.
+
+Two situations, and they deserve different sentences:
+
+- **Nothing known about the provider** — M-Shwari. "Cannot read those yet" is
+  exactly right.
+- **Partly known** — Ziidi. *"This looks like a Ziidi message, but not one of the
+  kinds 365+ knows. Its money-in and money-out messages are read; this is some
+  other notice."*
+
+The same care as the two assurance levels and the ATM caveat: the app is allowed
+to know less than it would like, and is never allowed to round that up **or
+down**. Understating what it can do costs a member the feature.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |
