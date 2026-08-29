@@ -221,3 +221,28 @@ class OwesTest {
         }
     }
 }
+
+/**
+ * The hero figure on a member page must be the one they came to read.
+ *
+ * A Keshflo borrower has no share of the pool and never will. Leading their page
+ * with "Pool contribution KSh 0.00" answers a question nobody asked and buries
+ * the one they did.
+ */
+class MemberHeroTest {
+
+    private val now = Instant.parse("2026-08-29T09:00:00Z")
+
+    @Test
+    fun `a borrower is a borrower and a founder is not`() {
+        assertTrue(DevSeed.book(now).memberDetail(DevSeed.WANJIKU, now)!!.isBeneficiary)
+        assertTrue(!DevSeed.book(now).memberDetail(DevSeed.BONNIE, now)!!.isBeneficiary)
+    }
+
+    @Test
+    fun `a borrower has no share to show`() {
+        val d = DevSeed.book(now).memberDetail(DevSeed.WANJIKU, now)!!
+        assertEquals("KSh 0.00", d.stake, "if this is ever non-zero the page is lying somewhere")
+        assertTrue(d.owesCents > 0L, "which is why the debt has to be the figure")
+    }
+}

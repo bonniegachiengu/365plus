@@ -1070,6 +1070,41 @@ balance where the pool owing *them* is the other direction, and "you owe minus
 
 ---
 
+## D47 — The fix that made the page worse, seen by looking at it
+
+D46 put "Pending loan amount" on the member page. Screenshotting the result made
+the actual problem obvious, and it was not the missing figure.
+
+Wanjiku's page now read:
+
+    Pool contribution   KSh 0.00
+    Pending loan amount KSh 1,128.00   (green)
+    pending loan amount KSh 1,128.00   (red)
+    PENDING LOAN AMOUNT KSh 1,128.00
+
+The same number three times, once in the colour this app uses for *money held*,
+under a hero figure of zero. The addition was correct and the page was worse.
+
+Two things were wrong underneath it:
+
+**The hero was the wrong figure.** Wanjiku is a Keshflo borrower. She has no
+share of the pool and never will — "Pool contribution KSh 0.00" is answering a
+question nobody asked, in the largest type on the screen, above the one they did
+ask. For a borrower the hero is what they owe. For a founder it stays the stake,
+and a debt gets a second line rather than a second hero.
+
+**The colour was wrong.** `emphasis = true` on `ReviewLine` paints green, which
+in this app means money held. A debt in that green is a lie told in a colour.
+
+Both shells now branch on `MemberDetail.isBeneficiary`, which is new and exists
+for exactly this. A test asserts a beneficiary's stake is always zero — if that
+ever changes, the page is lying somewhere and this is where it surfaces.
+
+The general lesson is the one that keeps recurring: the unit tests passed for D46
+and the page was wrong. Some defects are only visible in a screenshot.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

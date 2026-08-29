@@ -544,20 +544,28 @@ private fun MemberBody(
                             style = MaterialTheme.typography.headlineMedium,
                             color = Plus.TextHigh,
                         )
-                        Label("Pool contribution")
-                        Amount(d.stake, style = BigAmount)
+                        // One hero figure, and it should be the one this person
+                        // came to read. A Keshflo borrower has no share and never
+                        // will, so leading with "Pool contribution KSh 0.00"
+                        // answers a question nobody asked and buries the one they
+                        // did — and money owed is never shown in the colour this
+                        // app uses for money held.
+                        if (d.isBeneficiary) {
+                            Label("Pending loan amount")
+                            Amount(d.owes, style = BigAmount, colour = Plus.Debt)
+                        } else {
+                            Label("Pool contribution")
+                            Amount(d.stake, style = BigAmount)
+                        }
                     }
                 }
-                // The one-number answer to the question a borrower actually
-                // arrives with. Shown only when there is something to answer.
-                if (d.owesCents > 0L) {
-                    HorizontalDivider(
-                        color = Plus.Divider,
-                        modifier = Modifier.padding(vertical = 8.dp),
-                    )
-                    ReviewLine("Pending loan amount", d.owes, emphasis = true)
-                }
                 HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 8.dp))
+                // A founder who also owes gets it as a second line rather than a
+                // second hero. For a borrower it is already the hero, and saying
+                // it twice on one card is how a page stops being read.
+                if (!d.isBeneficiary && d.owesCents > 0L) {
+                    ReviewLine("Pending loan amount", d.owes)
+                }
                 Text(
                     d.standingLine,
                     style = MaterialTheme.typography.titleMedium,

@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **322 tests green** (core 300, desktop 12, android 10), and the build compiles with no warnings. Desktop installed and verified as `0.20.0-member-page`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+| `main` | Protected trunk. Always green, always installable. | **324 tests green** (core 302, desktop 12, android 10), and the build compiles with no warnings. Desktop installed and verified as `0.20.1-member-hero`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
 
 
 ## Merged
@@ -47,6 +47,7 @@ concerned.
 | `fix/installer-stderr` | taskkill stderr was failing installs that were about to succeed. | 2026-08-29 | see `main` |
 | `fix/warnings-and-a-vacuous-test` | A parser test that asserted nothing, and six deprecated icons. The build compiles clean. | 2026-08-29 | see `main` |
 | `fix/member-page` | The laptop never said the member's name; neither shell said what they owe. | 2026-08-29 | see `main` |
+| `fix/member-hero` | The follow-up: that fix printed the same figure three times, once in the wrong colour, under a hero of zero. | 2026-08-29 | see `main` |
 
 ## Committed straight to `main` (rule 1 broken)
 

@@ -258,20 +258,25 @@ fun MemberScreen(
                 ) {
                     Avatar(detail.initial, detail.inDebt)
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Label("Pool contribution")
-                        Amount(detail.stake, style = BigAmount)
+                        // One hero figure, and it should be the one this person
+                        // came to read. A Keshflo borrower has no share and never
+                        // will, so "Pool contribution KSh 0.00" answers a question
+                        // nobody asked — and money owed is never shown in the
+                        // colour this app uses for money held.
+                        if (detail.isBeneficiary) {
+                            Label("Pending loan amount")
+                            Amount(detail.owes, style = BigAmount, colour = Plus.Debt)
+                        } else {
+                            Label("Pool contribution")
+                            Amount(detail.stake, style = BigAmount)
+                        }
                     }
                 }
-                // The one-number answer to the question a borrower actually
-                // arrives with. Shown only when there is something to answer.
-                if (detail.owesCents > 0L) {
-                    HorizontalDivider(
-                        color = Plus.Divider,
-                        modifier = Modifier.padding(vertical = 10.dp),
-                    )
-                    ReviewLine("Pending loan amount", detail.owes, emphasis = true)
-                }
                 HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 10.dp))
+                // A founder who also owes gets a second line, not a second hero.
+                if (!detail.isBeneficiary && detail.owesCents > 0L) {
+                    ReviewLine("Pending loan amount", detail.owes)
+                }
                 Text(
                     detail.standingLine,
                     style = MaterialTheme.typography.titleMedium,

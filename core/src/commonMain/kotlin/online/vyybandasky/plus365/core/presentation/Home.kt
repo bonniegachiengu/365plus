@@ -327,6 +327,14 @@ data class MemberDetail(
     val owes: String,
     /** The same figure unformatted, so a shell can ask whether it is zero. */
     val owesCents: Long,
+    /**
+     * A Keshflo borrower rather than one of the pool's own members.
+     *
+     * They have no share and never will, so a page that leads with "Pool
+     * contribution KSh 0.00" is answering a question nobody asked and burying
+     * the one they did.
+     */
+    val isBeneficiary: Boolean,
     val contributionCount: Int,
     val activeLoanCount: Int,
     val loans: List<LoanRow>,
@@ -353,6 +361,7 @@ fun LedgerBook.memberDetail(memberId: MemberId, now: Instant? = null): MemberDet
         inDebt = card.inDebt,
         owes = formatKes(if (card.owesCents < 0) -card.owesCents else 0L),
         owesCents = if (card.owesCents < 0) -card.owesCents else 0L,
+        isBeneficiary = member(memberId)?.isBeneficiary == true,
         contributionCount = entries.count {
             it.memberId == memberId &&
                 it.type == EntryType.CONTRIBUTION &&
