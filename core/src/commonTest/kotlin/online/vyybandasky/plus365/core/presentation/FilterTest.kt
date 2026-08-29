@@ -306,3 +306,70 @@ class AtmCaveatTest {
         assertNull(e.atmCaveat, "a caveat on every entry is a caveat nobody reads")
     }
 }
+
+/**
+ * The promise the ledger makes has to survive being checked.
+ *
+ * It used to say "only ever added, never changed or deleted", inline in both
+ * shells. An entry does change — it gains a confirmation, a rejection, an
+ * override. What never changes is a figure, and what never happens is a
+ * deletion. Saying exactly that is stronger than the vaguer claim.
+ *
+ * These tests hold the words to the behaviour, so the sentence cannot drift away
+ * from what the book actually does.
+ */
+class LedgerPromiseTest {
+
+    private val now = Instant.parse("2026-08-29T09:00:00Z")
+    private val config = ActorConfig.dev(DevSeed.BONNIE, DevSeed.EVERYONE)
+
+    private fun view() = DevSeed.book(now).filteredActivity(LedgerFilter(), now)
+
+    @Test
+    fun `the promise names the two things that are actually true`() {
+        val blurb = view().blurb
+        assertTrue("Nothing here is deleted" in blurb, blurb)
+        assertTrue("no figure is ever edited" in blurb, blurb)
+    }
+
+    @Test
+    fun `it does not claim entries never change, because they do`() {
+        val blurb = view().blurb
+        assertTrue(
+            "never changed" !in blurb,
+            "an entry gains its confirmation, so this claim would be false: $blurb",
+        )
+    }
+
+    @Test
+    fun `and the behaviour matches - confirming changes state and not the amount`() {
+        var s = Session(
+            book = LedgerBook(
+                members = DevSeed.MEMBERS,
+                accounts = DevSeed.ACCOUNTS,
+                pockets = DevSeed.POCKETS,
+            ),
+            config = config,
+            actingAs = DevSeed.BONNIE,
+        )
+        s = s.contribute(DevSeed.BONNIE, 123_400, now)
+        val before = s.book.pending().single()
+        s = s.actAs(DevSeed.BRIAN).confirm(before.id, DevSeed.BRIAN, now)
+        val after = s.book.entries.single { it.id == before.id }
+
+        assertEquals(before.amountCents, after.amountCents, "the figure was edited")
+        assertTrue(after.state != before.state, "the entry did not gain its agreement")
+        assertEquals(
+            s.book.entries.size,
+            s.book.entries.map { it.id }.toSet().size,
+            "confirming duplicated an entry",
+        )
+    }
+
+    @Test
+    fun `both shells read the same sentence`() {
+        // It was inline in two files before, which is exactly how two shells end
+        // up making two different promises about the same ledger.
+        assertEquals(view().blurb, DevSeed.book(now).filteredActivity(LedgerFilter(), now).blurb)
+    }
+}

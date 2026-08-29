@@ -131,7 +131,30 @@ data class FilteredLedger(
     val shownTotal: String?,
     /** Said when the narrowing matches nothing, so the screen is never blank. */
     val emptyLine: String?,
-)
+) {
+    /** What this screen is. */
+    val headline: String get() = "Everything that has ever happened"
+
+    /**
+     * The promise the ledger makes, stated precisely.
+     *
+     * It used to read *"only ever added, never changed or deleted"*, inline in
+     * both shells. The spirit was right and the words were loose enough for a
+     * sceptical member to pick apart, which on the one screen whose entire job
+     * is being believed is a poor trade for two saved words.
+     *
+     * An entry *does* change: it gains a confirmation, a rejection, an override.
+     * What never changes is a **figure**, and what never happens is a deletion —
+     * a correction appends the right amount beside the wrong one and joins them,
+     * so both stay. Saying exactly that is stronger than the vaguer claim,
+     * because it survives being checked.
+     */
+    val blurb: String
+        get() = "$totalCount entries. Nothing here is deleted and no figure is ever " +
+            "edited — an entry only ever gains its agreement, and a mistake is " +
+            "corrected by adding the correction, so the wrong figure and the right " +
+            "one both stay."
+}
 
 /**
  * The whole record, narrowed.

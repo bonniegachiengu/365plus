@@ -766,13 +766,12 @@ private fun LedgerBody(session: Session, now: Instant, onOpenEntry: (String) -> 
 
     Card(colour = Plus.SurfaceRaised) {
         Text(
-            "Everything that has ever happened",
+            view.headline,
             style = MaterialTheme.typography.titleMedium,
             color = Plus.TextHigh,
         )
         Text(
-            "${view.totalCount} entries. Only ever added, never changed or deleted — a " +
-                "mistake is corrected by adding the correction, and both stay.",
+            view.blurb,
             style = MaterialTheme.typography.bodyMedium,
             color = Plus.TextMid,
         )

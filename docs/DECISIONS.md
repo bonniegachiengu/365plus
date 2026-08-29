@@ -1674,6 +1674,41 @@ characters across all three modules now confirms there are none.
 
 ---
 
+## D64 — Saying the true thing rather than the strong-sounding one
+
+The ledger screen said, in both shells, inline:
+
+> Only ever added, never changed or deleted — a mistake is corrected by adding
+> the correction, and both stay.
+
+The second half is exactly right: `override` with `CORRECTED` appends the
+replacement and keeps the wrong figure joined to it. Checked, and it does what it
+says.
+
+The first half is loose. An entry **does** change — it gains a confirmation, a
+rejection, an override record. A sceptical Brian reading "never changed" and then
+watching an entry go from amber to green has caught the app in something, and on
+the one screen whose entire job is being believed that is a poor trade for two
+saved words.
+
+It now says what is actually true, which is also the stronger claim because it
+survives being checked:
+
+> Nothing here is deleted and no figure is ever edited — an entry only ever gains
+> its agreement, and a mistake is corrected by adding the correction, so the wrong
+> figure and the right one both stay.
+
+`LedgerPromiseTest` holds the words to the behaviour: the sentence must contain
+"no figure is ever edited", must **not** contain "never changed", and — separately
+— confirming an entry must leave `amountCents` untouched while changing its
+state. If the book ever starts editing figures, the test that fails is the one
+about the sentence.
+
+And it lives in `core/presentation` now. It had been inline in two shells, which
+is precisely how two apps end up making two different promises about one ledger.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |
