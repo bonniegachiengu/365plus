@@ -164,6 +164,7 @@ private sealed interface Screen {
     data class EntryDetail(val entryId: String) : Screen
     data object Ledger : Screen
     data object Profile : Screen
+    data object Places : Screen
 }
 
 /**
@@ -238,6 +239,7 @@ fun App(store: LedgerStore) {
                         onOpenMember = { screen = Screen.MemberDetail(it) },
                         onOpenEntry = { screen = Screen.EntryDetail(it) },
                         onOpenLedger = { screen = Screen.Ledger },
+                        onOpenPlaces = { screen = Screen.Places },
                     )
 
                     is Screen.MemberDetail -> MemberBody(session, s.memberId, now) {
@@ -249,6 +251,8 @@ fun App(store: LedgerStore) {
                     is Screen.Ledger -> LedgerBody(session, now) { screen = Screen.EntryDetail(it) }
 
                     is Screen.Profile -> ProfileBody(session, commit)
+
+                    is Screen.Places -> PlacesBody(session, now, commit)
                 }
                 Box(Modifier.height(28.dp))
             }
@@ -307,6 +311,7 @@ private fun HomeBody(
     onOpenMember: (String) -> Unit,
     onOpenEntry: (String) -> Unit,
     onOpenLedger: () -> Unit,
+    onOpenPlaces: () -> Unit,
 ) {
     val cash = session.book.cashOnHand(now)
     val overdraw = session.book.overdrawReport(now)
@@ -339,7 +344,7 @@ private fun HomeBody(
             }
         }
         Column(Modifier.weight(1f)) {
-            Card {
+            Card(onClick = onOpenPlaces) {
                 Label("Where it is")
                 for (a in cash.accounts) {
                     Row(
@@ -357,7 +362,7 @@ private fun HomeBody(
             }
         }
         Column(Modifier.weight(1f)) {
-            Card {
+            Card(onClick = onOpenPlaces) {
                 Label("What it is for")
                 for (p in cash.pockets) {
                     Row(

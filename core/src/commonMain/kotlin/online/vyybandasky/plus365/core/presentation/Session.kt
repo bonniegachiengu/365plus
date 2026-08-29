@@ -11,6 +11,9 @@ import online.vyybandasky.plus365.core.book.escalate
 import online.vyybandasky.plus365.core.book.override
 import online.vyybandasky.plus365.core.book.reject
 import online.vyybandasky.plus365.core.book.rejectGroup
+import online.vyybandasky.plus365.core.domain.AccountKind
+import online.vyybandasky.plus365.core.book.addAccount
+import online.vyybandasky.plus365.core.book.addPocket
 import online.vyybandasky.plus365.core.book.disburseLoan
 import online.vyybandasky.plus365.core.book.reallocate
 import online.vyybandasky.plus365.core.book.record
@@ -487,6 +490,38 @@ data class Session(
         }
     }
 
+    /**
+     * Add a place money can sit.
+     *
+     * No second member: naming an account moves nothing, and the version of this
+     * somebody might abuse is stopped at the transfer, which is an entry like
+     * any other. See `book/Places.kt` for the argument in full.
+     */
+    fun addAccount(label: String, kind: AccountKind): Session {
+        val id = slugFor(label, book.accounts.map { it.id })
+        return when (val r = book.addAccount(id, label, kind, actingAs, config)) {
+            is Decision.Allowed -> copy(
+                book = r.value,
+                notice = Notice.Info("Added ${label.trim()}. It starts empty."),
+            )
+            is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
+        }
+    }
+
+    /** Add something money can be set aside for. */
+    fun addPocket(label: String, blurb: String = ""): Session {
+        val id = slugFor(label, book.pockets.map { it.id })
+        return when (val r = book.addPocket(id, label, blurb, actingAs, config)) {
+            is Decision.Allowed -> copy(
+                book = r.value,
+                notice = Notice.Info(
+                    "Added ${label.trim()}. Nothing is set aside for it yet.",
+                ),
+            )
+            is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
+        }
+    }
+
     /** Append the inverse of a confirmed entry. Also needs confirming. */
     fun reverse(entryId: String, at: Instant? = null): Session {
         val id = nextId("rev")
@@ -498,6 +533,26 @@ data class Session(
             )
             is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
         }
+    }
+
+    /**
+     * A stable id from what a person typed.
+     *
+     * Ids end up in the stored file and in every entry that points at this
+     * account, so they have to be predictable and they must never collide. The
+     * label is not usable directly: two people typing "KCB " and "kcb" mean the
+     * same account and should not get two.
+     */
+    private fun slugFor(label: String, taken: List<String>): String {
+        val base = label.trim().lowercase()
+            .map { if (it.isLetterOrDigit()) it else '-' }
+            .joinToString("")
+            .trim('-')
+            .ifBlank { "place" }
+        if (base !in taken) return base
+        var n = 2
+        while ("$base-$n" in taken) n++
+        return "$base-$n"
     }
 
     companion object {

@@ -32,6 +32,7 @@ import online.vyybandasky.plus365.ui.EntryScreen
 import online.vyybandasky.plus365.ui.LedgerScreen
 import online.vyybandasky.plus365.ui.MemberScreen
 import online.vyybandasky.plus365.ui.MoveScreen
+import online.vyybandasky.plus365.ui.PlacesScreen
 import online.vyybandasky.plus365.ui.OverrideScreen
 import online.vyybandasky.plus365.ui.ProfileScreen
 import online.vyybandasky.plus365.ui.Plus
@@ -57,6 +58,7 @@ private sealed interface Screen {
     data object Ledger : Screen
     data object Profile : Screen
     data class Move(val move: PoolMove) : Screen
+    data object Places : Screen
 }
 
 /**
@@ -123,6 +125,7 @@ fun Plus365App(store: LedgerStore) {
                     onOpenLedger = { screen = Screen.Ledger },
                     onOpenProfile = { screen = Screen.Profile },
                     onMove = { screen = Screen.Move(it) },
+                    onOpenPlaces = { screen = Screen.Places },
                 )
 
                 is Screen.Flow -> FlowScreen(
@@ -178,6 +181,13 @@ fun Plus365App(store: LedgerStore) {
 
                 is Screen.Profile -> ProfileScreen(
                     session = session,
+                    onBack = { screen = Screen.Home },
+                    onChange = commit,
+                )
+
+                is Screen.Places -> PlacesScreen(
+                    session = session,
+                    now = now,
                     onBack = { screen = Screen.Home },
                     onChange = commit,
                 )

@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **330 tests green** (core 308, desktop 12, android 10), and the build compiles with no warnings. Desktop installed and verified as `0.22.0-atm-caveat`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+| `main` | Protected trunk. Always green, always installable. | **343 tests green** (core 321, desktop 12, android 10), and the build compiles with no warnings. Desktop installed and verified as `0.23.0-places`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
 
 
 ## Merged
@@ -52,6 +52,7 @@ concerned.
 | `slice/desktop-hover` | A hand cursor on everything clickable, added once at `tappable`. | 2026-08-29 | see `main` |
 | `tools/shot-waits-for-paint` | A capture caught before the first frame is refused, not saved. BOMs on all three ps1 scripts. | 2026-08-29 | see `main` |
 | `slice/atm-caveat` | An ATM slip proves money left an account, not where it went. The entry says so. | 2026-08-29 | see `main` |
+| `slice/add-accounts` | Accounts and pockets can finally be added — including the bank account Brian asked for. | 2026-08-29 | see `main` |
 
 ## Committed straight to `main` (rule 1 broken)
 

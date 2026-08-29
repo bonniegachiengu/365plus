@@ -1217,6 +1217,56 @@ never allowed to round that up.
 
 ---
 
+## D52 — You could not add the bank account Brian asked for
+
+`AccountKind.BANK` has existed since the slice that answered Brian's bank and ATM
+request. No account has ever used it. The accounts and pockets were both fixed
+when the book was seeded and nothing anywhere could create either, so the model
+described a plan rather than a capability.
+
+Both are addable now, from a **Places** screen the two split cards on home open
+into.
+
+### Why adding needs no second member
+
+Everything else in this app waits for somebody else to agree, so the exception is
+stated on the screen rather than left as an inconsistency for a member to notice
+and wonder about.
+
+Naming an account cannot move a shilling. Cash-at-hand is the fold of the
+entries, a new account starts empty, and the only way to put anything into it is
+a transfer — which is an entry and waits like every other entry. The dangerous
+version of this ("add an account called *somewhere else*, move the pool into it")
+is not made safe by making three people agree on a **label**; it is already
+stopped at the **moving**, which is where it belongs. A test asserts exactly
+that: add the account, transfer into it, and the transfer comes back unconfirmed.
+
+Two-person control protects the members' money. It is not a spelling committee.
+
+### Why nothing can be removed
+
+Deliberate, and said on the screen. A pocket with money earmarked to it cannot go
+without breaking the invariant that pockets sum to cash-at-hand; an account with a
+balance cannot go without losing where that balance is. Both could be made safe
+with an emptiness check — but an account that once held money is part of the
+record of *where money has been*, and this ledger does not delete that any more
+than it deletes an entry. Renaming is what people actually want and can be added
+when somebody asks.
+
+### Ids
+
+`slugFor` turns what a person typed into an id, because ids end up in the stored
+file and in every entry pointing at the account. Two accounts whose names slug
+the same get distinct ids rather than silently becoming one, and duplicate labels
+are refused outright — two rows reading "KCB" on a picker is a person choosing at
+random on a screen about money.
+
+Each kind carries the sentence that says what choosing it means. `CASH` says it
+plainly: nothing sends a message about notes in somebody's hand, so every entry
+there is somebody's word.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

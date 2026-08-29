@@ -67,6 +67,7 @@ fun HomeScreen(
     onOpenLedger: () -> Unit,
     onOpenProfile: () -> Unit,
     onMove: (PoolMove) -> Unit,
+    onOpenPlaces: () -> Unit,
 ) {
     val cash = session.book.cashOnHand(now)
     val pending = session.book.pendingActs(session.config, now)
@@ -84,7 +85,7 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { TopBar(session, onOpenProfile) }
-        item { CashOnHandCard(cash) }
+        item { CashOnHandCard(cash, onOpenPlaces) }
         item { ActionRow(onAction) }
         item { SecondaryActionRow(onAction) }
         item { MoveRow(onMove) }
@@ -194,7 +195,10 @@ private fun NeedsSettlingCard(count: Int, onClick: () -> Unit) {
  * opens the app to answer.
  */
 @Composable
-private fun CashOnHandCard(cash: online.vyybandasky.plus365.core.presentation.CashOnHand) {
+private fun CashOnHandCard(
+    cash: online.vyybandasky.plus365.core.presentation.CashOnHand,
+    onOpenPlaces: () -> Unit,
+) {
     val total = cash.total
     val memberCountLine = cash.memberCountLine
     val lastUpdated = cash.lastUpdated
@@ -203,6 +207,7 @@ private fun CashOnHandCard(cash: online.vyybandasky.plus365.core.presentation.Ca
         modifier = Modifier
             .fillMaxWidth()
             .background(Plus.Surface, RoundedCornerShape(24.dp))
+            .tappable(onOpenPlaces)
             .padding(22.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -216,7 +221,13 @@ private fun CashOnHandCard(cash: online.vyybandasky.plus365.core.presentation.Ca
 
         // Where it is.
         HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 10.dp))
-        Label("Where it is", Plus.TextLow)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Label("Where it is", Plus.TextLow)
+            Label("Add or change", Plus.Money)
+        }
         for (a in cash.accounts) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
