@@ -1709,6 +1709,37 @@ is precisely how two apps end up making two different promises about one ledger.
 
 ---
 
+## D65 — The endpoint had been reporting 0.1.0 for thirty releases
+
+Checking whether the profile screen's *"nothing is sent anywhere"* is true meant
+looking at what `/health` actually serves. It serves this and nothing else:
+
+    {"status":"ok","service":"365plus","version":"0.1.0"}
+
+No ledger data, so the claim holds. But the running build was
+`0.31.0-precise-promise`.
+
+`APP_VERSION` was a hand-typed constant and had been wrong since the first slice.
+This is the exact failure the build stamp in the window exists to prevent — and
+worse than the window case, because a person looking at a window notices, and the
+thing that will read this endpoint is a phone deciding whether it can talk to
+this master. A phone that trusts a version string is a phone that will
+confidently sync against something it does not understand.
+
+It reads `BuildInfo.NAME` now, so it cannot drift.
+
+### And another test that could not fail
+
+`version_is_reported` asserted `APP_VERSION.isNotBlank()` — on a compile-time
+constant. It passed for thirty releases while guarding a value that was wrong the
+whole time. Same family as D45: a test whose name describes something important
+and whose body checks nothing.
+
+Replaced with one that asserts the endpoint reports the build it is actually
+running, plus one that asserts the stale constant has not come back.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

@@ -4,12 +4,22 @@ import io.ktor.http.ContentType
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
+import online.vyybandasky.plus365.core.BuildInfo
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
 
-const val APP_VERSION: String = "0.1.0"
+/**
+ * What this endpoint says it is.
+ *
+ * Taken from [BuildInfo] rather than typed here. It was a hand-written "0.1.0"
+ * and stayed that way through thirty releases, which is the same failure the
+ * build stamp in the window exists to prevent — except worse, because a person
+ * looking at the window would have noticed and a phone asking this endpoint what
+ * it is talking to would not.
+ */
+val APP_VERSION: String get() = BuildInfo.NAME
 
 /**
  * The port the brief names (§4). Plain HTTP despite the 8443 convention — TLS is

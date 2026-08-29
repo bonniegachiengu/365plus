@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **387 tests green** (core 360, desktop 17, android 10), and the build compiles with no warnings. Desktop installed and verified as `0.31.0-precise-promise`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+| `main` | Protected trunk. Always green, always installable. | **388 tests green** (core 360, desktop 18, android 10), and the build compiles with no warnings. Desktop installed and verified as `0.31.1-health-version`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
 
 
 ## Merged
@@ -64,6 +64,7 @@ concerned.
 | `perf/lazy-ledger` | The phone's ledger is a lazy list. **Not verified on screen** — see D62. | 2026-08-29 | see `main` |
 | `fix/redact-free-text` | Typed text — override reasons, account and pocket names — is redacted too, so the privacy claim on the profile screen is true. | 2026-08-29 | see `main` |
 | `slice/precise-ledger-promise` | The ledger's promise says what is true rather than what sounds strongest, and lives in core. | 2026-08-29 | see `main` |
+| `fix/health-version` | `/health` had reported 0.1.0 since the first slice. It reads the build stamp now. | 2026-08-29 | see `main` |
 
 ## Committed straight to `main` (rule 1 broken)
 
