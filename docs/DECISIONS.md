@@ -2025,6 +2025,35 @@ down**. Understating what it can do costs a member the feature.
 
 ---
 
+## D73 — I pushed a red main, and how
+
+D72 changed the unmapped wording and broke a test asserting the old phrasing.
+That is ordinary. What is not ordinary is that it reached `main`.
+
+The verification command was:
+
+```bash
+./gradlew build --offline 2>&1 | grep -E "^e:|FAILED|BUILD" | head -3
+```
+
+chained with `&&` to the commit and push. Gradle failed. `grep` **found** the
+failure lines and therefore exited 0, and in a pipeline the exit status is the
+*last* command's — so `&&` saw success and pushed. The failure was printed on my
+screen, above the push confirmation, in a shape that reads like progress output.
+
+A verification step whose exit code cannot fail is not a verification step. Every
+argument in D66 about `--offline` hiding lint applies here with the extra sting
+that the failure was visible and the machine still said yes.
+
+Fixed forward: the test now checks what it always meant — that the message names
+the provider and says what to do — and asserts the *absence* of the claim that
+the whole provider is unreadable, which is the thing D72 was about.
+
+`set -o pipefail` before any `gradlew ... | grep` from here, or read the tail
+rather than filtering. `main` was red for four minutes.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

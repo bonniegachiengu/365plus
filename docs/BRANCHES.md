@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **415 tests green** (core 387, desktop 18, android 10). **`./gradlew build` is green including lint** — see D66; `--offline` had been silently skipping lint all session. Desktop installed and verified as `0.35.2-precise-unmapped`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+| `main` | Protected trunk. Always green, always installable. | **415 tests green** (core 387, desktop 18, android 10). **`./gradlew build` is green including lint** — see D66; `--offline` had been silently skipping lint all session. Desktop installed and verified as `0.35.3-fix-red-main`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
 
 
 ## Merged
@@ -73,6 +73,7 @@ concerned.
 | `slice/ziidi-end-to-end` | A member can actually paste one: `moveMoney` carries the message, both move screens take it. | 2026-08-29 | see `main` |
 | `fix/say-ziidi-too` | Four user-facing strings still said "M-Pesa or KCB" after Ziidi started reading. | 2026-08-29 | see `main` |
 | `fix/unmapped-message-precision` | "Cannot read those yet" was false of Ziidi once two of its shapes read. | 2026-08-29 | see `main` |
+| `fix/red-main` | Repair the test that change broke, and record how a red build got pushed. | 2026-08-29 | see `main` |
 
 ## Committed straight to `main` (rule 1 broken)
 
@@ -108,6 +109,16 @@ The repo is untouched on its own branch and nothing here depends on it. Its
 accounting model — the three-component loan and the cash-at-hand roll-up — was
 mined as *reference* and reimplemented in Kotlin. Do not revive it without a
 decision from Bonnie.
+
+## When `main` was red
+
+Once, for four minutes, on 2026-08-29. `d72` broke a test asserting wording it
+had deliberately changed, and the push went through because the verification
+command was `./gradlew build | grep ... && git push` — grep found the failure
+lines, exited 0, and the `&&` saw success. Fixed by `fix/red-main`.
+
+Recorded because a protected branch that has been red once and not written down
+is a protected branch nobody is checking. See D73.
 
 ## Rules for this repo
 

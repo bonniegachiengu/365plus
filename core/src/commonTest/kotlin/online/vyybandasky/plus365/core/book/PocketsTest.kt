@@ -273,9 +273,17 @@ class UnmappedProviderTest {
     fun an_unmapped_message_still_says_something_useful_to_the_member() {
         val outcome = assertIs<ParseOutcome.Unmapped>(parseSms(ziidi, DevSeed.BONNIE))
         val text = outcome.message()
-        assertTrue(text.contains("Ziidi"))
-        assertTrue(text.contains("cannot read"))
-        assertTrue(text.contains("by hand"), "it must tell them what to do instead")
+        assertTrue(text.contains("Ziidi"), "it must name the provider: $text")
+        assertTrue(text.contains("by hand"), "it must tell them what to do instead: $text")
+
+        // Deliberately not asserting "cannot read" any more. Ziidi's invest and
+        // withdraw messages read; this is some other notice it sends, and
+        // telling a member the app cannot read Ziidi would stop them pasting the
+        // two that work. See D72.
+        assertTrue(
+            !text.contains("cannot read"),
+            "this claims the whole provider is unreadable, which is no longer true: $text",
+        )
     }
 
     @Test
