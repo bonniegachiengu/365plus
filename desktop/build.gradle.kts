@@ -21,6 +21,10 @@ dependencies {
     implementation(compose.desktop.currentOs)
     implementation(compose.material3)
 
+    // Clock.System.now() at the UI edge — core stays pure and takes the instant
+    // as an argument, exactly as on the phone.
+    implementation(libs.kotlinx.datetime)
+
     // Embedded HTTP for the sync API. CIO rather than Netty: no servlet stack,
     // much smaller, and this only ever serves three phones on a LAN or tunnel.
     implementation(libs.ktor.server.core)
@@ -45,9 +49,14 @@ compose.desktop {
             // MSI will not take a label like "0.10.0-overdraw-flags", and wants a
             // major of at least one. The readable name lives in BuildInfo and is
             // printed in the window; these two are kept in step by hand.
-            packageVersion = "1.10.0"
+            packageVersion = "1.11.0"
 
             windows {
+                // Interim mark from tools/make-icon.ps1 — a dark tile with the
+                // app's own teal, so the taskbar entry looks deliberate rather
+                // than like a default. Replace the file when real artwork lands.
+                iconFile.set(project.file("icons/plus365.ico"))
+
                 // A Start-menu entry, which is what makes it pinnable at all.
                 menu = true
                 menuGroup = "365+"

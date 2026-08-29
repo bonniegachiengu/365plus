@@ -31,6 +31,26 @@ class LedgerStoreTest {
     }
 
     @Test
+    fun the_pockets_themselves_survive_not_just_the_ids_pointing_at_them() {
+        // Entries keep their pocketId either way, so the fold still splits the
+        // money correctly — which is exactly why losing the definitions stayed
+        // invisible until a screen had nothing left to label the split with.
+        val back = decodeBook(encodeBook(seeded)).getOrThrow()
+        assertEquals(seeded.pockets, back.pockets)
+        assertTrue(back.pockets.isNotEmpty())
+        assertEquals(seeded.state().perPocket, back.state().perPocket)
+    }
+
+    @Test
+    fun every_named_thing_the_book_holds_survives_a_round_trip() {
+        val back = decodeBook(encodeBook(seeded)).getOrThrow()
+        assertEquals(seeded.members, back.members)
+        assertEquals(seeded.accounts, back.accounts)
+        assertEquals(seeded.pockets, back.pockets)
+        assertEquals(seeded.loans, back.loans)
+    }
+
+    @Test
     fun the_balances_come_back_identical_because_they_are_refolded_not_stored() {
         val back = decodeBook(encodeBook(seeded)).getOrThrow()
         assertEquals(seeded.state().poolCashCents, back.state().poolCashCents)

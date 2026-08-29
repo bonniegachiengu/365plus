@@ -1,15 +1,19 @@
 package online.vyybandasky.plus365.desktop
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -19,22 +23,35 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
 import java.io.File
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.BuildInfo
+import online.vyybandasky.plus365.core.presentation.ActivityRow
+import online.vyybandasky.plus365.core.presentation.MemberCard
 import online.vyybandasky.plus365.core.presentation.Notice
 import online.vyybandasky.plus365.core.presentation.Session
-import online.vyybandasky.plus365.core.presentation.historyRows
-import online.vyybandasky.plus365.core.presentation.loanRows
+import online.vyybandasky.plus365.core.presentation.Standing
+import online.vyybandasky.plus365.core.presentation.activity
 import online.vyybandasky.plus365.core.presentation.beneficiaryCards
+import online.vyybandasky.plus365.core.presentation.cashOnHand
+import online.vyybandasky.plus365.core.presentation.entryDetail
 import online.vyybandasky.plus365.core.presentation.founderCards
+import online.vyybandasky.plus365.core.presentation.memberDetail
 import online.vyybandasky.plus365.core.presentation.overdrawReport
-import online.vyybandasky.plus365.core.presentation.pendingRows
-import online.vyybandasky.plus365.core.presentation.summaryView
+import online.vyybandasky.plus365.core.presentation.overrideTasks
+import online.vyybandasky.plus365.core.presentation.pendingActs
+import online.vyybandasky.plus365.core.sms.Assurance
+import online.vyybandasky.plus365.core.sms.label
 import online.vyybandasky.plus365.core.store.LedgerStore
 import online.vyybandasky.plus365.core.store.save
 import online.vyybandasky.plus365.desktop.store.FileLedgerStore
@@ -42,9 +59,7 @@ import online.vyybandasky.plus365.desktop.store.FileLedgerStore
 fun main() {
     // The master copy. Beside the app's own data, not in Documents — this is a
     // record the app owns, not a file a person edits by hand.
-    val store = FileLedgerStore(
-        File(System.getProperty("user.home"), ".365plus/ledger.json"),
-    )
+    val store = FileLedgerStore(File(System.getProperty("user.home"), ".365plus/ledger.json"))
 
     // The API comes up first so the phones can reach the master as soon as the
     // window is on screen. Non-blocking — Compose owns the main thread.
@@ -54,6 +69,10 @@ fun main() {
             Window(
                 onCloseRequest = ::exitApplication,
                 title = "365+ — master ledger",
+                state = rememberWindowState(
+                    size = DpSize(1120.dp, 900.dp),
+                    position = WindowPosition(Alignment.Center),
+                ),
             ) {
                 App(store)
             }
@@ -63,147 +82,526 @@ fun main() {
     }
 }
 
+/** Where the window currently is. Same shape as the phone's. */
+private sealed interface Screen {
+    data object Home : Screen
+    data class MemberDetail(val memberId: String) : Screen
+    data class EntryDetail(val entryId: String) : Screen
+    data object Ledger : Screen
+}
+
 /**
- * The master shell. Same [Session], same shared core, same numbers as the phone —
- * which is the whole reason the fold and the governance rule live in `core`
- * rather than being written once per platform.
+ * The master shell, in the same dark fintech look as the phone.
+ *
+ * Every figure and every sentence comes from `core/presentation`, so this window
+ * and that phone cannot disagree about the ledger. Only the paint is local.
  */
 @Composable
 fun App(store: LedgerStore) {
-    var session by remember { mutableStateOf(Session.restored(store)) }
-    val summary = session.book.summaryView()
+    var session by remember { mutableStateOf(Session.restored(store, Clock.System.now())) }
+    var screen by remember { mutableStateOf<Screen>(Screen.Home) }
 
-    // The single path from a change to disk.
-    val update: (Session) -> Unit = { next ->
+    val commit: (Session) -> Unit = { next ->
         session = next
         store.save(next.book)
     }
 
-    MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
+    Plus365Theme {
+        Surface(modifier = Modifier.fillMaxSize(), color = Plus.Background) {
+            val now = Clock.System.now()
             Column(
-                modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = Plus.Gutter)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Text("365+", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                Text(
-                    "Master ledger · API on http://$DEFAULT_HOST:$DEFAULT_PORT/health · " +
-                        "acting as ${session.actingAsName}",
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                // Says which build this is, so an install that failed to replace
-                // the old one cannot be mistaken for code that failed to work.
-                Text(BuildInfo.label(), style = MaterialTheme.typography.bodySmall)
+                Box(Modifier.height(20.dp))
+                Header(session, screen) { screen = Screen.Home }
+                session.notice?.let { NoticeBanner(it.text, it is Notice.Refused) }
 
-                session.notice?.let { NoticeBar(it) }
-
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), Arrangement.spacedBy(4.dp)) {
-                        Text("Cash at hand", style = MaterialTheme.typography.labelMedium)
-                        Text(summary.cashAtHand, style = MaterialTheme.typography.headlineMedium)
-                        for (acct in summary.accounts) {
-                            Text(
-                                "${acct.label} — ${acct.balance}",
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                        Text("Pending loan amounts: ${summary.totalOutstanding}")
-                        Text(
-                            "Awaiting confirmation: ${summary.pendingCash} (${summary.pendingCount})",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
-
-                val overdraw = session.book.overdrawReport()
-                if (overdraw.any) {
-                    Section("Accounts that went below zero")
-                    Text(overdraw.headline)
-                    Text(
-                        "Recorded, not blocked — the money did move. Kept so the cause " +
-                            "can be traced.",
-                        style = MaterialTheme.typography.bodySmall,
+                when (val s = screen) {
+                    is Screen.Home -> HomeBody(
+                        session = session,
+                        now = now,
+                        onChange = commit,
+                        onOpenMember = { screen = Screen.MemberDetail(it) },
+                        onOpenEntry = { screen = Screen.EntryDetail(it) },
+                        onOpenLedger = { screen = Screen.Ledger },
                     )
-                    for (a in overdraw.byAccount) {
-                        Text("${a.account} — ${a.times}x, worst ${a.worstShortfall}")
-                    }
-                    for (m in overdraw.byMember) {
-                        Text(
-                            "${m.name}: in ${m.involvedIn}, recorded ${m.recorded}",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
 
-                Section("Members")
-                for (row in session.book.founderCards()) {
-                    Text("${row.name} — pool contribution ${row.stake}, ${row.standingLine}")
-                }
-                val borrowers = session.book.beneficiaryCards()
-                if (borrowers.isNotEmpty()) {
-                    Section("Keshflo borrowers")
-                    for (row in borrowers) {
-                        Text("${row.name} — ${row.standingLine}")
+                    is Screen.MemberDetail -> MemberBody(session, s.memberId, now) {
+                        screen = Screen.EntryDetail(it)
                     }
-                }
 
-                Section("Waiting on a second pair of eyes")
-                val pending = session.book.pendingRows(session.config)
-                if (pending.isEmpty()) Text("Nothing waiting.")
-                for (row in pending) {
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(12.dp), Arrangement.spacedBy(4.dp)) {
-                            Text("${row.what} · ${row.amount}", fontWeight = FontWeight.SemiBold)
-                            Text(
-                                "Recorded by ${row.recordedBy}, who cannot confirm it.",
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                for (who in row.eligibleConfirmers) {
-                                    Button(onClick = { update(session.confirm(row.entryId, who.id)) }) {
-                                        Text("Confirm as ${who.name}")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                    is Screen.EntryDetail -> EntryBody(session, s.entryId, now)
 
-                Section("Loans")
-                for (row in session.book.loanRows()) {
-                    Text(
-                        "${row.borrower} · ${row.loanId} — outstanding ${row.outstanding} " +
-                            "(principal ${row.principal}, interest ${row.interest} " +
-                            "${row.rateLabel}, cost ${row.txnCost}, repaid ${row.repaid})",
-                    )
+                    is Screen.Ledger -> LedgerBody(session, now) { screen = Screen.EntryDetail(it) }
                 }
-
-                Section("History")
-                for (row in session.book.historyRows()) {
-                    Text(
-                        "${row.what} · ${row.amount} — recorded ${row.recordedBy} → " +
-                            "confirmed ${row.confirmedBy}",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
+                Box(Modifier.height(28.dp))
             }
         }
     }
 }
 
 @Composable
-private fun Section(title: String) {
-    HorizontalDivider(Modifier.padding(top = 8.dp))
-    Text(title, style = MaterialTheme.typography.titleMedium)
+private fun Header(session: Session, screen: Screen, onHome: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            if (screen !is Screen.Home) {
+                BigButton("Back", filled = false, onClick = onHome)
+            }
+            Column {
+                Text("365+", style = MaterialTheme.typography.headlineMedium, color = Plus.TextHigh)
+                Text(
+                    "Master ledger · acting as ${session.actingAsName} · " +
+                        "API on http://$DEFAULT_HOST:$DEFAULT_PORT/health",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Plus.TextLow,
+                )
+                // Says which build this is, so an install that failed to replace
+                // the old one cannot be mistaken for code that failed to work.
+                Text(BuildInfo.label(), style = MaterialTheme.typography.labelSmall, color = Plus.TextLow)
+            }
+        }
+        Avatar(session.actingAsName.take(1).uppercase())
+    }
+}
+
+// ── home ────────────────────────────────────────────────────────────────────
+
+@Composable
+private fun HomeBody(
+    session: Session,
+    now: Instant,
+    onChange: (Session) -> Unit,
+    onOpenMember: (String) -> Unit,
+    onOpenEntry: (String) -> Unit,
+    onOpenLedger: () -> Unit,
+) {
+    val cash = session.book.cashOnHand(now)
+    val overdraw = session.book.overdrawReport(now)
+    val toSettle = session.book.overrideTasks(session.config, now)
+    val waiting = session.book.pendingActs(session.config, now)
+
+    // The hero and both splits side by side — the laptop has the room the phone
+    // does not, so where the money is and what it is for read at once rather
+    // than one below the other.
+    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.weight(1.4f)) {
+            Card {
+                Label("Cash on hand", Plus.TextMid)
+                Amount(cash.total, style = HeroAmount)
+                Text(
+                    "${cash.memberCountLine} · ${cash.lastUpdated}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Plus.TextLow,
+                )
+                cash.pendingLine?.let {
+                    Row(
+                        modifier = Modifier.padding(top = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Box(Modifier.size(8.dp).background(Plus.Pending, CircleShape))
+                        Text(it, style = MaterialTheme.typography.bodySmall, color = Plus.Pending)
+                    }
+                }
+            }
+        }
+        Column(Modifier.weight(1f)) {
+            Card {
+                Label("Where it is")
+                for (a in cash.accounts) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            a.label + if (a.earns) " · earns" else "",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (a.earns) Plus.Money else Plus.TextMid,
+                        )
+                        Amount(a.balance)
+                    }
+                }
+            }
+        }
+        Column(Modifier.weight(1f)) {
+            Card {
+                Label("What it is for")
+                for (p in cash.pockets) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(p.label, style = MaterialTheme.typography.bodyMedium, color = Plus.TextMid)
+                        Amount(p.balance)
+                    }
+                }
+            }
+        }
+    }
+
+    // A conflict is somebody's money stuck. It outranks a routine confirmation.
+    if (toSettle.isNotEmpty()) {
+        Card(colour = Plus.DebtDim) {
+            Text(
+                if (toSettle.size == 1) "1 entry needs settling" else "${toSettle.size} entries need settling",
+                style = MaterialTheme.typography.titleMedium,
+                color = Plus.Debt,
+            )
+            Text(
+                "Two members could not agree. The member who was not involved decides.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Plus.TextMid,
+            )
+            for (t in toSettle) {
+                Text(
+                    "· ${t.sentence} — ${t.amount}" +
+                        (t.settledBy.firstOrNull()?.let { " · ${it.name} settles it" } ?: ""),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Plus.TextMid,
+                )
+            }
+        }
+    }
+
+    if (waiting.isNotEmpty()) {
+        Card(colour = Plus.PendingDim) {
+            Text(
+                if (waiting.size == 1) "1 entry needs confirming" else "${waiting.size} entries need confirming",
+                style = MaterialTheme.typography.titleMedium,
+                color = Plus.Pending,
+            )
+            for (act in waiting) {
+                Column(Modifier.padding(top = 8.dp), Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "${act.sentence} · ${act.amount}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Plus.TextHigh,
+                    )
+                    Text(
+                        "Recorded by ${act.recordedBy}, who cannot confirm it.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Plus.TextMid,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        for (who in act.eligibleConfirmers) {
+                            BigButton("Confirm as ${who.name}") {
+                                onChange(session.confirmAct(act.actId, who.id, now))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (overdraw.any) {
+        Card(colour = Plus.DebtDim) {
+            Text(overdraw.headline, style = MaterialTheme.typography.titleMedium, color = Plus.Debt)
+            Text(
+                "Recorded, not blocked — the money did move. Kept so the cause can be traced.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Plus.TextMid,
+            )
+            for (a in overdraw.byAccount) {
+                ReviewLine("${a.account} · ${a.times}x", "worst ${a.worstShortfall}")
+            }
+            HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 6.dp))
+            Label("Who the slips involve")
+            for (m in overdraw.byMember) {
+                Text(
+                    "${m.name} — in ${m.involvedIn}, recorded ${m.recorded}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Plus.TextMid,
+                )
+            }
+        }
+    }
+
+    SectionHeading("Members")
+    for (m in session.book.founderCards()) MemberLine(m) { onOpenMember(m.id) }
+
+    val borrowers = session.book.beneficiaryCards()
+    if (borrowers.isNotEmpty()) {
+        SectionHeading("Keshflo borrowers")
+        for (m in borrowers) MemberLine(m) { onOpenMember(m.id) }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("Recent activity", style = MaterialTheme.typography.titleLarge, color = Plus.TextHigh)
+        BigButton("See the whole ledger", filled = false, onClick = onOpenLedger)
+    }
+    for (row in session.book.activity(now, limit = 6)) {
+        ActivityLine(row) { onOpenEntry(row.entryId) }
+    }
 }
 
 @Composable
-private fun NoticeBar(notice: Notice) {
-    val colour = when (notice) {
-        is Notice.Refused -> MaterialTheme.colorScheme.errorContainer
-        is Notice.Info -> MaterialTheme.colorScheme.secondaryContainer
+private fun SectionHeading(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleLarge,
+        color = Plus.TextHigh,
+        modifier = Modifier.padding(top = 10.dp),
+    )
+}
+
+@Composable
+private fun MemberLine(m: MemberCard, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Plus.Surface, RoundedCornerShape(Plus.CardCorner))
+            .tappable(onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Avatar(m.initial, m.inDebt)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(m.name, style = MaterialTheme.typography.titleMedium, color = Plus.TextHigh)
+            Text(
+                m.standingLine,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (m.inDebt) Plus.Debt else Plus.TextLow,
+            )
+        }
+        Column(horizontalAlignment = Alignment.End) {
+            if (m.isBeneficiary) {
+                Text("Keshflo loan", style = MaterialTheme.typography.labelSmall, color = Plus.TextLow)
+            } else {
+                Amount(m.stake)
+                Text("pool contribution", style = MaterialTheme.typography.labelSmall, color = Plus.TextLow)
+            }
+        }
     }
-    Surface(color = colour, modifier = Modifier.fillMaxWidth()) {
-        Text(notice.text, modifier = Modifier.padding(12.dp, 8.dp), style = MaterialTheme.typography.bodySmall)
+}
+
+@Composable
+private fun ActivityLine(row: ActivityRow, onClick: (() -> Unit)? = null) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.tappable(onClick) else Modifier)
+            .padding(vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        StandingDot(row.standing)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(row.sentence, style = MaterialTheme.typography.bodyLarge, color = Plus.TextHigh)
+            Text(row.footnote, style = MaterialTheme.typography.bodySmall, color = Plus.TextLow)
+            row.assurance?.let { a ->
+                Text(
+                    a.label() + (row.reference?.let { " · $it" } ?: ""),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (a == Assurance.CODE_MATCHED) Plus.Money else Plus.TextLow,
+                )
+            }
+        }
+        Amount(row.amount)
+        if (onClick != null) {
+            Text("›", style = MaterialTheme.typography.titleLarge, color = Plus.TextLow)
+        }
+    }
+    HorizontalDivider(color = Plus.Divider)
+}
+
+// ── the detail views ────────────────────────────────────────────────────────
+
+@Composable
+private fun MemberBody(
+    session: Session,
+    memberId: String,
+    now: Instant,
+    onOpenEntry: (String) -> Unit,
+) {
+    val d = session.book.memberDetail(memberId, now)
+    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Card {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Avatar(d.initial, d.inDebt)
+                    Column {
+                        Label("Pool contribution")
+                        Amount(d.stake, style = BigAmount)
+                    }
+                }
+                HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 8.dp))
+                Text(
+                    d.standingLine,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (d.inDebt) Plus.Debt else Plus.Money,
+                )
+                Text(
+                    "${d.contributionCount} contributions · ${d.activeLoanCount} active " +
+                        if (d.activeLoanCount == 1) "loan" else "loans",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Plus.TextLow,
+                )
+            }
+            for (loan in d.loans) {
+                Card {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Label(if (loan.settled) "Settled" else "Pending loan amount")
+                        Amount(loan.outstanding, colour = if (loan.settled) Plus.Money else Plus.Debt)
+                    }
+                    HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 8.dp))
+                    ReviewLine("Borrowed", loan.principal)
+                    ReviewLine("Interest (${loan.rateLabel})", loan.interest)
+                    ReviewLine("M-Pesa charge", loan.mpesaCharge)
+                    if (loan.hasBankCharge) ReviewLine("Bank charge", loan.bankCharge)
+                    ReviewLine("Paid back so far", loan.repaid)
+                }
+            }
+        }
+        Column(Modifier.weight(1f)) {
+            Text("Their activity", style = MaterialTheme.typography.titleLarge, color = Plus.TextHigh)
+            Box(Modifier.height(8.dp))
+            for (row in d.activity) ActivityLine(row) { onOpenEntry(row.entryId) }
+        }
+    }
+}
+
+@Composable
+private fun EntryBody(session: Session, entryId: String, now: Instant) {
+    val d = session.book.entryDetail(entryId, session.config, now)
+    if (d == null) {
+        Card { Text("That entry is not in the book.", color = Plus.TextMid) }
+        return
+    }
+    Card {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Label(d.typeLabel)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                StandingDot(d.standing)
+                Text(
+                    d.standingLabel,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = when (d.standing) {
+                        Standing.CONFIRMED -> Plus.Money
+                        Standing.PENDING -> Plus.Pending
+                        else -> Plus.Debt
+                    },
+                )
+            }
+        }
+        Amount(d.amount, style = HeroAmount)
+        Text(d.headline, style = MaterialTheme.typography.bodyLarge, color = Plus.TextMid)
+        d.assuranceLabel?.let {
+            HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 8.dp))
+            Text(it, style = MaterialTheme.typography.titleMedium, color = Plus.Money)
+            d.assuranceBlurb?.let { b ->
+                Text(b, style = MaterialTheme.typography.bodySmall, color = Plus.TextMid)
+            }
+        }
+    }
+    Card {
+        Label("Who and when")
+        ReviewLine("Member", d.member)
+        d.account?.let { ReviewLine("Account", it) }
+        ReviewLine("Recorded by", "${d.recordedBy} · ${d.recordedWhen}")
+        d.confirmedBy?.let { ReviewLine("Confirmed by", "$it · ${d.confirmedWhen ?: ""}".trim()) }
+        d.rejectedBy?.let { ReviewLine("Rejected by", it) }
+    }
+    d.recordedEvidence?.let { e ->
+        Card {
+            Label("Recorder's message")
+            Text("Code ${e.reference}", style = MaterialTheme.typography.titleMedium, color = Plus.Money)
+            ReviewLine("Amount", e.amount)
+            ReviewLine("Direction", e.direction)
+            ReviewLine("Pasted by", e.whose)
+            Text(
+                e.raw,
+                style = MaterialTheme.typography.bodySmall,
+                color = Plus.TextLow,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Plus.Background, RoundedCornerShape(10.dp))
+                    .padding(12.dp),
+            )
+        }
+    }
+    d.confirmedEvidence?.let { e ->
+        Card {
+            Label("Confirmer's message")
+            Text("Code ${e.reference}", style = MaterialTheme.typography.titleMedium, color = Plus.Money)
+            ReviewLine("Pasted by", e.whose)
+        }
+    }
+    d.conflict?.let { c ->
+        Card(colour = Plus.PendingDim) {
+            Label(c.kind, Plus.Pending)
+            Text(
+                "Raised by ${c.raisedBy} · ${c.whenIt}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Plus.TextMid,
+            )
+            for (r in c.reasons) {
+                Text("· $r", style = MaterialTheme.typography.bodySmall, color = Plus.Pending)
+            }
+        }
+    }
+    if (d.overrides.isNotEmpty()) {
+        Card {
+            Label("Override history")
+            for (o in d.overrides) {
+                Text(o.decision, style = MaterialTheme.typography.titleMedium, color = Plus.TextHigh)
+                Text("${o.by} · ${o.whenIt}", style = MaterialTheme.typography.bodySmall, color = Plus.TextLow)
+                Text("\"${o.reason}\"", style = MaterialTheme.typography.bodyMedium, color = Plus.TextMid)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LedgerBody(session: Session, now: Instant, onOpenEntry: (String) -> Unit) {
+    val rows = session.book.activity(now, everything = true)
+    val counts = rows.groupingBy { it.standing }.eachCount()
+    Card(colour = Plus.SurfaceRaised) {
+        Text(
+            "Everything that has ever happened",
+            style = MaterialTheme.typography.titleMedium,
+            color = Plus.TextHigh,
+        )
+        Text(
+            "${rows.size} entries. Only ever added, never changed or deleted — a mistake " +
+                "is corrected by adding the correction, and both stay.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Plus.TextMid,
+        )
+        Row(modifier = Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Tally("confirmed", counts[Standing.CONFIRMED] ?: 0, Plus.Money)
+            Tally("waiting", counts[Standing.PENDING] ?: 0, Plus.Pending)
+            Tally("in dispute", counts[Standing.NEEDS_SETTLING] ?: 0, Plus.Debt)
+            Tally("rejected", counts[Standing.REJECTED] ?: 0, Plus.Debt)
+        }
+    }
+    for (row in rows) ActivityLine(row) { onOpenEntry(row.entryId) }
+}
+
+@Composable
+private fun Tally(label: String, count: Int, colour: Color) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(8.dp).background(colour, CircleShape))
+        Text("$count $label", style = MaterialTheme.typography.bodySmall, color = Plus.TextMid)
     }
 }

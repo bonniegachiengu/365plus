@@ -630,6 +630,44 @@ unhelpfully) and verifying the install afterwards rather than assuming it.
 **Follow-up:** the icon is the Compose placeholder. Real 365+ branding is
 outstanding.
 
+## D32 - The desktop looks like the phone; only the paint is local
+
+**Decided:** 2026-08-29. **Status:** settled, with a known duplication.
+
+The laptop now wears the same dark fintech look as the phone: the cash-on-hand
+hero, both splits, and clickable member, entry and ledger views.
+
+The palette and the small widgets are **duplicated** in `desktop/Theme.kt` and
+`desktop/Parts.kt` rather than shared, because the two shells draw with different
+Compose artifacts and a shared UI module is a bigger change than this warranted.
+
+What is not duplicated is anything that decides a number or a sentence — every
+figure and phrase comes from `core/presentation`, so the two shells cannot
+disagree about the ledger even while each owns its own paint. That is the line:
+**logic shared, paint local.**
+
+If the palettes ever drift, the fix is the shared UI module, not a second copy.
+
+The laptop uses its extra room: the hero and both splits sit side by side rather
+than stacked, so where the money is and what it is for read at once.
+
+## D33 - Rebuilding the installer means uninstall, then install
+
+**Decided:** 2026-08-29. **Status:** settled, after two failures.
+
+Reinstalling the same version is the normal case while developing, and Windows
+fights it. A plain `/i` returns **1638** ("another version is already
+installed"). `REINSTALL=ALL REINSTALLMODE=vomus` gets as far as **1603**, a bare
+"fatal error" that says nothing.
+
+`tools/install-desktop.ps1` now removes the installed product first and installs
+clean. A few seconds slower, identical every time.
+
+It also stops the running app before building rather than after, because Windows
+will not overwrite a running exe — and it ignores processes that are already gone
+by the time the loop reaches them, since the jpackage launcher spawns a child of
+the same name and killing the parent takes the child with it.
+
 ---
 
 ## Still open

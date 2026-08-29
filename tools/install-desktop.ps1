@@ -20,10 +20,16 @@ if (-not $env:JAVA_HOME) {
 
 # Nothing can overwrite a running exe, so stop it before building rather than
 # after — the build takes a minute and there is no reason to wait to find out.
+# The jpackage launcher spawns a child of the same name, so killing the parent
+# takes the child with it. Ignore the ones that are already gone by the time the
+# loop reaches them, or the script dies on its own success.
 Get-Process Plus365 -ErrorAction SilentlyContinue | ForEach-Object {
     Write-Host "Closing the running app (pid $($_.Id))"
-    Stop-Process -Id $_.Id -Force
-    Start-Sleep -Milliseconds 500
+    Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+}
+Start-Sleep -Milliseconds 800
+if (Get-Process Plus365 -ErrorAction SilentlyContinue) {
+    throw "The app is still running. Close it and try again."
 }
 
 Write-Host "Building the installer..."
@@ -35,6 +41,29 @@ $msi = Get-ChildItem "$repo\desktop\build\compose\binaries\main\msi\*.msi" |
 Write-Host "Installing $($msi.Name)"
 
 $log = Join-Path $env:TEMP "plus365-install.log"
+
+# Uninstall first, then install clean.
+#
+# Reinstalling over the same version is the normal case during development, and
+# Windows fights it: a plain /i returns 1638 ("another version is already
+# installed"), and REINSTALL=ALL REINSTALLMODE=vomus gets as far as 1603, a bare
+# "fatal error". Removing the old product first costs a few seconds and behaves
+# the same every time, which is worth more than the seconds.
+$uninstallKeys = @(
+    "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*"
+)
+$installed = Get-ItemProperty $uninstallKeys -ErrorAction SilentlyContinue |
+    Where-Object { $_.DisplayName -eq "Plus365" }
+
+foreach ($prod in $installed) {
+    Write-Host "Removing the installed $($prod.DisplayName) $($prod.DisplayVersion)"
+    $u = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
+        "/x", $prod.PSChildName, "/qn", "/norestart"
+    )
+    if ($u.ExitCode -ne 0) { Write-Host "  (uninstall returned $($u.ExitCode), continuing)" }
+}
+
 $p = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
     "/i", "`"$($msi.FullName)`"", "/qn", "/norestart", "/l*v", "`"$log`""
 )
