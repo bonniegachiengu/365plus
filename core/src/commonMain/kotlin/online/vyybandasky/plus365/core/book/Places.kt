@@ -42,8 +42,25 @@ import online.vyybandasky.plus365.core.sms.redactContactNumbers
  * balance cannot be deleted without losing where that balance is. Both could be
  * made safe with an emptiness check — but an account that once held money is
  * part of the record of where money has been, and this ledger does not delete
- * that any more than it deletes an entry. Renaming is the thing people actually
- * want, and it can be added when somebody asks for it.
+ * that any more than it deletes an entry.
+ *
+ * ## Renaming, which somebody did ask for
+ *
+ * The note here used to say renaming "can be added when somebody asks for it".
+ * Brian asked: the group's books call the two accounts *Founder's A/C* and
+ * *Keshflo A/C*, and he wants the same wording as the old system.
+ *
+ * Changing the seed was not enough, and finding out why is the useful part. A
+ * ledger stores its own accounts, pockets and members, so the definitions are
+ * frozen into the file the day it is created. The rename reached a fresh book
+ * and left the one on this laptop still saying "Members' pool" — and it would
+ * have left Brian's real ledger saying whatever it was created with, for ever.
+ *
+ * An id never changes; only the label does. Entries point at ids, so renaming
+ * cannot orphan anything, and a rename is not an event in the ledger — no money
+ * moves and no balance shifts. What it does change is what everybody reads, so
+ * it goes through the same duplicate-label check as adding: two rows reading
+ * "KCB" is a person choosing at random on a screen about money.
  */
 
 /** Add a place money can sit. */
@@ -116,5 +133,70 @@ fun LedgerBook.addPocket(
                 redactContactNumbers(blurb.trim()),
             ),
         ),
+    )
+}
+
+/**
+ * Give an account the name people actually call it.
+ *
+ * The id is untouched — entries point at ids, so a rename can never orphan
+ * anything, and the whole change is what a person reads.
+ */
+fun LedgerBook.renameAccount(
+    id: AccountId,
+    label: String,
+    by: MemberId,
+    config: ActorConfig,
+): Decision<LedgerBook> {
+    when (val gate = checkRecord(by, config)) {
+        is Decision.Refused -> return gate
+        is Decision.Allowed -> Unit
+    }
+    if (!isFounder(by)) return Decision.Refused(Refusal.NotAMember(by))
+
+    val existing = accounts.firstOrNull { it.id == id }
+        ?: return Decision.Refused(Refusal.Invalid("There is no account $id."))
+    val trimmed = redactContactNumbers(label.trim())
+    if (trimmed.isBlank()) {
+        return Decision.Refused(Refusal.Invalid("An account needs a name."))
+    }
+    if (trimmed == existing.label) return Decision.Allowed(this)
+    if (accounts.any { it.id != id && it.label.equals(trimmed, ignoreCase = true) }) {
+        return Decision.Refused(
+            Refusal.Invalid("There is already an account called \"$trimmed\"."),
+        )
+    }
+    return Decision.Allowed(
+        copy(accounts = accounts.map { if (it.id == id) it.copy(label = trimmed) else it }),
+    )
+}
+
+/** The same, for what money is set aside for. */
+fun LedgerBook.renamePocket(
+    id: PocketId,
+    label: String,
+    by: MemberId,
+    config: ActorConfig,
+): Decision<LedgerBook> {
+    when (val gate = checkRecord(by, config)) {
+        is Decision.Refused -> return gate
+        is Decision.Allowed -> Unit
+    }
+    if (!isFounder(by)) return Decision.Refused(Refusal.NotAMember(by))
+
+    val existing = pockets.firstOrNull { it.id == id }
+        ?: return Decision.Refused(Refusal.Invalid("There is no pocket $id."))
+    val trimmed = redactContactNumbers(label.trim())
+    if (trimmed.isBlank()) {
+        return Decision.Refused(Refusal.Invalid("A pocket needs a name."))
+    }
+    if (trimmed == existing.label) return Decision.Allowed(this)
+    if (pockets.any { it.id != id && it.label.equals(trimmed, ignoreCase = true) }) {
+        return Decision.Refused(
+            Refusal.Invalid("There is already a pocket called \"$trimmed\"."),
+        )
+    }
+    return Decision.Allowed(
+        copy(pockets = pockets.map { if (it.id == id) it.copy(label = trimmed) else it }),
     )
 }

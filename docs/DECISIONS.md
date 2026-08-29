@@ -2241,6 +2241,45 @@ remainder are entries that will arrive with the real history.
 
 ---
 
+## D79 — Renaming, because changing the seed was not enough
+
+`Places.kt` said renaming "can be added when somebody asks for it". Brian asked:
+the group's books call the two accounts **Founder's A/C** and **Keshflo A/C**, and
+he wants the same wording as the old system.
+
+D77 changed the seed. Screenshotting the result showed the laptop still saying
+*"Members' pool"*, and the reason is the important part:
+
+**A ledger stores its own accounts, pockets and members.** Those definitions are
+frozen into the file the day it is created. Changing the seed reaches a fresh
+book and nothing else — so the relabel would have applied to a demo and left
+Brian's real ledger saying whatever it was created with, for ever. Without a
+rename, the alignment was cosmetic.
+
+An id never moves; only the label does. Entries point at ids, so a rename cannot
+orphan anything — and a test contributes to a pocket, renames it, and checks the
+money is still in it. A rename adds no entry and shifts no balance, so it goes
+through the same gates as adding a place: founders only, no duplicate label, and
+the same redaction, because *"Pochi 0712345678"* is a plausible thing to type.
+
+On both shells the name is tappable and becomes a field in place. Renaming is a
+two-second correction of a word somebody typed; a screen for it would be more
+ceremony than the act deserves.
+
+### The same problem, still open, for targets
+
+Contribution targets are stored on the member records, so an existing ledger has
+none — exactly the same freeze. A fresh book gets 8,000 from the seed; the one on
+this laptop shows no target at all.
+
+I have not built target-setting, and the reason is not effort. *Who may change an
+agreed contribution target* is a governance question, not a UI one: it is an
+agreement between three people, and unlike a label it changes whether somebody is
+behind. Renaming a thing and redefining what you owe are not the same act. That
+is Bonnie's call, and the real ledger will carry targets from whatever loads it.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

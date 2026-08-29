@@ -44,18 +44,19 @@ fun PlacesBody(session: Session, now: Instant, onChange: (Session) -> Unit) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Card {
                 Label("Where it is")
+                Text(
+                    "Tap a name to change it. The money does not move — only what " +
+                        "everybody reads.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Plus.TextLow,
+                )
                 for (a in cash.accounts) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(
-                            a.label + if (a.earns) " · earns" else "",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (a.earns) Plus.Money else Plus.TextMid,
-                        )
-                        Amount(a.balance)
-                    }
+                    RenamableRow(
+                        label = a.label + if (a.earns) " · earns" else "",
+                        amount = a.balance,
+                        earns = a.earns,
+                        onRename = { onChange(session.renameAccount(a.id, it)) },
+                    )
                 }
             }
             AddAccountCard(session, onChange)
@@ -63,14 +64,18 @@ fun PlacesBody(session: Session, now: Instant, onChange: (Session) -> Unit) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Card {
                 Label("What it is for")
+                Text(
+                    "These are the group's own two accounts. Tap a name to change it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Plus.TextLow,
+                )
                 for (p in cash.pockets) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(vertical = 3.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Text(p.label, style = MaterialTheme.typography.bodyMedium, color = Plus.TextMid)
-                        Amount(p.balance)
-                    }
+                    RenamableRow(
+                        label = p.label,
+                        amount = p.balance,
+                        earns = false,
+                        onRename = { onChange(session.renamePocket(p.id, it)) },
+                    )
                 }
             }
             AddPocketCard(session, onChange)
@@ -208,4 +213,55 @@ private fun AccountKind.plainBlurb(): String = when (this) {
     AccountKind.BANK -> "A bank account. Messages arrive, including ATM withdrawals."
     AccountKind.CASH -> "Notes in somebody's hand. Nothing sends a message about it, " +
         "so every entry here is somebody's word."
+}
+
+/**
+ * A place, its balance, and a way to correct its name in place.
+ *
+ * Tapping the name turns it into a field rather than opening a screen. Renaming
+ * is a two-second correction of a word somebody typed, and a screen for it would
+ * be more ceremony than the act deserves.
+ */
+@Composable
+private fun RenamableRow(
+    label: String,
+    amount: String,
+    earns: Boolean,
+    onRename: (String) -> Unit,
+) {
+    var editing by remember(label) { mutableStateOf(false) }
+    var draft by remember(label) { mutableStateOf(label.substringBefore(" · earns")) }
+
+    if (editing) {
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 3.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            NameField(draft, "What should it be called", Modifier.weight(1f)) { draft = it }
+            BigButton("Save", enabled = draft.isNotBlank(), modifier = Modifier.width(90.dp)) {
+                onRename(draft)
+                editing = false
+            }
+            BigButton("Cancel", filled = false, modifier = Modifier.width(90.dp)) {
+                draft = label.substringBefore(" · earns")
+                editing = false
+            }
+        }
+    } else {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .tappable { editing = true }
+                .padding(vertical = 3.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (earns) Plus.Money else Plus.TextMid,
+            )
+            Amount(amount)
+        }
+    }
 }

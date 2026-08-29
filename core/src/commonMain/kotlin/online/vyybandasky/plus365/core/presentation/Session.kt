@@ -18,6 +18,8 @@ import online.vyybandasky.plus365.core.book.disburseLoan
 import online.vyybandasky.plus365.core.book.reallocate
 import online.vyybandasky.plus365.core.book.record
 import online.vyybandasky.plus365.core.book.recordAccountInterest
+import online.vyybandasky.plus365.core.book.renameAccount
+import online.vyybandasky.plus365.core.book.renamePocket
 import online.vyybandasky.plus365.core.book.reverse
 import online.vyybandasky.plus365.core.book.transfer
 import online.vyybandasky.plus365.core.domain.EntryState
@@ -549,6 +551,32 @@ data class Session(
             is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
         }
     }
+
+    /**
+     * Rename a place. Moves nothing; changes what everybody reads.
+     *
+     * Needed because a ledger stores its own account and pocket definitions, so
+     * changing the seed reaches a fresh book and leaves every existing one
+     * saying whatever it was created with.
+     */
+    fun renameAccount(id: String, label: String): Session =
+        when (val r = book.renameAccount(id, label, actingAs, config)) {
+            is Decision.Allowed -> copy(
+                book = r.value,
+                notice = Notice.Info("Renamed to ${label.trim()}."),
+            )
+            is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
+        }
+
+    /** The same, for what money is set aside for. */
+    fun renamePocket(id: String, label: String): Session =
+        when (val r = book.renamePocket(id, label, actingAs, config)) {
+            is Decision.Allowed -> copy(
+                book = r.value,
+                notice = Notice.Info("Renamed to ${label.trim()}."),
+            )
+            is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
+        }
 
     /** Add something money can be set aside for. */
     fun addPocket(label: String, blurb: String = ""): Session {

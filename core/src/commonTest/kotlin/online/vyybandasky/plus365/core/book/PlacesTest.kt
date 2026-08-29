@@ -168,3 +168,119 @@ class SlugTest {
         assertEquals(ids.size, ids.toSet().size, "two pockets share an id: $ids")
     }
 }
+
+/**
+ * Renaming a place, which is what Brian actually asked for.
+ *
+ * The note in `Places.kt` used to say renaming could be added when somebody
+ * asked. Somebody did: the group's books call the two accounts *Founder's A/C*
+ * and *Keshflo A/C*.
+ *
+ * Changing the seed was not enough, and that is the part worth a test. A ledger
+ * stores its own accounts and pockets, so the definitions are frozen into the
+ * file the day it is created — the new names reached a fresh book and left the
+ * existing one saying "Members' pool".
+ */
+class RenamePlacesTest {
+
+    private val config = ActorConfig.dev(DevSeed.BONNIE, DevSeed.EVERYONE)
+
+    private fun book() = LedgerBook(
+        members = DevSeed.MEMBERS,
+        accounts = DevSeed.ACCOUNTS,
+        pockets = DevSeed.POCKETS,
+    )
+
+    private fun <T> Decision<T>.value(): T = (this as Decision.Allowed).value
+
+    @Test
+    fun a_pocket_takes_the_name_the_group_uses() {
+        val b = book().renamePocket(DevSeed.POOL, "Founder's A/C", DevSeed.BONNIE, config).value()
+        assertEquals("Founder's A/C", b.pockets.single { it.id == DevSeed.POOL }.label)
+    }
+
+    @Test
+    fun the_id_never_moves_so_nothing_is_orphaned() {
+        // Entries point at ids. If a rename touched those, every entry against
+        // the old pocket would be pointing at nothing.
+        var b = book()
+        b = (
+            b.record(
+                id = "c1", type = EntryType.CONTRIBUTION, amountCents = 100_000,
+                memberId = DevSeed.BONNIE, recordedBy = DevSeed.BONNIE, config = config,
+                pocketId = DevSeed.POOL,
+            ) as Decision.Allowed
+            ).value.book
+        b = (b.confirm("c1", DevSeed.BRIAN, config) as Decision.Allowed).value.book
+        val before = b.state().pocketBalance(DevSeed.POOL)
+
+        b = b.renamePocket(DevSeed.POOL, "Founder's A/C", DevSeed.BONNIE, config).value()
+
+        assertEquals(before, b.state().pocketBalance(DevSeed.POOL), "the money lost its pocket")
+        assertTrue(b.state().balances)
+        assertEquals(DevSeed.POOL, b.pockets.single { it.label == "Founder's A/C" }.id)
+    }
+
+    @Test
+    fun renaming_moves_no_money_and_adds_no_entry() {
+        var b = book()
+        b = (
+            b.record(
+                id = "c2", type = EntryType.CONTRIBUTION, amountCents = 500_000,
+                memberId = DevSeed.BONNIE, recordedBy = DevSeed.BONNIE, config = config,
+            ) as Decision.Allowed
+            ).value.book
+        b = (b.confirm("c2", DevSeed.BRIAN, config) as Decision.Allowed).value.book
+        val cash = b.state().poolCashCents
+        val entries = b.entries.size
+
+        b = b.renameAccount(DevSeed.POCHI, "Pochi", DevSeed.BONNIE, config).value()
+
+        assertEquals(cash, b.state().poolCashCents)
+        assertEquals(entries, b.entries.size, "a rename is not an event in the ledger")
+    }
+
+    @Test
+    fun two_places_still_cannot_share_a_name() {
+        val r = book().renameAccount(DevSeed.POCHI, "Ziidi", DevSeed.BONNIE, config)
+        assertTrue(r is Decision.Refused, "two accounts reading Ziidi is a person guessing")
+    }
+
+    @Test
+    fun renaming_to_the_same_name_is_not_an_error() {
+        val b = book().renameAccount(DevSeed.POCHI, "M-Pesa Pochi", DevSeed.BONNIE, config).value()
+        assertEquals("M-Pesa Pochi", b.accounts.single { it.id == DevSeed.POCHI }.label)
+    }
+
+    @Test
+    fun a_nameless_rename_is_refused() {
+        assertTrue(
+            book().renamePocket(DevSeed.POOL, "   ", DevSeed.BONNIE, config) is Decision.Refused,
+        )
+    }
+
+    @Test
+    fun a_keshflo_borrower_cannot_rename_anything() {
+        assertTrue(
+            book().renamePocket(DevSeed.POOL, "Mine", DevSeed.WANJIKU, config) is Decision.Refused,
+        )
+    }
+
+    @Test
+    fun a_number_typed_into_a_name_is_still_redacted() {
+        val b = book().renameAccount(DevSeed.POCHI, "Pochi 0712345678", DevSeed.BONNIE, config)
+            .value()
+        val label = b.accounts.single { it.id == DevSeed.POCHI }.label
+        assertTrue("0712345678" !in label, label)
+        assertTrue("Pochi" in label, label)
+    }
+
+    @Test
+    fun a_renamed_place_survives_a_save() {
+        val b = book().renamePocket(DevSeed.POOL, "Founder's A/C", DevSeed.BONNIE, config).value()
+        val back = online.vyybandasky.plus365.core.store.decodeBook(
+            online.vyybandasky.plus365.core.store.encodeBook(b),
+        ).getOrThrow()
+        assertEquals("Founder's A/C", back.pockets.single { it.id == DevSeed.POOL }.label)
+    }
+}
