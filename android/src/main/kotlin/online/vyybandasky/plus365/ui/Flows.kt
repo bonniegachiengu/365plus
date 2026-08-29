@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.datetime.Instant
+import online.vyybandasky.plus365.core.domain.ChargeKind
 import online.vyybandasky.plus365.core.domain.MemberKind
 import online.vyybandasky.plus365.core.presentation.MemberCard
 import online.vyybandasky.plus365.core.presentation.PoolAction
@@ -76,6 +77,11 @@ fun FlowScreen(
     var loan by remember(action) { mutableStateOf<RepayableLoan?>(null) }
     var amount by remember(action) { mutableStateOf("") }
     var sms by remember(action) { mutableStateOf("") }
+    // The books carry a loan as four figures and the third is the cost of
+    // moving the money. Every loan recorded here had a cost of zero, because
+    // nothing ever asked.
+    var cost by remember(action) { mutableStateOf("") }
+    var costKind by remember(action) { mutableStateOf(ChargeKind.MPESA) }
 
     // Lending can go to a Keshflo borrower; contributing cannot.
     val members = if (action == PoolAction.LEND) {
@@ -121,6 +127,10 @@ fun FlowScreen(
                     loan = loan,
                     amount = amount,
                     onAmount = { amount = it },
+                    cost = cost,
+                    onCost = { cost = it },
+                    costKind = costKind,
+                    onCostKind = { costKind = it },
                     onNext = { step = Step.REVIEW },
                 )
 
@@ -131,6 +141,8 @@ fun FlowScreen(
                     member = member,
                     loan = loan,
                     cents = cents,
+                    costCents = (cost.toLongOrNull() ?: 0L) * 100,
+                    costKind = costKind,
                     sms = sms,
                     onSms = { sms = it },
                     onRecord = { onCommit(it) },
@@ -242,6 +254,10 @@ private fun AmountStep(
     loan: RepayableLoan?,
     amount: String,
     onAmount: (String) -> Unit,
+    cost: String,
+    onCost: (String) -> Unit,
+    costKind: ChargeKind,
+    onCostKind: (ChargeKind) -> Unit,
     onNext: () -> Unit,
 ) {
     val heading = when (action) {
@@ -305,6 +321,62 @@ private fun AmountStep(
     }
 
     val ok = (amount.toLongOrNull() ?: 0L) > 0L
+    // A loan costs something to move, and the group has always tracked that
+    // separately — burying it inside the principal would put our running total
+    // a few shillings from theirs with no way to tell which was right.
+    if (action == PoolAction.LEND || action == PoolAction.BORROW) {
+        Text(
+            "What did it cost to send?",
+            style = MaterialTheme.typography.titleMedium,
+            color = Plus.TextHigh,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        Text(
+            "Leave it empty if there was no charge.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Plus.TextLow,
+        )
+        OutlinedTextField(
+            value = cost,
+            onValueChange = { onCost(it.filter(Char::isDigit).take(6)) },
+            label = { Text("Transaction cost in KSh") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Plus.Money,
+                unfocusedBorderColor = Plus.Divider,
+                focusedTextColor = Plus.TextHigh,
+                unfocusedTextColor = Plus.TextHigh,
+                focusedLabelColor = Plus.Money,
+                unfocusedLabelColor = Plus.TextLow,
+                cursorColor = Plus.Money,
+            ),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for (k in ChargeKind.entries) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(
+                            if (k == costKind) Plus.MoneyDim else Plus.Surface,
+                            RoundedCornerShape(12.dp),
+                        )
+                        .tappable { onCostKind(k) }
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        if (k == ChargeKind.MPESA) "M-Pesa charge" else "Bank charge",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (k == costKind) Plus.Money else Plus.TextMid,
+                    )
+                }
+            }
+        }
+    }
+
     BigButton("Continue", enabled = ok, onClick = onNext)
 }
 
@@ -318,6 +390,8 @@ private fun ReviewStep(
     member: String,
     loan: RepayableLoan?,
     cents: Long,
+    costCents: Long,
+    costKind: ChargeKind,
     sms: String,
     onSms: (String) -> Unit,
     onRecord: (Session) -> Unit,
@@ -326,7 +400,7 @@ private fun ReviewStep(
     val isLoan = action == PoolAction.LEND || action == PoolAction.BORROW
     val borrower = session.book.member(member)
     val quote = if (isLoan) {
-        quoteLoan(cents, borrower?.kind ?: MemberKind.FOUNDER)
+        quoteLoan(cents, borrower?.kind ?: MemberKind.FOUNDER, txnCostCents = costCents)
     } else {
         null
     }
@@ -359,6 +433,12 @@ private fun ReviewStep(
                 ReviewLine("Amount borrowed", quote!!.principal)
                 ReviewLine("Interest (${quote.rateLabel})", quote.interest)
                 ReviewLine("Rate applied", quote.tierLabel)
+                if (costCents > 0L) {
+                    ReviewLine(
+                        if (costKind == ChargeKind.MPESA) "M-Pesa charge" else "Bank charge",
+                        quote.txnCost,
+                    )
+                }
                 HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 8.dp))
                 // "They" is wrong when the borrower is the person reading it.
                 ReviewLine(
@@ -461,8 +541,18 @@ private fun ReviewStep(
             PoolAction.PAY_OUT -> session.payOut(member, cents, now, paste)
             PoolAction.MEMBER_LENDS_IN -> session.memberLendsIn(member, cents, now, paste)
             PoolAction.REPAY_MEMBER -> session.repayMember(member, cents, now, paste)
-            PoolAction.LEND -> session.lend(member, cents, at = now, smsText = paste)
-            PoolAction.BORROW -> session.borrow(member, cents, at = now, smsText = paste)
+            PoolAction.LEND -> session.lend(
+                member, cents,
+                mpesaChargeCents = if (costKind == ChargeKind.MPESA) costCents else 0L,
+                bankChargeCents = if (costKind == ChargeKind.BANK) costCents else 0L,
+                at = now, smsText = paste,
+            )
+            PoolAction.BORROW -> session.borrow(
+                member, cents,
+                mpesaChargeCents = if (costKind == ChargeKind.MPESA) costCents else 0L,
+                bankChargeCents = if (costKind == ChargeKind.BANK) costCents else 0L,
+                at = now, smsText = paste,
+            )
             PoolAction.REPAY -> session.repay(loan!!.loanId, member, cents, now, paste)
         }
         onRecord(next)

@@ -24,6 +24,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.money.formatKes
+import online.vyybandasky.plus365.core.domain.ChargeKind
 import online.vyybandasky.plus365.core.domain.MemberKind
 import online.vyybandasky.plus365.core.presentation.quoteLoan
 import online.vyybandasky.plus365.core.presentation.PoolAction
@@ -58,6 +59,11 @@ fun RecordCard(session: Session, now: Instant, onChange: (Session) -> Unit) {
     var loan by remember(action) { mutableStateOf<RepayableLoan?>(null) }
     var amount by remember(action) { mutableStateOf("") }
     var sms by remember(action) { mutableStateOf("") }
+    // The books carry a loan as four figures and the third is the cost of moving
+    // the money. Nothing here ever asked for it, so every loan recorded through
+    // this app had a cost of zero.
+    var cost by remember(action) { mutableStateOf("") }
+    var costKind by remember(action) { mutableStateOf(ChargeKind.MPESA) }
 
     // Lending can go to a Keshflo borrower; contributing cannot.
     val people = if (action == PoolAction.LEND) {
@@ -67,6 +73,8 @@ fun RecordCard(session: Session, now: Instant, onChange: (Session) -> Unit) {
     }
     val loans = session.book.repayableLoans()
     val cents = (amount.toLongOrNull() ?: 0L) * 100
+    val costCents = (cost.toLongOrNull() ?: 0L) * 100
+    val isLoan = action == PoolAction.LEND || action == PoolAction.BORROW
 
     Card {
         Label("Record something")
@@ -138,6 +146,45 @@ fun RecordCard(session: Session, now: Instant, onChange: (Session) -> Unit) {
                     }
                 }
 
+                if (isLoan) {
+                    Label("What did it cost to send")
+                    Text(
+                        "The group has always tracked this apart from the principal. " +
+                            "Leave it empty if there was no charge.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Plus.TextLow,
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OutlinedTextField(
+                            value = cost,
+                            onValueChange = { cost = it.filter(Char::isDigit).take(6) },
+                            label = { Text("Transaction cost in KSh") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Plus.Money,
+                                unfocusedBorderColor = Plus.Divider,
+                                focusedTextColor = Plus.TextHigh,
+                                unfocusedTextColor = Plus.TextHigh,
+                                focusedLabelColor = Plus.Money,
+                                unfocusedLabelColor = Plus.TextLow,
+                                cursorColor = Plus.Money,
+                            ),
+                        )
+                        for (k in ChargeKind.entries) {
+                            Choice(
+                                if (k == ChargeKind.MPESA) "M-Pesa" else "Bank",
+                                k == costKind,
+                            ) { costKind = k }
+                        }
+                    }
+                }
+
                 Label("Their message, if there is one")
                 PasteField(
                     value = sms,
@@ -188,15 +235,21 @@ fun RecordCard(session: Session, now: Instant, onChange: (Session) -> Unit) {
                     // clear. The rate depends on who is borrowing — founders and
                     // Keshflo borrowers are not on the same terms — so the tier
                     // is named, not just applied.
-                    if (action == PoolAction.LEND || action == PoolAction.BORROW) {
+                    if (isLoan) {
                         val kind = session.book.member(member)?.kind ?: MemberKind.FOUNDER
-                        val q = quoteLoan(cents, kind)
+                        val q = quoteLoan(cents, kind, txnCostCents = costCents)
                         HorizontalDivider(
                             color = Plus.Divider,
                             modifier = Modifier.padding(vertical = 6.dp),
                         )
                         ReviewLine("Interest (${q.rateLabel})", q.interest)
                         ReviewLine("Rate applied", q.tierLabel)
+                        if (costCents > 0L) {
+                            ReviewLine(
+                                if (costKind == ChargeKind.MPESA) "M-Pesa charge" else "Bank charge",
+                                q.txnCost,
+                            )
+                        }
                         ReviewLine(
                             if (action == PoolAction.BORROW) {
                                 "You repay in total"
@@ -217,9 +270,18 @@ fun RecordCard(session: Session, now: Instant, onChange: (Session) -> Unit) {
                     val paste = sms.takeIf { it.isNotBlank() }
                     val next = when (action) {
                         PoolAction.CONTRIBUTE -> session.contribute(member, cents, now, paste)
-                        PoolAction.LEND -> session.lend(member, cents, at = now, smsText = paste)
-                        PoolAction.BORROW ->
-                            session.borrow(session.actingAs, cents, at = now, smsText = paste)
+                        PoolAction.LEND -> session.lend(
+                            member, cents,
+                            mpesaChargeCents = if (costKind == ChargeKind.MPESA) costCents else 0L,
+                            bankChargeCents = if (costKind == ChargeKind.BANK) costCents else 0L,
+                            at = now, smsText = paste,
+                        )
+                        PoolAction.BORROW -> session.borrow(
+                            session.actingAs, cents,
+                            mpesaChargeCents = if (costKind == ChargeKind.MPESA) costCents else 0L,
+                            bankChargeCents = if (costKind == ChargeKind.BANK) costCents else 0L,
+                            at = now, smsText = paste,
+                        )
                         PoolAction.REPAY ->
                             session.repay(loan!!.loanId, member, cents, now, paste)
                         PoolAction.PAY_OUT -> session.payOut(member, cents, now, paste)
@@ -230,6 +292,7 @@ fun RecordCard(session: Session, now: Instant, onChange: (Session) -> Unit) {
                     }
                     amount = ""
                     sms = ""
+                    cost = ""
                     onChange(next)
                 }
                 Text(

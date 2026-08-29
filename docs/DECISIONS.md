@@ -2280,6 +2280,41 @@ is Bonnie's call, and the real ledger will carry targets from whatever loads it.
 
 ---
 
+## D80 — The third figure could not be entered
+
+The books carry a loan as four figures and the worked example is
+**1,000 + 50 + 7 = 1,057**. `quoteLoan` has taken a transaction cost since the
+day it was written, `LoanRow` carries it, the member page shows it, and the seed
+sets it.
+
+No flow ever asked for one.
+
+`session.lend` defaults both charges to zero and neither shell passed anything,
+so **every loan recorded through this app had a transaction cost of zero** — and
+the group's own example was a figure the app could not produce. The four-figure
+format was three figures and a constant.
+
+Both shells ask now, on the same screen as the amount, with the charge kind
+beside it because Brian split M-Pesa from bank earlier and the books say
+"transaction" without saying which. Empty means no charge, which is common
+enough that it must not be a chore.
+
+The quote on the review screen includes it, and a test asserts the figure a
+member reads before committing is the figure that gets recorded — an app that
+quotes one loan and writes another is worse than one that quotes nothing.
+
+### How this hid for so long
+
+Every layer was right on its own. The model had the field, the tests exercised
+it, the display rendered it, and the seed used it — so every check passed and
+every screen looked complete. The only thing missing was a text box, and nothing
+tests for the absence of a text box.
+
+The same shape as the four capabilities in D34 and the payout in D37: not a
+broken thing, an unreachable one.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

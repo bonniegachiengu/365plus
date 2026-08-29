@@ -235,3 +235,79 @@ class ContributionTargetTest {
         }
     }
 }
+
+/**
+ * Recording the worked example the way a member would.
+ *
+ * The model carried a transaction cost from the start and no flow ever asked for
+ * one, so every loan recorded through the app had a cost of zero — and the
+ * books' own example, 1,000 + 50 + 7 = 1,057, was a figure the app could not
+ * produce.
+ */
+class RecordingTheWorkedExampleTest {
+
+    private val config = online.vyybandasky.plus365.core.governance.ActorConfig
+        .dev(DevSeed.BONNIE, DevSeed.EVERYONE)
+
+    private fun funded(): online.vyybandasky.plus365.core.presentation.Session {
+        var s = online.vyybandasky.plus365.core.presentation.Session(
+            book = online.vyybandasky.plus365.core.book.LedgerBook(
+                members = DevSeed.MEMBERS,
+                accounts = DevSeed.ACCOUNTS,
+                pockets = DevSeed.POCKETS,
+            ),
+            config = config,
+            actingAs = DevSeed.BONNIE,
+        )
+        s = s.contribute(DevSeed.BONNIE, 500_000)
+        return s.actAs(DevSeed.BRIAN)
+            .confirm(s.book.pending().last().id, DevSeed.BRIAN)
+            .actAs(DevSeed.BONNIE)
+    }
+
+    @Test
+    fun a_member_can_now_record_the_seven_shilling_charge() {
+        var s = funded().lend(DevSeed.KANGIRI, 100_000, mpesaChargeCents = 700)
+        val group = s.book.pending().last().groupId!!
+        s = s.actAs(DevSeed.BRIAN).confirmGroup(group, DevSeed.BRIAN)
+
+        val row = s.book.loanRows().single()
+        assertEquals("KSh 1,000.00", row.principal)
+        assertEquals("KSh 50.00", row.interest)
+        assertEquals("KSh 7.00", row.mpesaCharge)
+        assertEquals("KSh 1,057.00", row.totalDue, "the books' own figure")
+    }
+
+    @Test
+    fun a_bank_charge_lands_on_the_bank_line_instead() {
+        var s = funded().lend(DevSeed.KANGIRI, 100_000, bankChargeCents = 700)
+        val group = s.book.pending().last().groupId!!
+        s = s.actAs(DevSeed.BRIAN).confirmGroup(group, DevSeed.BRIAN)
+
+        val row = s.book.loanRows().single()
+        assertTrue(row.hasBankCharge)
+        assertEquals("KSh 7.00", row.bankCharge)
+        assertEquals("KSh 1,057.00", row.totalDue, "either way the total is the same")
+    }
+
+    @Test
+    fun the_quote_a_member_reads_includes_the_cost_before_they_commit() {
+        // The figure on the review screen has to be the figure that gets
+        // recorded, or the app is quoting one loan and writing another.
+        val q = quoteLoan(100_000, MemberKind.FOUNDER, txnCostCents = 700)
+        assertEquals("KSh 1,057.00", q.totalRepayable)
+
+        var s = funded().lend(DevSeed.KANGIRI, 100_000, mpesaChargeCents = 700)
+        val group = s.book.pending().last().groupId!!
+        s = s.actAs(DevSeed.BRIAN).confirmGroup(group, DevSeed.BRIAN)
+        assertEquals(q.totalRepayable, s.book.loanRows().single().totalDue)
+    }
+
+    @Test
+    fun no_charge_still_works_and_totals_to_the_first_two() {
+        var s = funded().lend(DevSeed.KANGIRI, 100_000)
+        val group = s.book.pending().last().groupId!!
+        s = s.actAs(DevSeed.BRIAN).confirmGroup(group, DevSeed.BRIAN)
+        assertEquals("KSh 1,050.00", s.book.loanRows().single().totalDue)
+    }
+}
