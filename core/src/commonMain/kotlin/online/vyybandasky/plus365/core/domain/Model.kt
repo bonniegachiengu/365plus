@@ -222,8 +222,21 @@ data class Member(
     val kind: MemberKind = MemberKind.FOUNDER,
     val active: Boolean = true,
     val joinedAt: Instant? = null,
+    /**
+     * What this member has agreed to contribute in total, or zero for nobody.
+     *
+     * The group's books carry a target per founder and track what is left
+     * against it. Zero means no target rather than a target of nothing — a
+     * Keshflo borrower has no contribution to make, and a founder before the
+     * figure is agreed is not somebody who owes zero.
+     *
+     * Contributing past it is expected, not an error: the 25 August resolution
+     * recoups a remainder from surplus contributions once they pass the target.
+     */
+    val contributionTargetCents: Long = 0L,
 ) {
     val isFounder: Boolean get() = kind == MemberKind.FOUNDER
+    val hasTarget: Boolean get() = contributionTargetCents > 0L
     val isBeneficiary: Boolean get() = kind == MemberKind.KESHFLO_BENEFICIARY
 }
 

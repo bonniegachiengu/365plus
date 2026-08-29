@@ -78,10 +78,19 @@ object DevSeed {
      * The three members. Three is the smallest set that makes two-person control
      * workable: whoever records an entry, two others can still clear it.
      */
+    /**
+     * The three founders and one Keshflo borrower.
+     *
+     * `phoneE164` is empty for every one of them and stays empty. The app has no
+     * reason to hold anybody's number and a test fails the build if one appears.
+     *
+     * The founders carry the contribution target the group's books use. Wanjiku
+     * has none: she borrows from Keshflo and contributes nothing.
+     */
     val MEMBERS: List<Member> = listOf(
-        Member(id = BONNIE, displayName = "Bonnie", phoneE164 = ""),
-        Member(id = BRIAN, displayName = "Brian", phoneE164 = ""),
-        Member(id = KANGIRI, displayName = "Kang'iri", phoneE164 = ""),
+        Member(id = BONNIE, displayName = "Bonnie", phoneE164 = "", contributionTargetCents = TARGET),
+        Member(id = BRIAN, displayName = "Brian", phoneE164 = "", contributionTargetCents = TARGET),
+        Member(id = KANGIRI, displayName = "Kang'iri", phoneE164 = "", contributionTargetCents = TARGET),
         Member(
             id = WANJIKU,
             displayName = "Wanjiku",
@@ -89,6 +98,9 @@ object DevSeed {
             kind = MemberKind.KESHFLO_BENEFICIARY,
         ),
     )
+
+    /** What each founder has agreed to contribute in total. */
+    const val TARGET: Long = 800_000L
 
     val ACCOUNTS: List<Account> = listOf(
         Account(id = POCHI, label = "M-Pesa Pochi", kind = AccountKind.MPESA),

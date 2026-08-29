@@ -604,6 +604,17 @@ private fun MemberBody(
                 // A founder who also owes gets it as a second line rather than a
                 // second hero. For a borrower it is already the hero, and saying
                 // it twice on one card is how a page stops being read.
+                // The group's own contribution format, in their words.
+                d.target?.let {
+                    ReviewLine("Contribution", d.stake)
+                    ReviewLine("Target", it)
+                    ReviewLine(
+                        if (d.isPastTarget) "Past the target by" else "Total Remaining",
+                        d.totalRemaining.orEmpty().removePrefix("-"),
+                        emphasis = !d.isPastTarget,
+                    )
+                }
+
                 if (!d.isBeneficiary && d.owesCents > 0L) {
                     ReviewLine("Pending loan amount", d.owes)
                 }

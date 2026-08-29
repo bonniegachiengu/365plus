@@ -2,6 +2,7 @@ package online.vyybandasky.plus365.core
 
 import online.vyybandasky.plus365.core.domain.MemberKind
 import online.vyybandasky.plus365.core.money.formatKes
+import online.vyybandasky.plus365.core.presentation.memberCards
 import online.vyybandasky.plus365.core.presentation.loanRows
 import online.vyybandasky.plus365.core.presentation.quoteLoan
 import kotlin.test.Test
@@ -153,5 +154,84 @@ class LoanRowShapeTest {
         assertEquals("KSh 1,057.00", row.totalDue, "the total written down does not move")
         assertEquals("KSh 500.00", row.repaid)
         assertEquals("KSh 557.00", row.outstanding, "what is left is a different figure")
+    }
+}
+
+/**
+ * The contribution format the group's books use.
+ *
+ * Each founder has a target and the books track what is left against it. The
+ * example in the history is 8,000.
+ */
+class ContributionTargetTest {
+
+    private val config = online.vyybandasky.plus365.core.governance.ActorConfig
+        .dev(DevSeed.BONNIE, DevSeed.EVERYONE)
+
+    private fun contributed(amountCents: Long): online.vyybandasky.plus365.core.book.LedgerBook {
+        var s = online.vyybandasky.plus365.core.presentation.Session(
+            book = online.vyybandasky.plus365.core.book.LedgerBook(
+                members = DevSeed.MEMBERS,
+                accounts = DevSeed.ACCOUNTS,
+                pockets = DevSeed.POCKETS,
+            ),
+            config = config,
+            actingAs = DevSeed.BONNIE,
+        )
+        if (amountCents > 0) {
+            s = s.contribute(DevSeed.BONNIE, amountCents)
+            s = s.actAs(DevSeed.BRIAN).confirm(s.book.pending().last().id, DevSeed.BRIAN)
+        }
+        return s.book
+    }
+
+    private fun bonnie(book: online.vyybandasky.plus365.core.book.LedgerBook) =
+        book.memberCards().single { it.id == DevSeed.BONNIE }
+
+    @Test
+    fun a_founder_carries_the_target_from_the_books() {
+        assertEquals("KSh 8,000.00", bonnie(contributed(0)).target)
+    }
+
+    @Test
+    fun total_remaining_is_the_target_less_what_they_have_put_in() {
+        val card = bonnie(contributed(300_000))
+        assertEquals("KSh 3,000.00", card.stake, "contribution")
+        assertEquals("KSh 5,000.00", card.totalRemaining, "8,000 less 3,000")
+        assertTrue(!card.isPastTarget)
+    }
+
+    @Test
+    fun reaching_it_exactly_leaves_nothing_remaining() {
+        val card = bonnie(contributed(800_000))
+        assertEquals("KSh 0.00", card.totalRemaining)
+        assertTrue(!card.isPastTarget, "meeting the target is not passing it")
+    }
+
+    @Test
+    fun contributing_past_it_is_a_surplus_and_not_an_error() {
+        // The resolution recoups its remainder from exactly this, so going past
+        // the target has to be an ordinary state with a name.
+        val card = bonnie(contributed(950_000))
+        assertTrue(card.isPastTarget)
+        assertTrue(card.totalRemainingCents < 0L)
+    }
+
+    @Test
+    fun a_keshflo_borrower_has_no_target_at_all() {
+        // Null rather than zero: she has nothing to contribute, which is not the
+        // same as having contributed nothing.
+        val card = contributed(0).memberCards().single { it.id == DevSeed.WANJIKU }
+        assertEquals(null, card.target)
+        assertEquals(null, card.totalRemaining)
+        assertTrue(!card.isPastTarget)
+    }
+
+    @Test
+    fun no_member_record_carries_a_phone_number() {
+        // Restated here because this slice touched the member records.
+        for (m in DevSeed.MEMBERS) {
+            assertEquals("", m.phoneE164, "${m.displayName} has a number stored")
+        }
     }
 }

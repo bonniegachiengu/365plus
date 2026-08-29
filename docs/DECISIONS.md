@@ -2200,6 +2200,47 @@ exact opposite of what this ledger is for.
 
 ---
 
+## D78 — Contribution against a target
+
+The one thing in the real books the model had nothing for. Each founder has
+agreed a total — 8,000 in the example — and the books track **Contribution** and
+**Total Remaining** against it.
+
+`Member.contributionTargetCents`, and the member cards carry the target, what is
+left, and whether they are past it. Both member screens show all three in the
+group's own words, so a founder comparing the app with the old sheet is reading
+the same labels.
+
+Three decisions in it:
+
+**Zero means no target, not a target of nothing.** A Keshflo borrower contributes
+nothing and never will; a founder before the figure is agreed is not somebody who
+owes zero. The fields are null rather than "KSh 0.00", so Wanjiku's page does not
+grow a row that means nothing for her.
+
+**Going past the target is ordinary and has a name.** The 25 August resolution
+recoups its 652 remainder from surplus contributions once they pass the target —
+so a surplus is a state the group actively relies on, not an overflow. Past the
+target the screen says *"Past the target by"* and drops the minus sign, because a
+negative "Total Remaining" is a puzzle rather than a figure.
+
+**Meeting it exactly is not passing it.** Tested, because the boundary is where
+the resolution's arithmetic starts.
+
+### Not built, deliberately
+
+*"Current A/C Balance"* is the third column in the group's sheet, and it is the
+same figure for every member — the running balance of the Founder's A/C. It is
+already the home screen's hero. Repeating it on each member's row would be three
+copies of one number, so it is not there. If Brian wants it per-row because that
+is how the sheet reads, that is a small change and his call to make.
+
+Nothing from the 25 August resolution is encoded either. It is context that
+explains why a surplus matters, not a feature: the installments and the 652
+remainder are entries that will arrive with the real history.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

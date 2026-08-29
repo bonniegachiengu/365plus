@@ -226,7 +226,31 @@ data class MemberCard(
     val inDebt: Boolean,
     /** Someone Keshflo lends to, not a member of the pool. */
     val isBeneficiary: Boolean = false,
-)
+    /**
+     * What they agreed to contribute in total, formatted, or null for nobody.
+     *
+     * The group's books track a contribution against a target and show what is
+     * left. Null rather than "KSh 0.00" where there is no target, so a Keshflo
+     * borrower's row does not grow a column that means nothing for them.
+     */
+    val target: String? = null,
+    /**
+     * Target minus contributed, in the group's own words.
+     *
+     * Negative when they are past it, which the books treat as ordinary — see
+     * [MemberCard.isPastTarget].
+     */
+    val totalRemaining: String? = null,
+    val totalRemainingCents: Long = 0L,
+) {
+    /**
+     * Contributed more than they agreed to.
+     *
+     * Not an error and not a rounding artefact. The resolution recoups a
+     * remainder from exactly this surplus, so it needs a name.
+     */
+    val isPastTarget: Boolean get() = target != null && totalRemainingCents < 0L
+}
 
 fun LedgerBook.memberCards(): List<MemberCard> {
     val s = state()
@@ -245,6 +269,13 @@ fun LedgerBook.memberCards(): List<MemberCard> {
             owesCents = b.debtCents,
             inDebt = b.debtCents < 0L,
             isBeneficiary = m.isBeneficiary,
+            target = if (m.hasTarget) formatKes(m.contributionTargetCents) else null,
+            totalRemaining = if (m.hasTarget) {
+                formatKes(m.contributionTargetCents - b.stakeCents)
+            } else {
+                null
+            },
+            totalRemainingCents = m.contributionTargetCents - b.stakeCents,
         )
     }
 }
@@ -331,6 +362,13 @@ data class MemberDetail(
     val owes: String,
     /** The same figure unformatted, so a shell can ask whether it is zero. */
     val owesCents: Long,
+    /** What they agreed to contribute in total, or null where there is none. */
+    val target: String? = null,
+    /** Target less contributed, in the group's own words. */
+    val totalRemaining: String? = null,
+    val totalRemainingCents: Long = 0L,
+    /** Contributed past the target. Ordinary, and the resolution relies on it. */
+    val isPastTarget: Boolean = false,
     /**
      * A Keshflo borrower rather than one of the pool's own members.
      *
@@ -366,6 +404,10 @@ fun LedgerBook.memberDetail(memberId: MemberId, now: Instant? = null): MemberDet
         owes = formatKes(if (card.owesCents < 0) -card.owesCents else 0L),
         owesCents = if (card.owesCents < 0) -card.owesCents else 0L,
         isBeneficiary = member(memberId)?.isBeneficiary == true,
+        target = card.target,
+        totalRemaining = card.totalRemaining,
+        totalRemainingCents = card.totalRemainingCents,
+        isPastTarget = card.isPastTarget,
         contributionCount = entries.count {
             it.memberId == memberId &&
                 it.type == EntryType.CONTRIBUTION &&

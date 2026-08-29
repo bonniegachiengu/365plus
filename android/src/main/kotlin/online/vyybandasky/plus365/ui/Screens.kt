@@ -275,6 +275,19 @@ fun MemberScreen(
                     }
                 }
                 HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 10.dp))
+                // The group's own contribution format: what they have put in,
+                // and what is left against what they agreed to. Their words, so
+                // the app and the old books read the same.
+                detail.target?.let {
+                    ReviewLine("Contribution", detail.stake)
+                    ReviewLine("Target", it)
+                    ReviewLine(
+                        if (detail.isPastTarget) "Past the target by" else "Total Remaining",
+                        detail.totalRemaining.orEmpty().removePrefix("-"),
+                        emphasis = !detail.isPastTarget,
+                    )
+                }
+
                 // A founder who also owes gets a second line, not a second hero.
                 if (!detail.isBeneficiary && detail.owesCents > 0L) {
                     ReviewLine("Pending loan amount", detail.owes)
