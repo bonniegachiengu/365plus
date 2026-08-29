@@ -219,7 +219,17 @@ rates — **5% for a founder, 10% for a Keshflo beneficiary** — and the screen
 names which one it applied, because a borrower seeing a figure they did not
 expect should be able to see why without asking.
 
-The brief is left as written. This is the correction.
+### And the wording example in section 2
+
+Section 2 gives *"Brian owes KSh 1,398"* as the model of plain language. Brian
+himself later asked for **"pending loan amount"** instead — "owes" between three
+friends who lend each other money reads as an accusation, and the app is meant to
+be usable at the moment somebody is behind.
+
+`core/presentation` says "pending loan amount" throughout, and the phrase used
+for a member's page is now the figure itself rather than a sentence about them.
+
+The brief is left as written. Both of these are the correction.
 
 ### Still true from section 7
 
