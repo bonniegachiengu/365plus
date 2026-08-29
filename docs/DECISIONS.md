@@ -1979,6 +1979,28 @@ the same message into a contribution is still refused, in words.
 
 ---
 
+## D71 — The app still said "M-Pesa or KCB"
+
+Screenshotting the new paste field on the move card caught the mismatch. My label
+said *"Paste the Ziidi or M-Pesa message"*; the field underneath it said
+*"Paste the M-Pesa or KCB message"*, because that placeholder is shared by every
+paste field in the app and had been written before Ziidi could be read.
+
+Four places named the providers and all four were out of date, including the
+refusal a member sees when a paste is not understood: *"That does not look like
+an M-Pesa or KCB transaction message"* — said, now, about a Ziidi message the app
+can read perfectly well.
+
+The placeholders no longer enumerate providers at all. A list of names in a hint
+is a list that goes stale every time the parser learns something, and *"Paste the
+message from your phone"* does not. The refusal still names them, because there
+it is the useful part — a person whose paste was refused needs to know what kinds
+are understood.
+
+Fourth defect this session found by looking at a screen rather than by any test.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

@@ -129,7 +129,8 @@ fun RejectReason.message(): String = when (this) {
     RejectReason.NO_REFERENCE ->
         "No transaction code found. Paste the whole message, including the code at the start."
     RejectReason.NO_AMOUNT -> "No amount found in that message."
-    RejectReason.UNRECOGNISED -> "That does not look like an M-Pesa or KCB transaction message."
+    RejectReason.UNRECOGNISED ->
+        "That does not look like a transaction message from M-Pesa, a bank, or Ziidi."
     RejectReason.EMPTY -> "Nothing was pasted."
     RejectReason.TOO_LONG -> "That is longer than a transaction message. Paste just the one message."
 }

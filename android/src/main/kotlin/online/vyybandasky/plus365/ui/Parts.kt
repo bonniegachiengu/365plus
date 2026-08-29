@@ -235,7 +235,7 @@ fun PasteField(
             onValueChange = onValue,
             placeholder = {
                 Text(
-                    "Paste the M-Pesa or KCB message",
+                    "Paste the message from your phone",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Plus.TextLow,
                 )

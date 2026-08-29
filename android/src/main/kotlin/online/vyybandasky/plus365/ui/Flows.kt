@@ -425,7 +425,7 @@ private fun ReviewStep(
         PasteField(
             value = sms,
             label = "Your message for this",
-            hint = "Paste the M-Pesa or KCB message you received. The other member " +
+            hint = "Paste the M-Pesa, bank or Ziidi message you received. The other member " +
                 "will paste theirs, and the codes have to match.",
             onValue = onSms,
         )
