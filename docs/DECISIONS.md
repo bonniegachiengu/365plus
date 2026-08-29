@@ -942,6 +942,27 @@ mechanically every time a slice lands.
 
 ---
 
+## D42 — Making the window behave like a window
+
+Two things every other application on this machine does and 365+ did not.
+
+**A floor on the size.** The home screen puts the hero and both splits side by
+side, which is the whole reason to have a laptop version. Dragged narrow enough
+that stops being a layout and starts being a stack of clipped numbers — and
+Compose will happily let you find that out. Windows will stop you if asked, so
+`window.minimumSize` is now 880x620.
+
+**Escape goes back.** On a page of money this is the one shortcut worth having:
+the fastest way out of a screen opened by mistake. It goes back one level, never
+out of the app — closing a ledger by hitting Escape twice is not a thing anyone
+wants to have done.
+
+The Escape signal is a counter rather than a boolean, because two Escapes in a
+row are two separate requests to go back and a boolean cannot tell them apart.
+Compose is watching the change, not the value.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

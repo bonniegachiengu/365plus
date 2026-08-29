@@ -32,6 +32,11 @@ import online.vyybandasky.plus365.core.presentation.LedgerKind
 import online.vyybandasky.plus365.core.presentation.LedgerStanding
 import online.vyybandasky.plus365.core.presentation.filteredActivity
 import online.vyybandasky.plus365.core.presentation.memberCards
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
@@ -96,7 +101,24 @@ fun main() {
                     size = DpSize(1120.dp, 900.dp),
                     position = WindowPosition(Alignment.Center),
                 ),
+                onKeyEvent = { e ->
+                    // Escape goes back. On a page of money this is the one
+                    // shortcut worth having: the fastest way out of a screen you
+                    // opened by mistake, and the one every other window on this
+                    // machine already does.
+                    if (e.type == KeyEventType.KeyDown && e.key == Key.Escape) {
+                        escapePressed++
+                        true
+                    } else {
+                        false
+                    }
+                },
             ) {
+                // A window can be dragged narrower than the layout can survive —
+                // three columns of money side by side do not fit in 400px, and
+                // Compose will not stop you finding that out. Windows will, if
+                // asked.
+                window.minimumSize = java.awt.Dimension(880, 620)
                 App(store)
             }
         }
@@ -112,6 +134,15 @@ fun main() {
  * settled once before the first frame and never changes afterwards.
  */
 private var apiFailure: String? = null
+
+/**
+ * Bumped on every Escape.
+ *
+ * A counter rather than a boolean, because two Escapes in a row are two requests
+ * to go back and a boolean cannot tell them apart. Compose observes the change,
+ * not the value.
+ */
+private var escapePressed by mutableStateOf(0)
 
 /** Can we have this port? A closed socket is the only honest way to ask. */
 private fun portIsFree(host: String, port: Int): Boolean = try {
@@ -147,6 +178,12 @@ fun App(store: LedgerStore) {
     val commit: (Session) -> Unit = { next ->
         session = next
         store.save(next.book)
+    }
+
+    // Escape goes back one level. Not out of the app — closing a ledger by
+    // hitting Escape twice is not a thing anybody wants to have done.
+    LaunchedEffect(escapePressed) {
+        if (escapePressed > 0 && screen !is Screen.Home) screen = Screen.Home
     }
 
     Plus365Theme {
