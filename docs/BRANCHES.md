@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **376 tests green** (core 349, desktop 17, android 10), and the build compiles with no warnings. Desktop installed and verified as `0.28.1-payout-warning`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+| `main` | Protected trunk. Always green, always installable. | **376 tests green** (core 349, desktop 17, android 10), and the build compiles with no warnings. Desktop installed and verified as `0.29.0-lazy-ledger`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
 
 
 ## Merged
@@ -61,6 +61,7 @@ concerned.
 | `fix/alarm-above-the-money` | The phone showed the hero figure above the warning that it is not real. | 2026-08-29 | see `main` |
 | `perf/memoise-the-fold` | The log is folded once per book instead of seven times per frame. | 2026-08-29 | see `main` |
 | `slice/payout-overdraw-line` | A payout past somebody's share explains itself instead of showing a bare negative. | 2026-08-29 | see `main` |
+| `perf/lazy-ledger` | The phone's ledger is a lazy list. **Not verified on screen** — see D62. | 2026-08-29 | see `main` |
 
 ## Committed straight to `main` (rule 1 broken)
 

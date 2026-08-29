@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -349,63 +351,81 @@ fun LedgerScreen(
         .groupingBy { it.standing }.eachCount()
 
     ScreenScaffold(title = "Ledger", onBack = onBack, notice = null) {
-        Column(
-            modifier = Modifier.verticalScroll(rememberScrollState()),
+        // A lazy list rather than a scrolling Column. A Column composes every
+        // child whether or not it is on screen, which is fine for the dozen
+        // entries in the seed and is the whole of Brian's history for the screen
+        // whose entire job is showing all of it.
+        //
+        // The header, the filters and the group headings are items too, so they
+        // scroll with the list rather than pinning — which is what they did
+        // before, and changing that is not this commit's business.
+        LazyColumn(
+            modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Card(colour = Plus.SurfaceRaised) {
-                Text(
-                    "Everything that has ever happened",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Plus.TextHigh,
-                )
-                Text(
-                    "${view.totalCount} entries. Only ever added, never changed or " +
-                        "deleted — a mistake is corrected by adding the correction, " +
-                        "and both stay.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Plus.TextMid,
-                )
-                Row(
-                    modifier = Modifier.padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    Tally("confirmed", counts[Standing.CONFIRMED] ?: 0, Plus.Money)
-                    Tally("waiting", counts[Standing.PENDING] ?: 0, Plus.Pending)
-                    Tally("in dispute", counts[Standing.NEEDS_SETTLING] ?: 0, Plus.Debt)
-                    Tally("rejected", counts[Standing.REJECTED] ?: 0, Plus.Debt)
+            item {
+                Card(colour = Plus.SurfaceRaised) {
+                    Text(
+                        "Everything that has ever happened",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Plus.TextHigh,
+                    )
+                    Text(
+                        "${view.totalCount} entries. Only ever added, never changed or " +
+                            "deleted — a mistake is corrected by adding the correction, " +
+                            "and both stay.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Plus.TextMid,
+                    )
+                    Row(
+                        modifier = Modifier.padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        Tally("confirmed", counts[Standing.CONFIRMED] ?: 0, Plus.Money)
+                        Tally("waiting", counts[Standing.PENDING] ?: 0, Plus.Pending)
+                        Tally("in dispute", counts[Standing.NEEDS_SETTLING] ?: 0, Plus.Debt)
+                        Tally("rejected", counts[Standing.REJECTED] ?: 0, Plus.Debt)
+                    }
                 }
             }
 
-            LedgerFilterBar(session, filter) { filter = it }
+            item { LedgerFilterBar(session, filter) { filter = it } }
 
             // A narrowed list that looks like the whole one is how somebody
             // decides their money has gone missing. Say what is hidden.
             view.narrowedLine?.let { line ->
-                Card(colour = Plus.PendingDim) {
-                    Text(line, style = MaterialTheme.typography.bodyMedium, color = Plus.Pending)
-                    view.shownTotal?.let {
-                        ReviewLine("These add up to", it, emphasis = true)
+                item {
+                    Card(colour = Plus.PendingDim) {
+                        Text(line, style = MaterialTheme.typography.bodyMedium, color = Plus.Pending)
+                        view.shownTotal?.let {
+                            ReviewLine("These add up to", it, emphasis = true)
+                        }
                     }
                 }
             }
 
             view.emptyLine?.let { line ->
-                Card {
-                    Text(line, style = MaterialTheme.typography.bodyMedium, color = Plus.TextMid)
+                item {
+                    Card {
+                        Text(line, style = MaterialTheme.typography.bodyMedium, color = Plus.TextMid)
+                    }
                 }
             }
 
             for (group in view.groups) {
-                Text(
-                    group.heading,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Plus.TextLow,
-                    modifier = Modifier.padding(top = 10.dp, start = 4.dp),
-                )
-                for (row in group.rows) ActivityLine(row) { onOpenEntry(row.entryId) }
+                item(key = "heading-${group.heading}") {
+                    Text(
+                        group.heading,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Plus.TextLow,
+                        modifier = Modifier.padding(top = 10.dp, start = 4.dp),
+                    )
+                }
+                items(group.rows, key = { it.entryId }) { row ->
+                    ActivityLine(row) { onOpenEntry(row.entryId) }
+                }
             }
-            Box(Modifier.height(24.dp))
+            item { Box(Modifier.height(24.dp)) }
         }
     }
 }

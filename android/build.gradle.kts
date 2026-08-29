@@ -35,7 +35,7 @@ android {
         // assumed. An APK that silently failed to replace the old one looks
         // exactly like a feature that silently failed to work.
         versionCode = 12
-        versionName = "0.28.1-payout-warning"
+        versionName = "0.29.0-lazy-ledger"
     }
 
     buildFeatures {

@@ -1603,6 +1603,31 @@ payouts.
 
 ---
 
+## D62 — The ledger screen composed every entry it had
+
+The phone's ledger was a `Column` with `verticalScroll`, which composes every
+child whether or not it is on screen. That is fine for the dozen entries in the
+seed. It is the whole of Brian's history, all at once, on the one screen whose
+entire job is showing all of it.
+
+It is a `LazyColumn` now, with `entryId` as the key so rows keep their identity
+across a filter change. The header, the filter bar and the group headings are
+items too, so they scroll with the list exactly as they did before — making them
+pin is a different decision and not this one.
+
+### Said plainly: this one is not verified on screen
+
+Every other UI change this session was screenshotted before it was called done,
+and three of them turned out to be wrong in ways no test caught. This one could
+not be: the phone has not been reachable all session, there is no emulator on
+this machine, and installing one is a large uninvited download.
+
+`LazyColumn` inside a `ColumnScope` with `weight(1f)` is a standard pattern and
+it compiles, which is not the same as having looked at it. When the phone comes
+back, the ledger screen is the first thing to open.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |
