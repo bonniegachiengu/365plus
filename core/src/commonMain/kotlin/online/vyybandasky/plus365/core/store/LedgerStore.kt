@@ -8,6 +8,7 @@ import online.vyybandasky.plus365.core.domain.Account
 import online.vyybandasky.plus365.core.domain.Entry
 import online.vyybandasky.plus365.core.domain.Loan
 import online.vyybandasky.plus365.core.domain.Member
+import online.vyybandasky.plus365.core.domain.Pocket
 
 /**
  * Persistence for the book.
@@ -31,6 +32,15 @@ data class LedgerSnapshot(
     val version: Int = SNAPSHOT_VERSION,
     val members: List<Member> = emptyList(),
     val accounts: List<Account> = emptyList(),
+    /**
+     * The pockets themselves, not just the ids entries point at.
+     *
+     * Left out at first, and the omission was invisible for a while: entries
+     * kept their pocketId so the fold still split the money correctly, but the
+     * definitions vanished on reload and the screen had nothing left to label
+     * the split with. A silent loss that only showed up as an empty card.
+     */
+    val pockets: List<Pocket> = emptyList(),
     val loans: List<Loan> = emptyList(),
     val entries: List<Entry> = emptyList(),
     val nextSeq: Long = 1L,
@@ -63,6 +73,7 @@ private val json = Json {
 fun LedgerBook.toSnapshot(): LedgerSnapshot = LedgerSnapshot(
     members = members,
     accounts = accounts,
+    pockets = pockets,
     loans = loans,
     entries = entries,
     nextSeq = nextSeq,
@@ -71,6 +82,7 @@ fun LedgerBook.toSnapshot(): LedgerSnapshot = LedgerSnapshot(
 fun LedgerSnapshot.toBook(): LedgerBook = LedgerBook(
     members = members,
     accounts = accounts,
+    pockets = pockets,
     loans = loans,
     entries = entries,
     nextSeq = nextSeq,

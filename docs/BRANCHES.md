@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **268 tests green** (core 246, desktop 12, android 10). APK installs on the Redmi; persistence verified on device. |
+| `main` | Protected trunk. Always green, always installable. | **270 tests green** (core 248, desktop 12, android 10). APK installs on the Redmi; persistence verified on device. |
 
 Nothing else is open right now.
 
@@ -33,7 +33,8 @@ Nothing else is open right now.
 | `slice/accounts-and-pockets` | Real accounts with interest-earning kinds, virtual pockets over the total, Ziidi recognised-but-unparsed. | 2026-08-26 | `f7c2d4d` |
 | `fix/wording-and-build-stamp` | Finish Brian's relabel on desktop; stamp the APK so the loaded build can be named. | 2026-08-29 | `merged` |
 | `slice/overdraw-flags` | Flag-not-refuse for account overdraw, with enough on each flag to trace the slip. | 2026-08-29 | `9ba5b98` |
-| `slice/desktop-installer` | Native Windows MSI via jpackage, per-user install, Start-menu entry, one-command rebuild script. | 2026-08-29 | see below |
+| `slice/desktop-installer` | Native Windows MSI via jpackage, per-user install, Start-menu entry, one-command rebuild script. | 2026-08-29 | `e2aeb79` |
+| `slice/desktop-design` | Dark fintech desktop matching the phone, interim 365+ icon, and a persistence fix: pocket definitions were being dropped on save. | 2026-08-29 | see below |
 
 > `5d794d6`'s message says 118 tests. The true count at that commit was **116** —
 > it double-counted two core tests that run on both the jvm and android targets.
