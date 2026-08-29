@@ -325,6 +325,8 @@ data class MemberDetail(
     val inDebt: Boolean,
     /** Their pending loan amount. */
     val owes: String,
+    /** The same figure unformatted, so a shell can ask whether it is zero. */
+    val owesCents: Long,
     val contributionCount: Int,
     val activeLoanCount: Int,
     val loans: List<LoanRow>,
@@ -350,6 +352,7 @@ fun LedgerBook.memberDetail(memberId: MemberId, now: Instant? = null): MemberDet
         standingLine = card.standingLine,
         inDebt = card.inDebt,
         owes = formatKes(if (card.owesCents < 0) -card.owesCents else 0L),
+        owesCents = if (card.owesCents < 0) -card.owesCents else 0L,
         contributionCount = entries.count {
             it.memberId == memberId &&
                 it.type == EntryType.CONTRIBUTION &&

@@ -536,9 +536,26 @@ private fun MemberBody(
                 ) {
                     Avatar(d.initial, d.inDebt)
                     Column {
+                        // The laptop identified this person by one letter in a
+                        // circle. On a page about one person's money, saying who
+                        // they are is not decoration.
+                        Text(
+                            d.name,
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = Plus.TextHigh,
+                        )
                         Label("Pool contribution")
                         Amount(d.stake, style = BigAmount)
                     }
+                }
+                // The one-number answer to the question a borrower actually
+                // arrives with. Shown only when there is something to answer.
+                if (d.owesCents > 0L) {
+                    HorizontalDivider(
+                        color = Plus.Divider,
+                        modifier = Modifier.padding(vertical = 8.dp),
+                    )
+                    ReviewLine("Pending loan amount", d.owes, emphasis = true)
                 }
                 HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 8.dp))
                 Text(

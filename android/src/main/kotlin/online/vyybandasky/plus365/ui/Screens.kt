@@ -262,6 +262,15 @@ fun MemberScreen(
                         Amount(detail.stake, style = BigAmount)
                     }
                 }
+                // The one-number answer to the question a borrower actually
+                // arrives with. Shown only when there is something to answer.
+                if (detail.owesCents > 0L) {
+                    HorizontalDivider(
+                        color = Plus.Divider,
+                        modifier = Modifier.padding(vertical = 10.dp),
+                    )
+                    ReviewLine("Pending loan amount", detail.owes, emphasis = true)
+                }
                 HorizontalDivider(color = Plus.Divider, modifier = Modifier.padding(vertical = 10.dp))
                 Text(
                     detail.standingLine,

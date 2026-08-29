@@ -2,6 +2,7 @@ package online.vyybandasky.plus365.core.presentation
 
 import online.vyybandasky.plus365.core.DevSeed
 import online.vyybandasky.plus365.core.domain.EntryType
+import online.vyybandasky.plus365.core.money.formatKes
 import kotlinx.datetime.Instant
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -189,5 +190,34 @@ class LedgerGroupingTest {
     fun `an empty result has no groups rather than an empty group`() {
         val f = book.filteredActivity(LedgerFilter(text = "no such thing"), now)
         assertTrue(f.groups.isEmpty(), "an empty heading over nothing is noise")
+    }
+}
+
+/**
+ * What a borrower actually arrives asking.
+ *
+ * "What do I owe?" had no one-number answer on either screen — both listed the
+ * loans and left the addition to the reader. The figure existed in
+ * `MemberDetail.owes` and neither shell rendered it.
+ */
+class OwesTest {
+
+    private val now = Instant.parse("2026-08-29T09:00:00Z")
+
+    @Test
+    fun `a member with a live loan is told what it is`() {
+        val d = DevSeed.book(now).memberDetail(DevSeed.WANJIKU, now)!!
+        assertTrue(d.owesCents > 0L, "the seed lends to Wanjiku and she has not cleared it")
+        assertEquals(d.owes, formatKes(d.owesCents))
+    }
+
+    @Test
+    fun `owing nothing is zero, not a negative dressed up`() {
+        // owesCents comes from a signed balance where the pool owing *them*
+        // is the other direction. Nothing owed must read as nothing owed.
+        for (m in DevSeed.MEMBERS) {
+            val d = DevSeed.book(now).memberDetail(m.id, now)!!
+            assertTrue(d.owesCents >= 0L, "${m.displayName} shows a negative debt")
+        }
     }
 }

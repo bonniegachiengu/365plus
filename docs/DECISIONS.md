@@ -1044,6 +1044,32 @@ warnings nobody reads, and this one had a real test hiding behind it.
 
 ---
 
+## D46 — The member page, checked field by field
+
+Listing which `MemberDetail` fields each shell renders is a two-column table, and
+two rows were wrong.
+
+**`name` — laptop only.** The laptop's member page drew an avatar with an initial
+in it and never the person's name. You clicked Brian and landed on a page headed
+by the letter B. On a screen about one person's money, saying who they are is not
+decoration.
+
+**`owes` — neither shell.** The single most-asked question a borrower has is what
+they currently owe, and both screens listed the loans and left the addition to
+the reader. The figure had been computed in `memberDetail` since it was written
+and rendered nowhere.
+
+It is on both now, above the standing line and only when it is not zero — a
+"Pending loan amount: KSh 0.00" on the page of somebody who owes nothing is a
+sentence that makes people look twice for no reason.
+
+`owesCents` joins `owes` so a shell can ask whether it is zero without comparing
+formatted strings, and a test asserts it is never negative: it comes from a signed
+balance where the pool owing *them* is the other direction, and "you owe minus
+1,600" is the kind of number that ends a conversation about trust.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |
