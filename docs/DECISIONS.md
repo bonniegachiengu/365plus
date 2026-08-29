@@ -1133,6 +1133,22 @@ paid-so-far, which is composition rather than repetition.
 
 ---
 
+## D49 — A hand cursor, in the one place every click goes through
+
+Nothing on the laptop responded to the mouse. A card that opens a member looked
+exactly like a card that does not, and a person working out which numbers are
+buttons by clicking them is a person who will eventually click the wrong number.
+
+Every clickable thing in the desktop shell goes through `Modifier.tappable`,
+which is why the cursor belongs there rather than at each of thirty call sites.
+`Card`'s optional click was reaching `clickable` directly and now goes through
+`tappable` too, so there is one door and it is the door.
+
+`BigButton` gets it only when it is enabled. A hand cursor over a disabled button
+promises something the button will not do.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

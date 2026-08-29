@@ -19,6 +19,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
@@ -36,7 +38,7 @@ fun Card(
         modifier = modifier
             .fillMaxWidth()
             .background(colour, RoundedCornerShape(Plus.CardCorner))
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(if (onClick != null) Modifier.tappable(onClick) else Modifier)
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
         content = content,
@@ -105,6 +107,9 @@ fun BigButton(
             .heightIn(min = 44.dp)
             .background(bg, RoundedCornerShape(14.dp))
             .then(if (!filled && enabled) Modifier.border(1.5.dp, base, RoundedCornerShape(14.dp)) else Modifier)
+            // Only when it is live. A hand cursor over a disabled button
+            // promises something the button will not do.
+            .then(if (enabled) Modifier.pointerHoverIcon(PointerIcon.Hand) else Modifier)
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 20.dp),
         contentAlignment = Alignment.Center,
@@ -192,4 +197,14 @@ fun Choice(text: String, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-fun Modifier.tappable(onClick: () -> Unit): Modifier = this.clickable(onClick = onClick)
+/**
+ * Clickable, and visibly so.
+ *
+ * Everything the mouse can act on goes through here, which is why the cursor
+ * belongs here too. Without it a card that responds to a click looks exactly
+ * like a card that does not, and a person deciding whether a number is a button
+ * by clicking it is a person who will eventually click the wrong number.
+ */
+fun Modifier.tappable(onClick: () -> Unit): Modifier = this
+    .pointerHoverIcon(PointerIcon.Hand)
+    .clickable(onClick = onClick)
