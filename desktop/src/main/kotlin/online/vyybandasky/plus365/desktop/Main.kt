@@ -704,6 +704,7 @@ private fun EntryBody(
             Text("Code ${e.reference}", style = MaterialTheme.typography.titleMedium, color = Plus.Money)
             ReviewLine("Amount", e.amount)
             ReviewLine("Direction", e.direction)
+            e.balanceAfter?.let { ReviewLine("That account then held", it) }
             ReviewLine("Pasted by", e.whose)
             e.atmCaveat?.let {
                 Text(

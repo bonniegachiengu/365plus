@@ -2054,6 +2054,37 @@ rather than filtering. `main` was red for four minutes.
 
 ---
 
+## D74 — The balance the message reports, on the screen
+
+`SmsEvidence.balanceAfterCents` was extracted from every Ziidi message, stored,
+and shown nowhere. The same gap this session has closed a dozen times: a
+capability with no screen may as well not exist.
+
+It is on the entry's evidence card on both shells now — *"That account then held
+KSh 11,001.07"* — and only when the message reports one, so an M-Pesa entry does
+not grow an empty row.
+
+Worth showing because it is how a member checks this ledger against the account
+itself without opening the app twice. If the two ever disagree, finding that out
+from the entry is better than finding it out from a statement months later.
+
+It is the account's own statement and never a figure this app computes with.
+Cash-at-hand is the fold, always.
+
+### Abandoned on the way
+
+I also tried putting a real Ziidi message on the seed's Pochi-to-Ziidi move, so
+the running app would demonstrate a Ziidi-backed entry. It failed a seed test,
+and the failure was right: the real message is for KSh 11,000 and the seed's move
+is KSh 4,000, so honouring the message would have shifted Pochi to about −7,384
+and rewritten the overdraw demonstration built earlier.
+
+Reverted. The seed's job is demonstrating the app, and the Ziidi path is already
+proven at build time by `ZiidiEndToEndTest`. Distorting working demonstration
+data to duplicate coverage that exists would have been a poor trade.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

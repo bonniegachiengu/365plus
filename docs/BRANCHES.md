@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **415 tests green** (core 387, desktop 18, android 10). **`./gradlew build` is green including lint** — see D66; `--offline` had been silently skipping lint all session. Desktop installed and verified as `0.35.4-docs-ziidi`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+| `main` | Protected trunk. Always green, always installable. | **415 tests green** (core 387, desktop 18, android 10). **`./gradlew build` is green including lint** — see D66; `--offline` had been silently skipping lint all session. Desktop installed and verified as `0.36.0-reported-balance`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
 
 
 ## Merged
@@ -75,6 +75,7 @@ concerned.
 | `fix/unmapped-message-precision` | "Cannot read those yet" was false of Ziidi once two of its shapes read. | 2026-08-29 | see `main` |
 | `fix/red-main` | Repair the test that change broke, and record how a red build got pushed. | 2026-08-29 | see `main` |
 | `docs/ziidi-is-read` | The brief and the README still said Ziidi's format was unknown. | 2026-08-29 | see `main` |
+| `slice/show-reported-balance` | The balance a Ziidi message reports reaches the entry screen. | 2026-08-29 | see `main` |
 
 ## Committed straight to `main` (rule 1 broken)
 
@@ -100,7 +101,7 @@ rule that is broken and not written down is a rule that stops being a rule.
 
 | Branch | Purpose | Why dropped |
 |---|---|---|
-| — | | |
+| `slice/seed-shows-ziidi` | Put a real Ziidi message on the seed's Pochi→Ziidi move. | The message is for KSh 11,000 and the seed's move is KSh 4,000. Honouring it would have shifted Pochi to about −7,384 and rewritten the overdraw demonstration. The path is already proven by `ZiidiEndToEndTest`; distorting the demo to duplicate that was a poor trade. See D74. |
 
 ## Elsewhere on this machine
 

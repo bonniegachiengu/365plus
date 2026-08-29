@@ -1,6 +1,7 @@
 package online.vyybandasky.plus365.core.sms
 
 import online.vyybandasky.plus365.core.DevSeed
+import online.vyybandasky.plus365.core.presentation.entryDetail
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -175,5 +176,53 @@ class UnmappedMessageTest {
             "M-Shwari: You have deposited Ksh1,000.00 to M-Shwari account. Balance Ksh8,000.00.",
         ).message()
         assertTrue("cannot read those yet" in m, m)
+    }
+}
+
+/**
+ * The balance the message reports reaches the screen.
+ *
+ * Extracted, stored, and shown nowhere would be the same gap this session has
+ * closed a dozen times — a capability that may as well not exist.
+ */
+class ReportedBalanceTest {
+
+    private val now = kotlinx.datetime.Instant.parse("2026-08-29T09:00:00Z")
+    private val config = online.vyybandasky.plus365.core.governance.ActorConfig
+        .dev(DevSeed.BONNIE, DevSeed.EVERYONE)
+
+    @Test
+    fun a_ziidi_entry_shows_what_the_account_then_held() {
+        var s = online.vyybandasky.plus365.core.presentation.Session(
+            book = online.vyybandasky.plus365.core.book.LedgerBook(
+                members = DevSeed.MEMBERS,
+                accounts = DevSeed.ACCOUNTS,
+                pockets = DevSeed.POCKETS,
+            ),
+            config = config,
+            actingAs = DevSeed.BONNIE,
+        )
+        s = s.moveMoney(
+            DevSeed.POCHI, DevSeed.ZIIDI, 1_100_000, now,
+            "You have successfully invested Ksh. 11,000.00 of transaction code UHL1I3NX68. " +
+                "Your ZIIDI balance is Ksh. 11,001.07.",
+        )
+        val id = s.book.pending().single().id
+        val detail = s.book.entryDetail(id, config, now)!!
+        assertEquals("KSh 11,001.07", detail.recordedEvidence?.balanceAfter)
+    }
+
+    @Test
+    fun an_m_pesa_entry_shows_no_such_line() {
+        // M-Pesa prints a balance too and this parser has never taken it, so
+        // there is nothing to show and the row must not appear empty.
+        val e = assertIs<ParseOutcome.Parsed>(
+            parseSms(
+                "RTY4M8N2PQ Confirmed. Ksh500.00 sent to KANGIRI 0712345678 on 26/8/26 " +
+                    "at 4:10 PM. New M-PESA balance is Ksh1,200.00.",
+                DevSeed.BONNIE,
+            ),
+        ).evidence
+        assertEquals(null, e.balanceAfterCents)
     }
 }

@@ -137,6 +137,7 @@ private fun EvidenceCard(title: String, e: EvidenceView) {
         ReviewLine("Direction", e.direction)
         e.counterparty?.let { ReviewLine("Other party", it) }
         e.occurredAt?.let { ReviewLine("When", it) }
+        e.balanceAfter?.let { ReviewLine("That account then held", it) }
         ReviewLine("Pasted by", e.whose)
         e.atmCaveat?.let {
             Text(

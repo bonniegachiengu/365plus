@@ -50,6 +50,18 @@ data class EvidenceView(
     val isAtmWithdrawal: Boolean = false,
     /** Said on screen when [isAtmWithdrawal]. Core owns the sentence. */
     val atmCaveat: String? = null,
+    /**
+     * What the account said it held afterwards, where the message reports it.
+     *
+     * Ziidi prints it. Shown because it is how a member checks this ledger
+     * against the account itself without opening the app twice — and if the two
+     * ever disagree, that is worth finding out from the entry rather than from a
+     * statement months later.
+     *
+     * It is the account's own statement, never a figure this app computes with.
+     * Cash-at-hand is the fold, always.
+     */
+    val balanceAfter: String? = null,
 )
 
 data class OverrideView(
@@ -121,6 +133,7 @@ private fun LedgerBook.evidenceView(e: SmsEvidence): EvidenceView = EvidenceView
     counterparty = e.counterparty,
     occurredAt = e.occurredAtText,
     raw = e.raw,
+    balanceAfter = e.balanceAfterCents?.let(::formatKes),
     isAtmWithdrawal = e.isAtmWithdrawal(),
     atmCaveat = if (e.isAtmWithdrawal()) {
         "Cash out of a machine. This message shows the money left the account. " +
