@@ -12,7 +12,7 @@ concerned.
 
 | Branch | Purpose | State |
 |---|---|---|
-| `main` | Protected trunk. Always green, always installable. | **415 tests green** (core 387, desktop 18, android 10). **`./gradlew build` is green including lint** — see D66; `--offline` had been silently skipping lint all session. Desktop installed and verified as `0.40.0-transaction-cost`. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
+| `main` | Protected trunk. Always green, always installable. | **415 tests green** (core 387, desktop 18, android 10). **`./gradlew build` is green including lint** — see D66; `--offline` had been silently skipping lint all session. Desktop installed and verified as `0.41.0-orphan-pockets`; **the phone is on the current build too**. The APK is built at the same stamp but **not yet on the phone** — it disconnected during `0.12.0` and the Redmi still runs `0.11.0-desktop-design`. |
 
 
 ## Merged
@@ -83,6 +83,7 @@ concerned.
 | `slice/rename-places` | Accounts and pockets can be renamed — without it the label alignment reached a fresh book and nothing else. | 2026-08-29 | see `main` |
 | `docs/brief-account-names` | The brief still used the old pocket names. | 2026-08-29 | see `main` |
 | `slice/transaction-cost` | The loan's third figure could not be entered, so every recorded loan cost zero to send. | 2026-08-29 | see `main` |
+| `fix/orphan-pocket-balances` | A ledger from before pockets existed hid KSh 3,658 of allocated money. Found on the phone. | 2026-08-30 | see `main` |
 
 ## Committed straight to `main` (rule 1 broken)
 

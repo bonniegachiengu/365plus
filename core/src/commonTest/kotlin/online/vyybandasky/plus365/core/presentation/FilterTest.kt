@@ -373,3 +373,79 @@ class LedgerPromiseTest {
         assertEquals(view().blurb, DevSeed.book(now).filteredActivity(LedgerFilter(), now).blurb)
     }
 }
+
+/**
+ * Money earmarked to a pocket the book cannot name.
+ *
+ * Found on a real device: Bonnie's phone was running a ledger created before
+ * pockets existed. No pocket definitions, nineteen entries earmarked to ids
+ * those definitions would have described. The fold was correct and the balance
+ * invariant held — and the "what it is for" list was built from the definitions,
+ * so it came back empty and the section vanished.
+ *
+ * KSh 3,658 allocated to pockets no screen could show, and nothing looked wrong,
+ * because an absent section looks like one with nothing to say.
+ */
+class OrphanPocketTest {
+
+    private val now = Instant.parse("2026-08-29T09:00:00Z")
+    private val config = ActorConfig.dev(DevSeed.BONNIE, DevSeed.EVERYONE)
+
+    /** A book with entries earmarked to a pocket, and no pocket definitions. */
+    private fun bookWithNoPocketDefinitions(): LedgerBook {
+        var s = Session(
+            book = LedgerBook(
+                members = DevSeed.MEMBERS,
+                accounts = DevSeed.ACCOUNTS,
+                pockets = DevSeed.POCKETS,
+            ),
+            config = config,
+            actingAs = DevSeed.BONNIE,
+        )
+        s = s.contribute(DevSeed.BONNIE, 365_800, now)
+        s = s.actAs(DevSeed.BRIAN).confirm(s.book.pending().single().id, DevSeed.BRIAN, now)
+        // Exactly the shape an older stored file decodes into.
+        return s.book.copy(pockets = emptyList())
+    }
+
+    @Test
+    fun the_money_is_still_allocated_and_the_invariant_still_holds() {
+        val st = bookWithNoPocketDefinitions().state()
+        assertEquals(st.poolCashCents, st.allocatedCents)
+        assertTrue(st.balances, "the fold was never the problem")
+    }
+
+    @Test
+    fun and_it_is_no_longer_missing_from_the_screen() {
+        val cash = bookWithNoPocketDefinitions().cashOnHand(now)
+        assertTrue(cash.pockets.isNotEmpty(), "the section disappeared with money in it")
+        assertEquals(
+            365_800L,
+            cash.pockets.sumOf { it.balanceCents },
+            "what it is for must add up to what there is",
+        )
+    }
+
+    @Test
+    fun the_two_splits_agree_with_each_other() {
+        // The only reason to show them side by side.
+        val cash = bookWithNoPocketDefinitions().cashOnHand(now)
+        assertEquals(
+            cash.accounts.sumOf { it.balanceCents },
+            cash.pockets.sumOf { it.balanceCents },
+        )
+    }
+
+    @Test
+    fun an_unnamed_pocket_says_so_rather_than_inventing_a_name() {
+        val row = bookWithNoPocketDefinitions().cashOnHand(now).pockets.first()
+        assertTrue("no description for it" in row.blurb, row.blurb)
+    }
+
+    @Test
+    fun a_book_with_proper_definitions_grows_no_extra_rows() {
+        // The fix must not add a phantom row to a healthy ledger.
+        val cash = DevSeed.book(now).cashOnHand(now)
+        assertEquals(DevSeed.POCKETS.size, cash.pockets.size)
+    }
+}

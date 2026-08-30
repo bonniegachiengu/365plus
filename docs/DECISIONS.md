@@ -2315,6 +2315,49 @@ broken thing, an unreachable one.
 
 ---
 
+## D81 — Money earmarked to a pocket the book could not name
+
+Found by putting the current build on Bonnie's phone, which had been running
+`0.10.0-overdraw-flags` — from before pockets existed.
+
+Its stored ledger has nineteen entries, three accounts and **no pocket
+definitions at all**. The entries are earmarked to pocket ids that the missing
+definitions would have described.
+
+Nothing was corrupt. Probing that exact file through core:
+
+    pockets=0 entries=19
+    poolCash=365800 cashAtHand=365800 allocated=365800
+    balances=true
+
+The fold was right and the invariant held. But `summaryView` built its pocket
+list from the **definitions**, so the list came back empty and the whole "what it
+is for" section disappeared from the home screen.
+
+KSh 3,658 allocated to pockets no screen could show — and nothing looked wrong,
+because an absent section looks exactly like a section with nothing to say.
+
+An id with a balance and no definition now gets a row of its own, named from the
+id and saying plainly that the ledger has no description for it and where to fix
+that. A display that quietly omits money is worse than one showing a name it does
+not recognise, and the two splits agreeing is the only reason to show them side
+by side at all.
+
+A test asserts a healthy book grows no extra row, because a fix that invents
+phantom pockets would be worse than the bug.
+
+### The wider shape
+
+Third time this session the same root has surfaced: **a stored ledger freezes the
+model as it was the day the file was made.** D79 was labels, D78 was targets,
+this is a whole missing axis. Renaming covers the first two once the definitions
+exist; this one is about definitions that were never there.
+
+An upgraded app silently losing a dimension of its own model is not something a
+test could have found, because every test builds its book from the current code.
+
+---
+
 ## Still open
 
 | Question | Blocks | Notes |

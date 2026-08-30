@@ -1,6 +1,7 @@
 package online.vyybandasky.plus365.core.presentation
 
 import online.vyybandasky.plus365.core.book.LedgerBook
+import online.vyybandasky.plus365.core.ledger.LedgerState
 import online.vyybandasky.plus365.core.domain.Entry
 import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.domain.MemberId
@@ -107,16 +108,54 @@ fun LedgerBook.summaryView(): SummaryView {
                 earns = a.earnsInterest,
             )
         },
-        pockets = pockets.map { p ->
-            PocketRow(
-                id = p.id,
-                label = p.label,
-                blurb = p.blurb,
-                balance = formatKes(s.pocketBalance(p.id)),
-                balanceCents = s.pocketBalance(p.id),
-            )
-        },
+        pockets = pocketRows(s),
     )
+}
+
+/**
+ * Every pocket holding money, including ones the book has no definition for.
+ *
+ * Found on Bonnie's phone, running a ledger created before pockets existed. It
+ * had **no pocket definitions at all** and nineteen entries earmarked to ids
+ * those definitions would have described. The fold was fine — the money was
+ * allocated and the balance invariant held — but this list was built from the
+ * *definitions*, so it came back empty and the whole "what it is for" section
+ * silently disappeared.
+ *
+ * KSh 3,658 was allocated to pockets no screen could show. Nothing looked wrong,
+ * because an absent section looks like a section that has nothing to say.
+ *
+ * A display that quietly omits money is worse than one that shows a name it does
+ * not recognise, so an id with a balance and no definition gets a row of its own
+ * and says plainly what it is. The two splits go back to agreeing, which is the
+ * only reason to show them side by side.
+ */
+private fun LedgerBook.pocketRows(s: LedgerState): List<PocketRow> {
+    val defined = pockets.map { p ->
+        PocketRow(
+            id = p.id,
+            label = p.label,
+            blurb = p.blurb,
+            balance = formatKes(s.pocketBalance(p.id)),
+            balanceCents = s.pocketBalance(p.id),
+        )
+    }
+    val known = pockets.map { it.id }.toSet()
+    val orphans = s.perPocket
+        .filterKeys { it !in known }
+        .filterValues { it != 0L }
+        .map { (id, cents) ->
+            PocketRow(
+                id = id,
+                label = id.replaceFirstChar { it.uppercase() },
+                blurb = "This ledger has no description for it. The money is here; " +
+                    "the name is not. Rename it on the Places screen.",
+                balance = formatKes(cents),
+                balanceCents = cents,
+            )
+        }
+        .sortedBy { it.id }
+    return defined + orphans
 }
 
 fun LedgerBook.loanRows(): List<LoanRow> {
