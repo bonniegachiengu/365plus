@@ -2365,3 +2365,41 @@ test could have found, because every test builds its book from the current code.
 | Repayment allocation across principal / interest / cost | D5 finishing | Needs Brian, who keeps the book. |
 | M-Pesa SMS auto-confirm vs. two-person control | SMS slice | If the recorder's own line is also the verifier, that is self-confirmation in a costume. Suggested: trust SMS for money-**in** only; human for everything else. |
 | How pre-app history is grandfathered | loading the real book | Existing entries carry no confirmations; gating them naively would zero the ledger. |
+
+## D82 — Naming money that arrived with no name
+
+D81 gave an id holding money a row of its own when the book had no
+definition for it, and the row told the member to rename it on the Places
+screen. `renamePocket` refused any id it had no definition for.
+
+That refusal was true of the definitions and false of the money, and it made
+the app's own instruction a dead end — the one place a member could act on
+what they had just been told, and it said no.
+
+Naming an id that holds money now creates the definition. An id holding
+nothing is still refused: that is adding a pocket, and there is a button for
+it. Founder-only and duplicate-checked like every other rename.
+
+The rule this is a case of: when a screen tells somebody to do something, the
+thing has to be doable from where they are standing. Found by putting the
+build on a phone and reading what the app told a person to do, which is not
+something a test suite can be asked.
+
+## D83 — One number, printed once
+
+Kang'iri's page printed `Pending loan amount KSh 1,633.00` as a row, then
+`pending loan amount KSh 1,633.00` immediately below it in red. The laptop did
+the same — under a comment saying that repeating a number is how a page stops
+being read.
+
+A figure repeated verbatim does not read as emphasis. It reads as two figures
+that happen to agree, and it sends the reader hunting for the difference. The
+standing line now appears only where it says something the rows above do not:
+the pool owing a member, or a founder square.
+
+Beside it, `1 contributions`. The loan count next to it had been pluralised
+and this one had not, which is what happens when a string is assembled in two
+halves and only one half gets read again.
+
+Both were found by looking at a real screen. Neither would fail a test, and
+both are the first thing a person sees.
