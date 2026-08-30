@@ -2358,14 +2358,6 @@ test could have found, because every test builds its book from the current code.
 
 ---
 
-## Still open
-
-| Question | Blocks | Notes |
-|---|---|---|
-| Repayment allocation across principal / interest / cost | D5 finishing | Needs Brian, who keeps the book. |
-| M-Pesa SMS auto-confirm vs. two-person control | SMS slice | If the recorder's own line is also the verifier, that is self-confirmation in a costume. Suggested: trust SMS for money-**in** only; human for everything else. |
-| How pre-app history is grandfathered | loading the real book | Existing entries carry no confirmations; gating them naively would zero the ledger. |
-
 ## D82 — Naming money that arrived with no name
 
 D81 gave an id holding money a row of its own when the book had no
@@ -2403,3 +2395,11 @@ halves and only one half gets read again.
 
 Both were found by looking at a real screen. Neither would fail a test, and
 both are the first thing a person sees.
+
+## Still open
+
+| Question | Blocks | Notes |
+|---|---|---|
+| Repayment allocation across principal / interest / cost | D5 finishing | Needs Brian, who keeps the book. |
+| M-Pesa SMS auto-confirm vs. two-person control | SMS slice | If the recorder's own line is also the verifier, that is self-confirmation in a costume. Suggested: trust SMS for money-**in** only; human for everything else. |
+| How pre-app history is grandfathered | loading the real book | Existing entries carry no confirmations; gating them naively would zero the ledger. |
