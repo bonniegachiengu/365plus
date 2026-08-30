@@ -284,3 +284,81 @@ class RenamePlacesTest {
         assertEquals("Founder's A/C", back.pockets.single { it.id == DevSeed.POOL }.label)
     }
 }
+
+/**
+ * Naming money that arrived with no name.
+ *
+ * A ledger written before pockets existed has entries earmarked to ids with no
+ * definition behind them. The screen that surfaces those tells the member to
+ * rename them on the Places screen — and `renamePocket` refused, because there
+ * was no pocket to rename.
+ *
+ * True of the definitions and false of the money, and it made the instruction a
+ * dead end. Found by putting the build on a real phone and reading what the app
+ * told somebody to do.
+ */
+class AdoptOrphanPocketTest {
+
+    private val config = ActorConfig.dev(DevSeed.BONNIE, DevSeed.EVERYONE)
+
+    private fun <T> Decision<T>.value(): T = (this as Decision.Allowed).value
+
+    /** Exactly the shape an older stored file decodes into. */
+    private fun bookWithOrphanMoney(): LedgerBook {
+        var b = LedgerBook(
+            members = DevSeed.MEMBERS,
+            accounts = DevSeed.ACCOUNTS,
+            pockets = DevSeed.POCKETS,
+        )
+        b = (
+            b.record(
+                id = "c1", type = EntryType.CONTRIBUTION, amountCents = 365_800,
+                memberId = DevSeed.BONNIE, recordedBy = DevSeed.BONNIE, config = config,
+                pocketId = DevSeed.POOL,
+            ) as Decision.Allowed
+            ).value.book
+        b = (b.confirm("c1", DevSeed.BRIAN, config) as Decision.Allowed).value.book
+        return b.copy(pockets = emptyList())
+    }
+
+    @Test
+    fun an_id_holding_money_can_be_given_a_name() {
+        val b = bookWithOrphanMoney()
+            .renamePocket(DevSeed.POOL, "Founder's A/C", DevSeed.BONNIE, config).value()
+        assertEquals("Founder's A/C", b.pockets.single { it.id == DevSeed.POOL }.label)
+    }
+
+    @Test
+    fun and_the_money_is_still_exactly_where_it_was() {
+        val before = bookWithOrphanMoney().state().pocketBalance(DevSeed.POOL)
+        val after = bookWithOrphanMoney()
+            .renamePocket(DevSeed.POOL, "Founder's A/C", DevSeed.BONNIE, config).value()
+        assertEquals(before, after.state().pocketBalance(DevSeed.POOL))
+        assertTrue(after.state().balances)
+    }
+
+    @Test
+    fun naming_an_id_that_holds_nothing_is_still_refused() {
+        // That is adding a pocket, and there is a button for it.
+        val r = bookWithOrphanMoney()
+            .renamePocket("invented", "Something", DevSeed.BONNIE, config)
+        assertTrue(r is Decision.Refused)
+    }
+
+    @Test
+    fun adoption_cannot_duplicate_an_existing_name() {
+        var b = bookWithOrphanMoney()
+        b = b.renamePocket(DevSeed.POOL, "Founder's A/C", DevSeed.BONNIE, config).value()
+        // KESHFLO holds nothing here, so this is refused for that reason first —
+        // the point is that adoption goes through the same name checks.
+        val r = b.renamePocket(DevSeed.KESHFLO, "Founder's A/C", DevSeed.BONNIE, config)
+        assertTrue(r is Decision.Refused)
+    }
+
+    @Test
+    fun a_keshflo_borrower_cannot_adopt_one_either() {
+        val r = bookWithOrphanMoney()
+            .renamePocket(DevSeed.POOL, "Mine", DevSeed.WANJIKU, config)
+        assertTrue(r is Decision.Refused)
+    }
+}

@@ -14,7 +14,7 @@ package online.vyybandasky.plus365.core
 object BuildInfo {
 
     /** Bumped every slice. The name to check against what was expected. */
-    const val NAME: String = "0.41.0-orphan-pockets"
+    const val NAME: String = "0.42.0-adopt-orphan"
 
     /**
      * The same build as a plain three-part number.
