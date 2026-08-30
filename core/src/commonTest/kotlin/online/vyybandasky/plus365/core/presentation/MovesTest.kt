@@ -71,19 +71,19 @@ class MovesTest {
         val pocketsBefore = s.book.state().perPocket
         val cashBefore = s.book.state().cashAtHandCents
 
-        s = s.actAs(DevSeed.BONNIE).moveMoney(DevSeed.ZIIDI, DevSeed.MSHWARI, 100_000, T0)
+        s = s.actAs(DevSeed.BONNIE).moveMoney(DevSeed.ZIIDI, DevSeed.ETICA, 100_000, T0)
         val id = s.book.pending().last().id
         s = s.confirmAct(id, DevSeed.BRIAN, T0)
 
         assertEquals(cashBefore, s.book.state().cashAtHandCents, "a move creates nothing")
-        assertEquals(100_000L, s.book.state().accountBalance(DevSeed.MSHWARI))
+        assertEquals(100_000L, s.book.state().accountBalance(DevSeed.ETICA))
         assertEquals(pocketsBefore, s.book.state().perPocket, "the earmarking did not budge")
         assertTrue(s.book.state().balances)
     }
 
     @Test
     fun a_move_carries_the_time_it_was_recorded() {
-        var s = session().actAs(DevSeed.BONNIE).moveMoney(DevSeed.ZIIDI, DevSeed.MSHWARI, 1_000, T0)
+        var s = session().actAs(DevSeed.BONNIE).moveMoney(DevSeed.ZIIDI, DevSeed.ETICA, 1_000, T0)
         assertEquals(T0, s.book.pending().last().recordedAt)
     }
 

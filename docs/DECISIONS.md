@@ -2419,6 +2419,86 @@ where else the same shape appears — and it appeared once, immediately. A bug
 found by a screen is a report about one line; the class it belongs to is
 usually still sitting in the code.
 
+## D85 — Renaming somebody's saved ledger, with their say-so
+
+Bonnie approved changing the two account labels on his phone and his laptop to
+*Founder's A/C* and *Keshflo A/C* — his real saved data, and the first time
+anything here has written to a ledger it did not create.
+
+Two rules made it safe, and they are the ones to keep. **Back up first, verify
+by hash.** And **prove the change is legal before making it**: the rename was
+run through the app's own `renamePocket` against a copy, and the result compared
+field by field with the original — entries, members, accounts, loans, cash on
+hand, per-account and per-pocket balances. Only then was anything written.
+
+The first attempt was rejected by that check, and it was right to be. Re-encoding
+through `encodeBook` produced a file that also spelled out defaults the original
+had omitted — `balanceAfterCents: null`, `contributionTargetCents: 0`. Nothing
+had changed in value, and the app itself would write those on its next save. But
+"only the labels" was the approval, so the change was applied as a surgical edit
+to the original bytes instead. The laptop diff is two lines.
+
+On the phone the change is twelve added lines rather than two changed ones,
+because that ledger had no pocket definitions at all — the label had to be
+created before it could be different. Reported as what it is rather than filed
+under renaming.
+
+## D86 — A target moves only when everyone agrees
+
+Bonnie's ruling. A contribution target is the one number in this ledger that is
+a promise rather than a record, and the two-person control that governs
+everything else is deliberately not enough for it. Two people can settle whether
+money moved, because it either moved or it did not. Only everybody can agree to
+change what somebody promised.
+
+So it is not an editable field. It is a proposal with approvals, and it lands
+only when every founder has said yes. Any one person can stop it — including the
+member whose target it is, which is the whole difference between unanimity and a
+majority, and the reason this could not be built by reusing `confirm`.
+
+Who counts as everybody is one line, `targetElectorate()`, and it is the active
+founders. Only founders have targets, and the pool those targets fill is theirs;
+a Keshflo beneficiary is somebody the group lends *to*, and an outside borrower
+holding a veto over the founders' savings goals is not what unanimous meant.
+Flagged for Bonnie rather than assumed silently.
+
+The tests that carry this are the negative ones. Two of three founders agreeing
+must change nothing, and one refusal must end it. Unanimity is defined by what
+it refuses, so a suite that only walked the happy path would pass just as well
+against a majority rule — which is exactly what the mutation check confirmed:
+swapping the rule for "two or more" broke five tests.
+
+## D87 — No M-Shwari, and what "no parser" actually means
+
+The group has no M-Shwari account and is not opening one. The real three are
+M-Pesa/Pochi, the Ziidi investment account behind the Founder's A/C, and the
+Etica money market fund behind the Keshflo A/C.
+
+The first attempt at this removed M-Shwari from `UNMAPPED_PROVIDERS`, which read
+like closing the item and was the opposite of it. That set is what makes the
+parser *refuse* a message. Emptying it drops M-Shwari texts into the generic
+M-Pesa path, where the general rules would read an unverified format and return
+something shaped exactly like evidence. "No parser for it" and "parse it with
+somebody else's rules" are opposite instructions, and only one of them was
+asked for.
+
+So M-Shwari stays listed as unreadable, permanently rather than pending, and
+Etica joins it for the ordinary reason: it sends messages and nobody has shown
+this code a real one.
+
+`AccountKind.MSHWARI` also stays. Ledgers written before today name it, and
+deleting an enum constant a stored file mentions does not tidy that file up — it
+makes it unreadable, which is the one failure this app cannot afford. It is dead
+to new data and load-bearing for old, so the menu is built from
+`AccountKind.offerable` rather than from `entries`. Something kept for old data
+should never turn up in a chooser for new data.
+
+## D88 — The placeholder icon stays
+
+Confirmed with Bonnie: no real artwork exists. The generated placeholder is the
+finished answer for now, not a gap, and the item is closed rather than carried.
+Reopen it when there is art, not before.
+
 ## Still open
 
 | Question | Blocks | Notes |
@@ -2426,3 +2506,7 @@ usually still sitting in the code.
 | Repayment allocation across principal / interest / cost | D5 finishing | Needs Brian, who keeps the book. |
 | M-Pesa SMS auto-confirm vs. two-person control | SMS slice | If the recorder's own line is also the verifier, that is self-confirmation in a costume. Suggested: trust SMS for money-**in** only; human for everything else. |
 | How pre-app history is grandfathered | loading the real book | Existing entries carry no confirmations; gating them naively would zero the ledger. |
+| Is "Joseph" the same person as Kang'iri, or a third member? | seeding the real figures | Blocks the historical seed entirely — a member list that is wrong by one person makes every per-member figure wrong. |
+| Sign-off on the extracted figures | seeding the real figures | Brian 29,000 / Joseph 12,000; loans 25,504; cash 21,307; interest 5,811. Read off screenshots, unconfirmed. |
+| Does "unanimous" mean all founders, or all members including Keshflo borrowers? | D86 electorate | Built as all active founders — see `targetElectorate()`. One line to change if the group meant everybody. |
+| The two live ledgers still carry an M-Shwari account | D87 finishing | Both hold KSh 0 and predate the decision. Removing an account is a data change nobody has approved, and the app deliberately cannot delete one. |

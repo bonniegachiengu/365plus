@@ -39,7 +39,7 @@ it is structure chosen so that later, on a functional Sustena, 365+ can be
 embroidered in as a Sustain rather than rebuilt. **Standalone now, convergence
 later.**
 
-- **Accounts answer *where* the money is** — M-Pesa Pochi, Ziidi, M-Shwari, a
+- **Accounts answer *where* the money is** — M-Pesa Pochi, Ziidi, Etica MMF, a
   bank, cash in a hand. **Cash-at-hand is their sum**, derived and never stored.
   A transfer between them cannot change it.
 - **Pockets answer *what the money is for*** — the members' pool, the Keshflo
@@ -161,7 +161,8 @@ Ziidi is read: its **invested** and **withdrawn** messages give an amount, a
 transaction code and the resulting balance. Both are moves between the pool's own
 accounts, so the app refuses one offered as proof that money came in — and since
 only the account holder is texted, a second member confirms them by hand. Every
-other Ziidi notice, and all of M-Shwari, is kept unparsed rather than guessed at.
+other Ziidi notice, and everything from M-Shwari and Etica, is kept unparsed
+rather than guessed at.
 
 Still ahead: sync between the phones and the master, *automatic* capture of M-Pesa
 messages rather than pasting them, and `cloudflared` as a native Windows service.

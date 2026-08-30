@@ -172,7 +172,7 @@ class PocketsTest {
     @Test
     fun only_the_savings_products_earn() {
         assertEquals(
-            setOf(DevSeed.ZIIDI, DevSeed.MSHWARI),
+            setOf(DevSeed.ZIIDI, DevSeed.ETICA),
             book().earningAccounts().map { it.id }.toSet(),
         )
     }

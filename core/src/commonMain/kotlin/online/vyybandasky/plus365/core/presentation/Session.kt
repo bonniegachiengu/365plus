@@ -1,35 +1,41 @@
 package online.vyybandasky.plus365.core.presentation
 
+import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.DevSeed
 import online.vyybandasky.plus365.core.book.LedgerBook
+import online.vyybandasky.plus365.core.book.addAccount
+import online.vyybandasky.plus365.core.book.addPocket
+import online.vyybandasky.plus365.core.book.approveTargetChange
 import online.vyybandasky.plus365.core.book.confirm
 import online.vyybandasky.plus365.core.book.confirmGroup
 import online.vyybandasky.plus365.core.book.confirmGroupOrEscalate
 import online.vyybandasky.plus365.core.book.confirmOrEscalate
-import online.vyybandasky.plus365.core.book.overrideGroup
+import online.vyybandasky.plus365.core.book.disburseLoan
 import online.vyybandasky.plus365.core.book.escalate
 import online.vyybandasky.plus365.core.book.override
-import online.vyybandasky.plus365.core.book.reject
-import online.vyybandasky.plus365.core.book.rejectGroup
-import online.vyybandasky.plus365.core.domain.AccountKind
-import online.vyybandasky.plus365.core.book.addAccount
-import online.vyybandasky.plus365.core.book.addPocket
-import online.vyybandasky.plus365.core.book.disburseLoan
+import online.vyybandasky.plus365.core.book.overrideGroup
+import online.vyybandasky.plus365.core.book.proposeTargetChange
 import online.vyybandasky.plus365.core.book.reallocate
 import online.vyybandasky.plus365.core.book.record
 import online.vyybandasky.plus365.core.book.recordAccountInterest
+import online.vyybandasky.plus365.core.book.reject
+import online.vyybandasky.plus365.core.book.rejectGroup
+import online.vyybandasky.plus365.core.book.rejectTargetChange
 import online.vyybandasky.plus365.core.book.renameAccount
 import online.vyybandasky.plus365.core.book.renamePocket
 import online.vyybandasky.plus365.core.book.reverse
 import online.vyybandasky.plus365.core.book.transfer
+import online.vyybandasky.plus365.core.book.withdrawTargetChange
+import online.vyybandasky.plus365.core.domain.AccountKind
 import online.vyybandasky.plus365.core.domain.EntryState
 import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.domain.MemberId
+import online.vyybandasky.plus365.core.domain.TargetChangeState
 import online.vyybandasky.plus365.core.governance.ActorConfig
-import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.governance.ConflictKind
 import online.vyybandasky.plus365.core.governance.Decision
 import online.vyybandasky.plus365.core.governance.OverrideDecision
+import online.vyybandasky.plus365.core.money.formatKes
 import online.vyybandasky.plus365.core.sms.ParseOutcome
 import online.vyybandasky.plus365.core.sms.SmsEvidence
 import online.vyybandasky.plus365.core.sms.message
@@ -575,6 +581,66 @@ data class Session(
                 book = r.value,
                 notice = Notice.Info("Renamed to ${label.trim()}."),
             )
+            is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
+        }
+
+    // ── what somebody agreed to save ────────────────────────────────────────
+    //
+    // A target changes only when every founder agrees. These four are the whole
+    // way in; there is deliberately no method that just sets a target, because
+    // one would eventually get called.
+
+    /** Put a change to somebody's target to the group. */
+    fun proposeTargetChange(memberId: MemberId, newTargetCents: Long, at: Instant? = null): Session {
+        val id = nextId("tc")
+        return when (
+            val r = book.proposeTargetChange(id, memberId, newTargetCents, actingAs, config, at)
+        ) {
+            is Decision.Allowed -> copy(
+                book = r.value,
+                idCounter = idCounter + 1,
+                notice = Notice.Info(
+                    if (r.value.targetChange(id)?.state == TargetChangeState.AGREED) {
+                        "Agreed. The target is now ${formatKes(newTargetCents)}."
+                    } else {
+                        "Put to the group. It changes nothing until every founder agrees."
+                    },
+                ),
+            )
+            is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
+        }
+    }
+
+    /** Agree to one. */
+    fun approveTargetChange(id: String): Session =
+        when (val r = book.approveTargetChange(id, actingAs, config)) {
+            is Decision.Allowed -> copy(
+                book = r.value,
+                notice = Notice.Info(
+                    if (r.value.targetChange(id)?.state == TargetChangeState.AGREED) {
+                        "That was the last one needed. The target has moved."
+                    } else {
+                        "Agreed. Still waiting on somebody else."
+                    },
+                ),
+            )
+            is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
+        }
+
+    /** Refuse one. Ends it — under unanimity a single no is decisive. */
+    fun rejectTargetChange(id: String, reason: String, at: Instant? = null): Session =
+        when (val r = book.rejectTargetChange(id, actingAs, reason, config, at)) {
+            is Decision.Allowed -> copy(
+                book = r.value,
+                notice = Notice.Info("Refused. The target has not moved."),
+            )
+            is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
+        }
+
+    /** Take back one you proposed. */
+    fun withdrawTargetChange(id: String): Session =
+        when (val r = book.withdrawTargetChange(id, actingAs, config)) {
+            is Decision.Allowed -> copy(book = r.value, notice = Notice.Info("Taken back."))
             is Decision.Refused -> copy(notice = Notice.Refused(r.refusal.message))
         }
 

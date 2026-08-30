@@ -115,7 +115,7 @@ private fun AddAccountCard(session: Session, onChange: (Session) -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            for (k in AccountKind.entries) {
+            for (k in AccountKind.offerable) {
                 Choice(k.plainName(), k == kind) { kind = k }
             }
         }
@@ -171,36 +171,11 @@ private fun AddPocketCard(session: Session, onChange: (Session) -> Unit) {
     }
 }
 
-@Composable
-private fun NameField(
-    value: String,
-    label: String,
-    modifier: Modifier = Modifier,
-    onValue: (String) -> Unit,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = { onValue(it.take(40)) },
-        label = { Text(label) },
-        singleLine = true,
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Plus.Money,
-            unfocusedBorderColor = Plus.Divider,
-            focusedTextColor = Plus.TextHigh,
-            unfocusedTextColor = Plus.TextHigh,
-            focusedLabelColor = Plus.Money,
-            unfocusedLabelColor = Plus.TextLow,
-            cursorColor = Plus.Money,
-        ),
-    )
-}
-
 /** The kinds, in words a person would use rather than the enum's. */
 private fun AccountKind.plainName(): String = when (this) {
     AccountKind.MPESA -> "M-Pesa"
     AccountKind.ZIIDI -> "Ziidi"
+    AccountKind.ETICA -> "Etica MMF"
     AccountKind.MSHWARI -> "M-Shwari"
     AccountKind.BANK -> "Bank"
     AccountKind.CASH -> "Cash"
@@ -209,6 +184,7 @@ private fun AccountKind.plainName(): String = when (this) {
 private fun AccountKind.plainBlurb(): String = when (this) {
     AccountKind.MPESA -> "A wallet, a Pochi, a paybill. Messages arrive; charges apply."
     AccountKind.ZIIDI -> "Earns on its own, and moves through M-Pesa without a charge."
+    AccountKind.ETICA -> "A money market fund. Earns on its own; no message this app can read yet."
     AccountKind.MSHWARI -> "Earns on its own."
     AccountKind.BANK -> "A bank account. Messages arrive, including ATM withdrawals."
     AccountKind.CASH -> "Notes in somebody's hand. Nothing sends a message about it, " +

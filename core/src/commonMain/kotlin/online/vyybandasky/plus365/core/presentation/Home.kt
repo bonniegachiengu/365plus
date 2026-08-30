@@ -133,7 +133,7 @@ enum class PoolMove(val label: String, val blurb: String) {
     EARMARK("Set aside", "Change what money is earmarked for"),
 
     /** A savings account paying out. */
-    INTEREST("Interest earned", "Record what Ziidi or M-Shwari paid"),
+    INTEREST("Interest earned", "Record what Ziidi or Etica paid"),
 }
 
 // ── needs confirming ─────────────────────────────────────────────────────────
