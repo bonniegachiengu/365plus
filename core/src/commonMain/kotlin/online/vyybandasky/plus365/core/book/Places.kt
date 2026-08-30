@@ -184,11 +184,31 @@ fun LedgerBook.renamePocket(
     }
     if (!isFounder(by)) return Decision.Refused(Refusal.NotAMember(by))
 
-    val existing = pockets.firstOrNull { it.id == id }
-        ?: return Decision.Refused(Refusal.Invalid("There is no pocket $id."))
     val trimmed = redactContactNumbers(label.trim())
     if (trimmed.isBlank()) {
         return Decision.Refused(Refusal.Invalid("A pocket needs a name."))
+    }
+
+    val existing = pockets.firstOrNull { it.id == id }
+    if (existing == null) {
+        // Adoption, not renaming. A ledger written before pockets existed has
+        // money earmarked to ids with no definition behind them, and the screen
+        // that shows those tells the member to rename them here. Refusing
+        // because "there is no pocket" would be true of the definitions and
+        // false of the money, and would make that instruction a dead end.
+        //
+        // Only for an id that actually holds something. Naming a pocket that
+        // does not exist and has never held anything is adding one, and there is
+        // a button for that.
+        if (state().pocketBalance(id) == 0L) {
+            return Decision.Refused(Refusal.Invalid("There is no pocket $id."))
+        }
+        if (pockets.any { it.label.equals(trimmed, ignoreCase = true) }) {
+            return Decision.Refused(
+                Refusal.Invalid("There is already a pocket called \"$trimmed\"."),
+            )
+        }
+        return Decision.Allowed(copy(pockets = pockets + Pocket(id, trimmed, "")))
     }
     if (trimmed == existing.label) return Decision.Allowed(this)
     if (pockets.any { it.id != id && it.label.equals(trimmed, ignoreCase = true) }) {
