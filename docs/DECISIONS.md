@@ -2396,6 +2396,29 @@ halves and only one half gets read again.
 Both were found by looking at a real screen. Neither would fail a test, and
 both are the first thing a person sees.
 
+## D84 — The same hole, on the side that matters more
+
+D81 and D82 dealt with money earmarked to a pocket the book could not name.
+The accounts list was built exactly the same way — from the definitions — and
+had exactly the same hole, which nobody had walked into yet.
+
+Fixed before anybody did. This side is the worse of the two. *What it is for*
+is an internal split; *where it is* is the card somebody holds up against what
+their own bank app says. An account silently missing from it means cash on hand
+no longer equals the rows printed underneath it, and the figure that is wrong
+is the one nobody would think to doubt.
+
+An orphan account row is never marked as earning. Whether the money grows is
+precisely what the missing definition would have told us, and defaulting it to
+*yes* would be inventing a fact about somebody's savings. Adoption applies here
+too: naming an id that holds money creates the account.
+
+Worth naming the method, because it is repeatable. The first of these was found
+by putting a build on a phone. The second was found by asking, straight after,
+where else the same shape appears — and it appeared once, immediately. A bug
+found by a screen is a report about one line; the class it belongs to is
+usually still sitting in the code.
+
 ## Still open
 
 | Question | Blocks | Notes |
