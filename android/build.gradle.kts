@@ -34,8 +34,8 @@ android {
         // Bumped every slice so the build on the phone can be named, not
         // assumed. An APK that silently failed to replace the old one looks
         // exactly like a feature that silently failed to work.
-        versionCode = 14
-        versionName = "0.42.0-adopt-orphan"
+        versionCode = 15
+        versionName = "0.43.0-one-number-once"
     }
 
     buildFeatures {

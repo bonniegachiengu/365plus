@@ -615,14 +615,19 @@ private fun MemberBody(
                     )
                 }
 
-                if (!d.isBeneficiary && d.owesCents > 0L) {
+                val owesLine = !d.isBeneficiary && d.owesCents > 0L
+                if (owesLine) {
                     ReviewLine("Pending loan amount", d.owes)
                 }
-                // For a borrower the standing line is the hero figure said again
-                // one size down, and the card below breaks it into parts. Three
-                // printings of one number on one screen is how a page stops
-                // being read.
-                if (!d.isBeneficiary) {
+                // This comment used to warn that three printings of one number
+                // is how a page stops being read, directly above code that
+                // printed it twice. Seen on the phone first, and the laptop had
+                // it too: the row above and this line say the same sentence,
+                // the second one in lower case.
+                //
+                // The standing line stays where it still says something the
+                // rows do not: the pool owing a member, or a founder square.
+                if (!d.isBeneficiary && !owesLine) {
                     Text(
                         d.standingLine,
                         style = MaterialTheme.typography.titleMedium,
@@ -630,7 +635,9 @@ private fun MemberBody(
                     )
                 }
                 Text(
-                    "${d.contributionCount} contributions · ${d.activeLoanCount} active " +
+                    "${d.contributionCount} " +
+                        (if (d.contributionCount == 1) "contribution" else "contributions") +
+                        " · ${d.activeLoanCount} active " +
                         if (d.activeLoanCount == 1) "loan" else "loans",
                     style = MaterialTheme.typography.bodySmall,
                     color = Plus.TextLow,
