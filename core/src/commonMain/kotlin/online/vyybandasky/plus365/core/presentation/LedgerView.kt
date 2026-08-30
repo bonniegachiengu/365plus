@@ -47,7 +47,7 @@ data class AccountRow(
     val label: String,
     val balance: String,
     val balanceCents: Long,
-    /** Ziidi and M-Shwari grow on their own; a wallet does not. */
+    /** Ziidi and Etica grow on their own; a wallet does not. */
     val earns: Boolean = false,
 )
 

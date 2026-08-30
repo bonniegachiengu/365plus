@@ -171,7 +171,7 @@ class DevSeedTest {
 
     @Test
     fun the_pool_keeps_three_accounts_and_two_pockets() {
-        assertEquals(3, book.accounts.size, "Pochi, Ziidi, M-Shwari")
+        assertEquals(3, book.accounts.size, "Pochi, Ziidi, Etica MMF")
         assertEquals(2, book.pockets.size, "Founder's A/C and Keshflo A/C")
     }
 

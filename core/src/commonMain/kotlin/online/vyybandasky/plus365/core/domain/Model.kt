@@ -131,7 +131,26 @@ enum class AccountKind {
     /** Safaricom's money-market fund. Earns, moves instantly, charges nothing. */
     ZIIDI,
 
-    /** Safaricom's savings product. Also earns. */
+    /**
+     * The Etica money market fund. Where the Keshflo A/C actually sits.
+     *
+     * Earns on its own. No message format is known here yet, so nothing about
+     * it parses — an entry on this account is somebody's word, confirmed by
+     * hand, like cash.
+     */
+    ETICA,
+
+    /**
+     * Safaricom's savings product.
+     *
+     * The group has no M-Shwari account and is not opening one — confirmed by
+     * Bonnie, 30 Aug 2026. Nothing offers it any more and no new ledger has one.
+     *
+     * The value stays. Ledgers written before this date name it, and deleting
+     * an enum constant that a stored file mentions does not tidy anything up —
+     * it makes that file unreadable, which is the one failure this app cannot
+     * afford. It is dead to new data and load-bearing for old.
+     */
     MSHWARI,
 
     /** A bank account. Not open yet. */
@@ -139,6 +158,21 @@ enum class AccountKind {
 
     /** Notes and coins. Earns nothing and sends no message. */
     CASH,
+
+    ;
+
+    companion object {
+        /**
+         * The kinds a member may actually open, in the order they are offered.
+         *
+         * Not [entries]. A chooser built from the enum would still offer
+         * M-Shwari, which the group does not have and is not opening — and the
+         * enum keeps that constant only so ledgers written before the decision
+         * still load. Something kept for old data should not turn up in a menu
+         * for new data, and this is the line that separates the two.
+         */
+        val offerable: List<AccountKind> = listOf(MPESA, ZIIDI, ETICA, BANK, CASH)
+    }
 }
 
 /**
@@ -156,7 +190,8 @@ data class Account(
 ) {
     /** Whether money left here grows by itself. */
     val earnsInterest: Boolean
-        get() = kind == AccountKind.ZIIDI || kind == AccountKind.MSHWARI
+        get() = kind == AccountKind.ZIIDI || kind == AccountKind.ETICA ||
+            kind == AccountKind.MSHWARI
 
     /** Ziidi moves in and out through M-Pesa without a transaction charge. */
     val zeroRated: Boolean get() = kind == AccountKind.ZIIDI
@@ -290,6 +325,81 @@ data class Loan(
     val state: LoanState = LoanState.ACTIVE,
 )
 
+/** Where a proposed change to an agreed contribution target has got to. */
+@Serializable
+enum class TargetChangeState {
+    /** Put to the group. Waiting on whoever has not answered. */
+    PROPOSED,
+
+    /** Everybody agreed. The target on the member has moved. */
+    AGREED,
+
+    /** Somebody said no. One is enough — that is what unanimous means. */
+    REJECTED,
+
+    /** The proposer took it back before it was settled. */
+    WITHDRAWN,
+}
+
+/**
+ * A proposed change to what a member agreed to save.
+ *
+ * Bonnie's ruling: a target changes only with **unanimous** approval — not one
+ * other person, not a majority. A target is the one number in this ledger that
+ * is a promise rather than a record, and the two-person control used everywhere
+ * else is deliberately not enough for it. Two people can settle whether money
+ * moved, because it either did or it did not. Only everybody can agree to
+ * change what somebody promised.
+ *
+ * Kept beside the entries rather than among them. Entries are money moving and
+ * this moves none; folding it in would put a governance record in the ledger
+ * that every balance calculation has to remember to skip, which is how a fold
+ * quietly starts lying.
+ *
+ * Append-only like the rest. A rejected proposal stays, with who rejected it
+ * and why — somebody asked, and that is part of the history whatever the
+ * answer was.
+ */
+@Serializable
+data class TargetChange(
+    val id: String,
+
+    /** Whose target this would change. */
+    val memberId: MemberId,
+
+    val newTargetCents: Long,
+
+    /**
+     * What it was when this was proposed.
+     *
+     * Kept on the record rather than read off the member later, so the proposal
+     * still says what it was actually asking for even after the target moves.
+     */
+    val previousTargetCents: Long,
+
+    val proposedBy: MemberId,
+    val proposedAt: Instant? = null,
+
+    /**
+     * Who has said yes, the proposer included.
+     *
+     * Proposing is agreeing; asking somebody to separately approve their own
+     * proposal is ceremony, not control. A set rather than a count, because a
+     * count cannot tell you whether the same person answered twice.
+     */
+    val approvals: Set<MemberId> = emptySet(),
+
+    val rejectedBy: MemberId? = null,
+    val rejectedAt: Instant? = null,
+    val rejectionReason: String? = null,
+
+    val state: TargetChangeState = TargetChangeState.PROPOSED,
+) {
+    /** Whether [who] still owes an answer. */
+    fun awaits(who: MemberId): Boolean =
+        state == TargetChangeState.PROPOSED && who !in approvals
+}
+
 /**
  * An immutable, append-only money record.
  *
@@ -391,8 +501,8 @@ data class Entry(
     /**
      * A message the app recognised but cannot yet read.
      *
-     * Ziidi and M-Shwari send confirmations, but their exact wording is not
-     * known here yet, so there is no code to match against. The text is kept —
+     * Some providers send confirmations whose exact wording is not known here,
+     * so there is no code to match against. The text is kept —
      * redacted — so it can be re-read once the format is known, and it is
      * deliberately NOT [recordedEvidence]: it proves nothing today and must
      * never be counted as though it did.

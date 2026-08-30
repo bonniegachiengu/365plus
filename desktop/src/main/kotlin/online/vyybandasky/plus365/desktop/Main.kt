@@ -10,35 +10,30 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import online.vyybandasky.plus365.core.presentation.LedgerFilter
-import online.vyybandasky.plus365.core.presentation.LedgerKind
-import online.vyybandasky.plus365.core.presentation.LedgerStanding
-import online.vyybandasky.plus365.core.presentation.filteredActivity
-import online.vyybandasky.plus365.core.presentation.memberCards
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -50,7 +45,11 @@ import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.BuildInfo
+import online.vyybandasky.plus365.core.domain.TargetChangeState
 import online.vyybandasky.plus365.core.presentation.ActivityRow
+import online.vyybandasky.plus365.core.presentation.LedgerFilter
+import online.vyybandasky.plus365.core.presentation.LedgerKind
+import online.vyybandasky.plus365.core.presentation.LedgerStanding
 import online.vyybandasky.plus365.core.presentation.MemberCard
 import online.vyybandasky.plus365.core.presentation.Notice
 import online.vyybandasky.plus365.core.presentation.Session
@@ -59,17 +58,20 @@ import online.vyybandasky.plus365.core.presentation.activity
 import online.vyybandasky.plus365.core.presentation.beneficiaryCards
 import online.vyybandasky.plus365.core.presentation.cashOnHand
 import online.vyybandasky.plus365.core.presentation.entryDetail
+import online.vyybandasky.plus365.core.presentation.filteredActivity
 import online.vyybandasky.plus365.core.presentation.firstRunLine
 import online.vyybandasky.plus365.core.presentation.founderCards
+import online.vyybandasky.plus365.core.presentation.memberCards
 import online.vyybandasky.plus365.core.presentation.memberDetail
 import online.vyybandasky.plus365.core.presentation.overdrawReport
 import online.vyybandasky.plus365.core.presentation.overrideCount
 import online.vyybandasky.plus365.core.presentation.overrideTasks
 import online.vyybandasky.plus365.core.presentation.pendingActs
+import online.vyybandasky.plus365.core.presentation.saveFailedAlarm
+import online.vyybandasky.plus365.core.presentation.targetProposals
 import online.vyybandasky.plus365.core.sms.Assurance
 import online.vyybandasky.plus365.core.sms.label
 import online.vyybandasky.plus365.core.store.LedgerStore
-import online.vyybandasky.plus365.core.presentation.saveFailedAlarm
 import online.vyybandasky.plus365.core.store.Saved
 import online.vyybandasky.plus365.core.store.trySave
 import online.vyybandasky.plus365.desktop.store.FileLedgerStore
@@ -274,9 +276,9 @@ fun App(store: LedgerStore) {
                         onOpenPlaces = { screen = Screen.Places },
                     )
 
-                    is Screen.MemberDetail -> MemberBody(session, s.memberId, now) {
-                        screen = Screen.EntryDetail(it)
-                    }
+                    is Screen.MemberDetail -> MemberBody(
+                        session, s.memberId, now, commit,
+                    ) { screen = Screen.EntryDetail(it) }
 
                     is Screen.EntryDetail -> EntryBody(session, s.entryId, now, commit)
 
@@ -561,6 +563,7 @@ private fun MemberBody(
     session: Session,
     memberId: String,
     now: Instant,
+    onChange: (Session) -> Unit,
     onOpenEntry: (String) -> Unit,
 ) {
     val d = session.book.memberDetail(memberId, now)
@@ -643,6 +646,8 @@ private fun MemberBody(
                     color = Plus.TextLow,
                 )
             }
+            TargetCard(session, memberId, d.target, onChange)
+
             for (loan in d.loans) {
                 Card {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -888,5 +893,132 @@ private fun Tally(label: String, count: Int, colour: Color) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(8.dp).background(colour, CircleShape))
         Text("$count $label", style = MaterialTheme.typography.bodySmall, color = Plus.TextMid)
+    }
+}
+
+/**
+ * What a member agreed to save, and the only way to change it.
+ *
+ * Every founder has to agree — Bonnie's ruling. That is why this is a card with
+ * a proposal on it rather than an editable field beside the target: a field
+ * would have let one person quietly change what three people agreed to, and it
+ * would have looked perfectly reasonable doing it.
+ *
+ * Who is still to answer is named, not counted. "2 of 3" tells you the vote is
+ * short; "waiting on Kang'iri" tells you who to ask.
+ */
+@Composable
+private fun TargetCard(
+    session: Session,
+    memberId: String,
+    target: String?,
+    onChange: (Session) -> Unit,
+) {
+    val proposals = session.book.targetProposals(session.actingAs).filter { it.memberId == memberId }
+    var proposing by remember(memberId) { mutableStateOf(false) }
+    var draft by remember(memberId) { mutableStateOf("") }
+    var refusing by remember(memberId) { mutableStateOf<String?>(null) }
+    var why by remember(memberId) { mutableStateOf("") }
+
+    Card {
+        Label("What they agreed to save")
+        if (target == null) {
+            Text(
+                "No target has been agreed for them yet.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Plus.TextMid,
+            )
+        } else {
+            ReviewLine("Target", target)
+        }
+        Text(
+            "A target is a promise, not a record, so it takes every founder to " +
+                "change it — including the member whose target it is.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Plus.TextLow,
+        )
+
+        if (!proposing) {
+            BigButton("Propose a different target", filled = false) {
+                draft = ""
+                proposing = true
+            }
+        } else {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                NameField(draft, "New target in KSh", Modifier.weight(1f)) {
+                    draft = it.filter(Char::isDigit).take(9)
+                }
+                BigButton("Put it to the group", enabled = draft.isNotBlank()) {
+                    onChange(
+                        session.proposeTargetChange(memberId, (draft.toLongOrNull() ?: 0L) * 100),
+                    )
+                    proposing = false
+                }
+                BigButton("Cancel", filled = false) { proposing = false }
+            }
+        }
+    }
+
+    for (p in proposals) {
+        Card {
+            Label(
+                when (p.state) {
+                    TargetChangeState.PROPOSED -> "Waiting on the group"
+                    TargetChangeState.AGREED -> "Agreed"
+                    TargetChangeState.REJECTED -> "Refused"
+                    TargetChangeState.WITHDRAWN -> "Taken back"
+                },
+            )
+            ReviewLine("From", p.from)
+            ReviewLine("To", p.to, emphasis = p.state == TargetChangeState.PROPOSED)
+            Text(
+                p.standing,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (p.state == TargetChangeState.REJECTED) Plus.Debt else Plus.TextMid,
+            )
+            if (p.refusedWhy != null) {
+                Text(
+                    "${p.refusedBy} said: ${p.refusedWhy}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Plus.TextMid,
+                )
+            }
+            Text(
+                "Proposed by ${p.proposedByName}",
+                style = MaterialTheme.typography.labelSmall,
+                color = Plus.TextLow,
+            )
+
+            if (p.yoursToAnswer && refusing != p.id) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BigButton("Agree") { onChange(session.approveTargetChange(p.id)) }
+                    BigButton("Refuse", filled = false) {
+                        why = ""
+                        refusing = p.id
+                    }
+                }
+            }
+            if (refusing == p.id) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    NameField(why, "Why not", Modifier.weight(1f)) { why = it.take(140) }
+                    BigButton("Refuse it", enabled = why.isNotBlank()) {
+                        onChange(session.rejectTargetChange(p.id, why))
+                        refusing = null
+                    }
+                    BigButton("Cancel", filled = false) { refusing = null }
+                }
+            }
+            if (p.yoursToWithdraw) {
+                BigButton("Take it back", filled = false) {
+                    onChange(session.withdrawTargetChange(p.id))
+                }
+            }
+        }
     }
 }

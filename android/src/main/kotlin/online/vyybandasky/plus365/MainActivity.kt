@@ -167,6 +167,7 @@ fun Plus365App(store: LedgerStore) {
                     now = now,
                     onBack = { screen = Screen.Home },
                     onOpenEntry = { screen = Screen.EntryDetail(it) },
+                    onChange = commit,
                 )
 
                 is Screen.EntryDetail -> EntryScreen(

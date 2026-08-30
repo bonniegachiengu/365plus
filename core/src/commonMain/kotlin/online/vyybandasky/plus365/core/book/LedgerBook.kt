@@ -2,6 +2,7 @@ package online.vyybandasky.plus365.core.book
 
 import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.domain.Account
+import online.vyybandasky.plus365.core.domain.TargetChange
 import online.vyybandasky.plus365.core.domain.AccountId
 import online.vyybandasky.plus365.core.domain.ConfirmSource
 import online.vyybandasky.plus365.core.domain.Entry
@@ -60,6 +61,12 @@ data class LedgerBook(
     val pockets: List<Pocket> = emptyList(),
     val loans: List<Loan> = emptyList(),
     val entries: List<Entry> = emptyList(),
+    /**
+     * Proposed changes to what members agreed to save. Not entries: a target is
+     * a promise, not money moving, and a fold that had to skip these would be
+     * one step from getting a balance wrong.
+     */
+    val targetChanges: List<TargetChange> = emptyList(),
     val nextSeq: Long = 1L,
 ) {
     /**
@@ -111,6 +118,27 @@ data class LedgerBook(
     fun entry(id: EntryId): Entry? = entries.firstOrNull { it.id == id }
 
     fun loan(id: LoanId): Loan? = loans.firstOrNull { it.id == id }
+
+    fun targetChange(id: String): TargetChange? = targetChanges.firstOrNull { it.id == id }
+
+    /**
+     * Everybody whose agreement a target change needs.
+     *
+     * Bonnie ruled that a target changes only by unanimous approval. This is the
+     * line that decides who "unanimous" counts, and it is deliberately one line.
+     *
+     * It is the active founders. Only founders have contribution targets, and
+     * the pool those targets fill is theirs; a Keshflo beneficiary is somebody
+     * the group lends *to*, and giving an outside borrower a veto over the
+     * founders' savings goals is not what anybody meant by unanimous. If the
+     * group decides otherwise, change this to `members.filter { it.active }`
+     * and every count, screen and refusal follows it.
+     *
+     * Inactive members are excluded for the obvious reason: a rule that needs a
+     * yes from somebody who has left is a rule that can never be satisfied.
+     */
+    fun targetElectorate(): Set<MemberId> =
+        members.filter { it.active && it.isFounder }.map { it.id }.toSet()
 
     /** Everything waiting on a second pair of eyes, oldest first. */
     fun pending(): List<Entry> =

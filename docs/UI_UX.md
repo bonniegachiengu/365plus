@@ -137,7 +137,7 @@ intention and this is the state.*
 The brief says "the pool total". The app splits it two ways at once, and both
 sums equal cash-at-hand:
 
-- **Where it is** — M-Pesa Pochi, Ziidi, M-Shwari. The interest-earning ones are
+- **Where it is** — M-Pesa Pochi, Ziidi, Etica MMF. The interest-earning ones are
   marked, because money that grows on its own should not look like money that
   does not.
 - **What it is for** — **Founder's A/C** and **Keshflo A/C**, the two accounts the
@@ -256,5 +256,7 @@ in words implying Ziidi is unsupported.
 ### Still true from section 7
 
 Real member data still loads later. Live M-Pesa auto-capture is still not built —
-messages are pasted, not read off the phone. The **M-Shwari** format is still
-unknown and its messages are still kept unparsed rather than guessed at.
+messages are pasted, not read off the phone. **M-Shwari is closed, not pending:**
+the group has no such account and is not opening one, so its messages stay
+recognised-and-refused for good. **Etica** — where the Keshflo A/C actually sits —
+joins it as unread, and that one is genuinely pending a real sample.

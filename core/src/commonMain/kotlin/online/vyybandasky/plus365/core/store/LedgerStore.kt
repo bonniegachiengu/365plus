@@ -6,6 +6,7 @@ import kotlinx.serialization.json.Json
 import online.vyybandasky.plus365.core.book.LedgerBook
 import online.vyybandasky.plus365.core.domain.Account
 import online.vyybandasky.plus365.core.domain.Entry
+import online.vyybandasky.plus365.core.domain.TargetChange
 import online.vyybandasky.plus365.core.domain.Loan
 import online.vyybandasky.plus365.core.domain.Member
 import online.vyybandasky.plus365.core.domain.Pocket
@@ -43,6 +44,12 @@ data class LedgerSnapshot(
     val pockets: List<Pocket> = emptyList(),
     val loans: List<Loan> = emptyList(),
     val entries: List<Entry> = emptyList(),
+
+    /**
+     * Proposed changes to contribution targets. Defaulted, so every ledger
+     * written before this existed still loads — an older file simply has none.
+     */
+    val targetChanges: List<TargetChange> = emptyList(),
     val nextSeq: Long = 1L,
 )
 
@@ -76,6 +83,7 @@ fun LedgerBook.toSnapshot(): LedgerSnapshot = LedgerSnapshot(
     pockets = pockets,
     loans = loans,
     entries = entries,
+    targetChanges = targetChanges,
     nextSeq = nextSeq,
 )
 
@@ -85,6 +93,7 @@ fun LedgerSnapshot.toBook(): LedgerBook = LedgerBook(
     pockets = pockets,
     loans = loans,
     entries = entries,
+    targetChanges = targetChanges,
     nextSeq = nextSeq,
 )
 

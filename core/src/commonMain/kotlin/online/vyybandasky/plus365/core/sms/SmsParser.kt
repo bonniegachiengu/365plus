@@ -47,8 +47,23 @@ enum class SmsProvider {
      */
     ZIIDI,
 
-    /** Safaricom's savings product. Unmapped for the same reason. */
+    /**
+     * Safaricom's savings product. Unmapped, and staying that way.
+     *
+     * The group has no M-Shwari account and is not opening one. Recognising the
+     * message and refusing to read it is the finished answer here, not a
+     * placeholder for a parser somebody still owes.
+     */
     MSHWARI,
+
+    /**
+     * The Etica money market fund, where the Keshflo A/C sits.
+     *
+     * Recognised so that a pasted Etica message is not mistaken for M-Pesa and
+     * read with the wrong rules. Nobody has shown this code a real one, so
+     * nothing is claimed about its shape.
+     */
+    ETICA,
 
     UNKNOWN,
 }
@@ -59,6 +74,7 @@ fun SmsProvider.label(): String = when (this) {
     SmsProvider.BANK -> "your bank"
     SmsProvider.ZIIDI -> "Ziidi"
     SmsProvider.MSHWARI -> "M-Shwari"
+    SmsProvider.ETICA -> "Etica"
     SmsProvider.UNKNOWN -> "an unrecognised sender"
 }
 
@@ -69,8 +85,19 @@ fun SmsProvider.label(): String = when (this) {
  * KCB — the guess went in untested against a real message and had to be flagged
  * as unverified in the docs. Recognising a message and admitting it cannot be
  * read is worth more than parsing it wrongly and calling the result evidence.
+ *
+ * M-Shwari is here permanently rather than pending. The group has no M-Shwari
+ * account and is not opening one (Bonnie, 30 Aug 2026), so no parser will ever
+ * be written for it — and this list is how that is expressed. Taking it out
+ * would not close the item; it would drop M-Shwari messages into the generic
+ * M-Pesa path, where the general rules would read an unverified format and hand
+ * back something that looks like evidence. "No parser" and "parse it with
+ * somebody else's rules" are opposite things.
+ *
+ * Etica joins it for the ordinary reason: the Keshflo A/C sits there, it sends
+ * messages, and nobody has shown one to this code yet.
  */
-private val UNMAPPED_PROVIDERS = setOf(SmsProvider.MSHWARI)
+private val UNMAPPED_PROVIDERS = setOf(SmsProvider.MSHWARI, SmsProvider.ETICA)
 
 /** Which way the money moved, from the point of view of whoever got this SMS. */
 enum class SmsDirection { SENT, RECEIVED }
@@ -167,7 +194,7 @@ sealed interface ParseOutcome {
  * Two different situations, and telling a member the wrong one costs trust for
  * no reason:
  *
- *  * **A provider nothing is known about.** M-Shwari. "Cannot read those yet" is
+ *  * **A provider nothing is known about.** M-Shwari, Etica. "Cannot read those" is
  *    exactly right.
  *  * **A provider partly known.** Ziidi: its invest and withdraw messages read
  *    perfectly, and this is some other sentence it sends. Telling somebody 365+
@@ -441,12 +468,13 @@ private fun parseZiidi(trimmed: String, pastedBy: MemberId): ParseOutcome {
 }
 
 private fun detectProvider(lower: String): SmsProvider = when {
-    // Ziidi and M-Shwari first. A Ziidi message moves money through M-Pesa and
+    // The fund providers first. A Ziidi message moves money through M-Pesa and
     // says so, so checking M-Pesa first would read it as an M-Pesa message and
     // pull out fields that mean something else — its reference is labelled
     // differently and it carries a second amount that is not the transaction.
     "ziidi" in lower -> SmsProvider.ZIIDI
     "m-shwari" in lower || "mshwari" in lower -> SmsProvider.MSHWARI
+    "etica" in lower -> SmsProvider.ETICA
     // KCB next: a KCB M-Pesa message mentions both, and the bank is the one
     // that actually holds the money and prints the reference.
     "kcb" in lower -> SmsProvider.KCB

@@ -15,13 +15,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import online.vyybandasky.plus365.core.presentation.Standing
@@ -208,3 +210,37 @@ fun Choice(text: String, selected: Boolean, onClick: () -> Unit) {
 fun Modifier.tappable(onClick: () -> Unit): Modifier = this
     .pointerHoverIcon(PointerIcon.Hand)
     .clickable(onClick = onClick)
+
+/**
+ * A short single-line field for a name or a figure.
+ *
+ * Lived in Places.kt and was private to it until the target-change card needed
+ * the same field. Moved here rather than widened where it stood, because a
+ * `private` that quietly becomes `internal` leaves no sign that a second screen
+ * now depends on it.
+ */
+@Composable
+fun NameField(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier,
+    onValue: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = { onValue(it.take(40)) },
+        label = { Text(label) },
+        singleLine = true,
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Plus.Money,
+            unfocusedBorderColor = Plus.Divider,
+            focusedTextColor = Plus.TextHigh,
+            unfocusedTextColor = Plus.TextHigh,
+            focusedLabelColor = Plus.Money,
+            unfocusedLabelColor = Plus.TextLow,
+            cursorColor = Plus.Money,
+        ),
+    )
+}

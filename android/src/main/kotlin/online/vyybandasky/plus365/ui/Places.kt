@@ -82,7 +82,7 @@ fun PlacesScreen(
             Card {
                 Label("Add a place")
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (k in AccountKind.entries) {
+                    for (k in AccountKind.offerable) {
                         KindRow(k, k == accountKind) { accountKind = k }
                     }
                 }
@@ -208,6 +208,7 @@ private fun NameField(
 private fun AccountKind.plainName(): String = when (this) {
     AccountKind.MPESA -> "M-Pesa"
     AccountKind.ZIIDI -> "Ziidi"
+    AccountKind.ETICA -> "Etica MMF"
     AccountKind.MSHWARI -> "M-Shwari"
     AccountKind.BANK -> "Bank"
     AccountKind.CASH -> "Cash"
@@ -216,6 +217,7 @@ private fun AccountKind.plainName(): String = when (this) {
 private fun AccountKind.plainBlurb(): String = when (this) {
     AccountKind.MPESA -> "A wallet, a Pochi, a paybill. Messages arrive; charges apply."
     AccountKind.ZIIDI -> "Earns on its own, and moves through M-Pesa without a charge."
+    AccountKind.ETICA -> "A money market fund. Earns on its own; no message this app can read yet."
     AccountKind.MSHWARI -> "Earns on its own."
     AccountKind.BANK -> "A bank account. Messages arrive, including ATM withdrawals."
     AccountKind.CASH -> "Notes in somebody's hand. Nothing sends a message about it, " +

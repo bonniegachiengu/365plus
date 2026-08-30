@@ -65,7 +65,7 @@ object DevSeed {
     const val ZIIDI: AccountId = "ziidi"
 
     /** Safaricom's savings product. Also earns. */
-    const val MSHWARI: AccountId = "mshwari"
+    const val ETICA: AccountId = "etica"
 
     // ── what it is earmarked for ────────────────────────────────────────────
     /** The members' own savings. */
@@ -105,7 +105,7 @@ object DevSeed {
     val ACCOUNTS: List<Account> = listOf(
         Account(id = POCHI, label = "M-Pesa Pochi", kind = AccountKind.MPESA),
         Account(id = ZIIDI, label = "Ziidi", kind = AccountKind.ZIIDI),
-        Account(id = MSHWARI, label = "M-Shwari", kind = AccountKind.MSHWARI),
+        Account(id = ETICA, label = "Etica MMF", kind = AccountKind.ETICA),
     )
 
     /**
@@ -117,8 +117,8 @@ object DevSeed {
         // same wording as the old system, and a ledger that renames what people
         // have been calling something for a year makes them check twice on every
         // screen to be sure it is the same thing.
-        Pocket(POOL, "Founder's A/C", "The three founders' pool."),
-        Pocket(KESHFLO, "Keshflo A/C", "Set aside for lending outward."),
+        Pocket(POOL, "Founder's A/C", "The three founders' pool. It sits in Ziidi."),
+        Pocket(KESHFLO, "Keshflo A/C", "Set aside for lending outward. It sits in the Etica money market fund."),
     )
 
     /**
