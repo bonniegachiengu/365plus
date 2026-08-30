@@ -289,12 +289,20 @@ fun MemberScreen(
                 }
 
                 // A founder who also owes gets a second line, not a second hero.
-                if (!detail.isBeneficiary && detail.owesCents > 0L) {
+                val owesLine = !detail.isBeneficiary && detail.owesCents > 0L
+                if (owesLine) {
                     ReviewLine("Pending loan amount", detail.owes)
                 }
-                // For a borrower the standing line is the hero figure said again
-                // one size down, and the card below breaks it into parts.
-                if (!detail.isBeneficiary) {
+                // And only one of them. On the phone this printed the pending
+                // figure twice running — once as the row above, once as the
+                // standing line, which for somebody who owes says the same
+                // sentence in lower case. A number repeated verbatim reads as
+                // two different numbers that happen to agree, and invites the
+                // reader to hunt for the difference.
+                //
+                // The standing line stays where it still says something the
+                // rows do not: the pool owing a member, or a founder square.
+                if (!detail.isBeneficiary && !owesLine) {
                     Text(
                         detail.standingLine,
                         style = MaterialTheme.typography.titleMedium,
@@ -302,8 +310,9 @@ fun MemberScreen(
                     )
                 }
                 Text(
-                    "${detail.contributionCount} contributions · " +
-                        "${detail.activeLoanCount} active " +
+                    "${detail.contributionCount} " +
+                        (if (detail.contributionCount == 1) "contribution" else "contributions") +
+                        " · ${detail.activeLoanCount} active " +
                         if (detail.activeLoanCount == 1) "loan" else "loans",
                     style = MaterialTheme.typography.bodySmall,
                     color = Plus.TextLow,
