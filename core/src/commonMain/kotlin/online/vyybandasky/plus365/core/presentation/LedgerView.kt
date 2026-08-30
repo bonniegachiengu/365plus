@@ -99,15 +99,7 @@ fun LedgerBook.summaryView(): SummaryView {
         pendingCash = formatKes(s.pendingPoolCashCents),
         totalOutstanding = formatKes(s.totalOutstandingCents),
         pendingCount = pending().size,
-        accounts = accounts.map { a ->
-            AccountRow(
-                id = a.id,
-                label = a.label,
-                balance = formatKes(s.accountBalance(a.id)),
-                balanceCents = s.accountBalance(a.id),
-                earns = a.earnsInterest,
-            )
-        },
+        accounts = accountRows(s),
         pockets = pocketRows(s),
     )
 }
@@ -130,6 +122,48 @@ fun LedgerBook.summaryView(): SummaryView {
  * and says plainly what it is. The two splits go back to agreeing, which is the
  * only reason to show them side by side.
  */
+/**
+ * Every account holding money, including ones the book has no definition for.
+ *
+ * The same hole as [pocketRows], found by going looking for it after the pocket
+ * one was fixed rather than by waiting for a second phone to show it. This side
+ * is the worse of the two: "where it is" is the card somebody checks against
+ * what their own bank app says, and an account silently missing from it means
+ * cash on hand no longer equals the rows underneath it. The figure that is
+ * wrong is the one nobody would think to doubt.
+ *
+ * An id with a balance and no definition gets a row named from the id. It is
+ * not marked as earning, because whether it earns is exactly the kind of thing
+ * the missing definition would have said, and guessing at it would be inventing
+ * a fact about somebody's money.
+ */
+private fun LedgerBook.accountRows(s: LedgerState): List<AccountRow> {
+    val defined = accounts.map { a ->
+        AccountRow(
+            id = a.id,
+            label = a.label,
+            balance = formatKes(s.accountBalance(a.id)),
+            balanceCents = s.accountBalance(a.id),
+            earns = a.earnsInterest,
+        )
+    }
+    val known = accounts.map { it.id }.toSet()
+    val orphans = s.perAccount
+        .filterKeys { it !in known }
+        .filterValues { it != 0L }
+        .map { (id, cents) ->
+            AccountRow(
+                id = id,
+                label = id.replaceFirstChar { it.uppercase() },
+                balance = formatKes(cents),
+                balanceCents = cents,
+                earns = false,
+            )
+        }
+        .sortedBy { it.id }
+    return defined + orphans
+}
+
 private fun LedgerBook.pocketRows(s: LedgerState): List<PocketRow> {
     val defined = pockets.map { p ->
         PocketRow(

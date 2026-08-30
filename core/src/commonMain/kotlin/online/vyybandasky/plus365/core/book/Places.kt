@@ -154,11 +154,28 @@ fun LedgerBook.renameAccount(
     }
     if (!isFounder(by)) return Decision.Refused(Refusal.NotAMember(by))
 
-    val existing = accounts.firstOrNull { it.id == id }
-        ?: return Decision.Refused(Refusal.Invalid("There is no account $id."))
     val trimmed = redactContactNumbers(label.trim())
     if (trimmed.isBlank()) {
         return Decision.Refused(Refusal.Invalid("An account needs a name."))
+    }
+
+    val existing = accounts.firstOrNull { it.id == id }
+    if (existing == null) {
+        // Adoption, as for a pocket: a stored file can hold money at an id it
+        // has no definition for, and the row that shows it says to rename it
+        // here. Refusing would make that instruction a dead end.
+        if (state().accountBalance(id) == 0L) {
+            return Decision.Refused(Refusal.Invalid("There is no account $id."))
+        }
+        if (accounts.any { it.label.equals(trimmed, ignoreCase = true) }) {
+            return Decision.Refused(
+                Refusal.Invalid("There is already an account called \"$trimmed\"."),
+            )
+        }
+        // Kind defaults to MPESA, which is the one that does not claim the
+        // money earns anything. An account that grows on its own can be said
+        // so later; an account wrongly said to grow is a figure nobody checks.
+        return Decision.Allowed(copy(accounts = accounts + Account(id, trimmed)))
     }
     if (trimmed == existing.label) return Decision.Allowed(this)
     if (accounts.any { it.id != id && it.label.equals(trimmed, ignoreCase = true) }) {

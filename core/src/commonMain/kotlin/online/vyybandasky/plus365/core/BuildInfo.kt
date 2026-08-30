@@ -14,7 +14,7 @@ package online.vyybandasky.plus365.core
 object BuildInfo {
 
     /** Bumped every slice. The name to check against what was expected. */
-    const val NAME: String = "0.43.0-one-number-once"
+    const val NAME: String = "0.44.0-orphan-accounts"
 
     /**
      * The same build as a plain three-part number.
