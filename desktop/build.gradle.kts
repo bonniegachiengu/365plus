@@ -49,7 +49,7 @@ compose.desktop {
             // MSI will not take a label like "0.10.0-overdraw-flags", and wants a
             // major of at least one. The readable name lives in BuildInfo and is
             // printed in the window; these two are kept in step by hand.
-            packageVersion = "1.48.0"
+            packageVersion = "1.49.0"
 
             windows {
                 // Interim mark from tools/make-icon.ps1 — a dark tile with the

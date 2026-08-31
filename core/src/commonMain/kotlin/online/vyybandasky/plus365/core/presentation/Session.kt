@@ -104,6 +104,18 @@ data class Session(
      */
     val receipt: Receipt get() = book.receipt()
 
+    /**
+     * Adopt a book that came from somewhere else — a sync, in practice.
+     *
+     * The id counter moves with it. A Session carries a counter for the entries
+     * it hands out, and pointing an old counter at a newer book is exactly the
+     * footgun that once made `record` silently return an entry that already
+     * existed instead of adding one. A merged book usually has more entries
+     * than the one it replaced, so this is not a hypothetical.
+     */
+    fun withBook(next: LedgerBook): Session =
+        copy(book = next, idCounter = maxOf(idCounter, next.nextSeq))
+
     fun clearNotice(): Session = copy(notice = null)
 
     private fun nextId(prefix: String): String = "$prefix-$idCounter"
