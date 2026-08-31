@@ -76,7 +76,7 @@ fun LedgerBook.proposeTargetChange(
     )
     // Settled immediately in the degenerate case where the proposer is the whole
     // electorate. Unanimity among one person is that person.
-    return Decision.Allowed(copy(targetChanges = targetChanges + proposal).settleIfUnanimous(id))
+    return Decision.Allowed(copy(targetChanges = targetChanges + proposal).settleIfUnanimousInternal(id))
 }
 
 /** Say yes. The change lands the moment the last person does. */
@@ -102,7 +102,7 @@ fun LedgerBook.approveTargetChange(
     val updated = targetChanges.map {
         if (it.id == id) it.copy(approvals = it.approvals + by) else it
     }
-    return Decision.Allowed(copy(targetChanges = updated).settleIfUnanimous(id))
+    return Decision.Allowed(copy(targetChanges = updated).settleIfUnanimousInternal(id))
 }
 
 /**
@@ -193,7 +193,7 @@ fun LedgerBook.withdrawTargetChange(
  * the set — a promise the group makes together cannot be settled by a group
  * that no longer exists.
  */
-private fun LedgerBook.settleIfUnanimous(id: String): LedgerBook {
+internal fun LedgerBook.settleIfUnanimousInternal(id: String): LedgerBook {
     val proposal = targetChange(id) ?: return this
     if (proposal.state != TargetChangeState.PROPOSED) return this
     val electorate = targetElectorate()
