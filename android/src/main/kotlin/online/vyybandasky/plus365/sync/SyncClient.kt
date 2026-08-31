@@ -94,7 +94,7 @@ class SyncClient(
  * it is checked by [decodeBook] immediately afterwards, so a wrong guess here
  * fails loudly rather than producing half a ledger.
  */
-private fun String.ledgerPart(): String? {
+internal fun String.ledgerPart(): String? {
     val marker = "\"ledger\":"
     val i = indexOf(marker)
     if (i < 0) return null
@@ -105,7 +105,7 @@ private fun String.ledgerPart(): String? {
 }
 
 /** A sentence about what the merge did, for the person who pressed the button. */
-private fun String.summarise(): String {
+internal fun String.summarise(): String {
     fun count(field: String): Int {
         val i = indexOf("\"$field\":[")
         if (i < 0) return 0
