@@ -50,8 +50,11 @@ const val DEFAULT_HOST: String = "0.0.0.0"
  * The health payload, built as a pure function so it can be asserted without
  * standing a server up.
  */
-fun healthJson(version: String = APP_VERSION): String =
-    """{"status":"ok","service":"365plus","version":"$version"}"""
+fun healthJson(
+    version: String = APP_VERSION,
+    commit: String = BuildInfo.COMMIT,
+): String =
+    """{"status":"ok","service":"365plus","version":"$version","commit":"$commit"}"""
 
 /** Routes live apart from the engine so M2 can mount the sync routes alongside. */
 fun Routing.healthRoutes() {

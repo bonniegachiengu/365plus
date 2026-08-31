@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.datetime.Instant
+import online.vyybandasky.plus365.core.BuildInfo
 import online.vyybandasky.plus365.core.presentation.ActivityRow
 import online.vyybandasky.plus365.core.presentation.MemberCard
 import online.vyybandasky.plus365.core.presentation.PoolAction
@@ -177,6 +178,16 @@ private fun TopBar(session: Session, onOpenProfile: () -> Unit) {
             Text(
                 "Signed in as ${session.actingAsName}",
                 style = MaterialTheme.typography.bodySmall,
+                color = Plus.TextLow,
+            )
+            // The laptop has said which build it is since the beginning; the
+            // phone never did. That is the device where "am I on the latest?"
+            // is hardest to answer, because an install that silently does not
+            // replace the previous one looks exactly like a feature that
+            // silently does not work — which has happened here already.
+            Text(
+                BuildInfo.label(),
+                style = MaterialTheme.typography.labelSmall,
                 color = Plus.TextLow,
             )
         }

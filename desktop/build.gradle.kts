@@ -1,4 +1,19 @@
+import java.io.File
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+
+/**
+ * The installer version, taken from the one place the app states its own.
+ *
+ * Parsed out of BuildInfo.kt rather than duplicated. A packaged build that
+ * disagrees with the running app about which version it is defeats the entire
+ * point of stamping it.
+ */
+fun appInstallerVersion(): String {
+    val src = File(rootDir, "core/src/commonMain/kotlin/online/vyybandasky/plus365/core/BuildInfo.kt")
+    val name = Regex("""const val NAME: String = "([^"]+)"""").find(src.readText())?.groupValues?.get(1)
+        ?: error("BuildInfo.NAME not found - the installer version has nowhere to come from")
+    return "1." + name.substringBefore('-').substringAfter('.')
+}
 
 // The master copy of the ledger and the only device that assigns `seq`.
 // A native Windows application, NOT a container (365PLUS_BRIEF.md §4).
@@ -49,7 +64,10 @@ compose.desktop {
             // MSI will not take a label like "0.10.0-overdraw-flags", and wants a
             // major of at least one. The readable name lives in BuildInfo and is
             // printed in the window; these two are kept in step by hand.
-            packageVersion = "1.50.0"
+            // Read from BuildInfo rather than typed here. Two places holding the same
+            // version is two places for it to drift, and it already had: the constant
+            // said 1.41.0 while this said 1.50.0.
+            packageVersion = appInstallerVersion()
 
             windows {
                 // Interim mark from tools/make-icon.ps1 — a dark tile with the

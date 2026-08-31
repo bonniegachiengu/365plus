@@ -97,3 +97,52 @@ class TheRealAccountsTest {
         assertTrue(DevSeed.POCKETS.single { it.id == DevSeed.KESHFLO }.blurb.contains("Etica"))
     }
 }
+
+/**
+ * The build says one thing about itself, everywhere.
+ *
+ * `INSTALLER_VERSION` was a hand-kept constant with a comment asking somebody to
+ * keep it in step with [BuildInfo.NAME]. It read 1.41.0 while the app shipped
+ * 1.50.0 — nine releases of drift in the one value whose entire job is to say
+ * which build this is. It is derived now, and this is what stops it being typed
+ * again.
+ */
+class BuildStampTest {
+
+    @Test
+    fun the_installer_version_follows_the_name() {
+        assertEquals(
+            "1." + BuildInfo.NAME.substringBefore('-').substringAfter('.'),
+            BuildInfo.INSTALLER_VERSION,
+        )
+    }
+
+    @Test
+    fun and_is_a_shape_windows_will_accept() {
+        val parts = BuildInfo.INSTALLER_VERSION.split(".")
+        assertEquals(3, parts.size)
+        assertTrue(parts.all { it.toIntOrNull() != null })
+        // MSI wants a major of at least one.
+        assertTrue(parts[0].toInt() >= 1)
+    }
+
+    @Test
+    fun the_header_names_the_build_and_the_commit() {
+        val label = BuildInfo.label()
+        assertTrue(label.contains(BuildInfo.NAME), "the header must name the build")
+        assertTrue(label.contains(BuildInfo.COMMIT), "the header must name the commit")
+    }
+
+    /**
+     * The commit is real, not a placeholder.
+     *
+     * `nogit` is what the generator writes when it cannot ask git. A build that
+     * shipped saying that would look stamped and answer nothing.
+     */
+    @Test
+    fun the_commit_came_from_git() {
+        assertTrue(BuildInfo.COMMIT.isNotBlank())
+        assertTrue(BuildInfo.COMMIT != "nogit", "the build stamp never reached git")
+        assertTrue(BuildInfo.COMMIT.substringBefore('-').length in 7..12)
+    }
+}
