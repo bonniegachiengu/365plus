@@ -1,26 +1,28 @@
 package online.vyybandasky.plus365.core
 
+import kotlin.time.Duration.Companion.hours
+import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.book.LedgerBook
+import online.vyybandasky.plus365.core.book.approveTargetChange
 import online.vyybandasky.plus365.core.book.confirm
 import online.vyybandasky.plus365.core.book.confirmGroup
-import online.vyybandasky.plus365.core.book.disburseLoan
 import online.vyybandasky.plus365.core.book.confirmOrEscalate
+import online.vyybandasky.plus365.core.book.disburseLoan
+import online.vyybandasky.plus365.core.book.proposeTargetChange
 import online.vyybandasky.plus365.core.book.reallocate
 import online.vyybandasky.plus365.core.book.record
 import online.vyybandasky.plus365.core.book.recordAccountInterest
 import online.vyybandasky.plus365.core.book.transfer
 import online.vyybandasky.plus365.core.domain.Account
-import online.vyybandasky.plus365.core.domain.AccountKind
 import online.vyybandasky.plus365.core.domain.AccountId
+import online.vyybandasky.plus365.core.domain.AccountKind
 import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.domain.Member
+import online.vyybandasky.plus365.core.domain.MemberId
 import online.vyybandasky.plus365.core.domain.MemberKind
 import online.vyybandasky.plus365.core.domain.Pocket
 import online.vyybandasky.plus365.core.domain.PocketId
-import online.vyybandasky.plus365.core.domain.MemberId
 import online.vyybandasky.plus365.core.governance.ActorConfig
-import kotlin.time.Duration.Companion.hours
-import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.governance.Decision
 import online.vyybandasky.plus365.core.sms.ParseOutcome
 import online.vyybandasky.plus365.core.sms.SmsEvidence
@@ -221,6 +223,25 @@ object DevSeed {
         // --- And one fallout: Kang'iri recorded it, Bonnie's message does not
         // match, so it sits with Brian — the only member not involved. ---
         b = b.clash("x1", KANGIRI, 800, recordedBy = KANGIRI, attemptedBy = BONNIE, at = stamp())
+
+        // --- And one target change put to the group and not yet settled. ---
+        //
+        // Bonnie proposes, Brian agrees, Kang'iri has not answered. That is the
+        // state worth seeding: agreed and refused both look finished, and only a
+        // proposal still short of one person shows what unanimity actually costs
+        // — a card that names who everybody is waiting on.
+        //
+        // Seeding it also means the governance screen has something on it from
+        // the first launch. An empty card teaches nobody what the rule is.
+        b = b.proposeTargetChange(
+            id = "tc1",
+            memberId = KANGIRI,
+            newTargetCents = shillings(10_000),
+            by = BONNIE,
+            config = DEV_CONFIG,
+            at = stamp(),
+        ).orThrow("propose target change")
+        b = b.approveTargetChange("tc1", BRIAN, DEV_CONFIG).orThrow("agree target change")
 
         return b
     }

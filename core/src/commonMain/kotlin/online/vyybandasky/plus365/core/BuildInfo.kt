@@ -14,7 +14,7 @@ package online.vyybandasky.plus365.core
 object BuildInfo {
 
     /** Bumped every slice. The name to check against what was expected. */
-    const val NAME: String = "0.46.0-update-receipt"
+    const val NAME: String = "0.47.0-seed-governance"
 
     /**
      * The same build as a plain three-part number.

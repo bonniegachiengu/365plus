@@ -6,13 +6,15 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import online.vyybandasky.plus365.core.book.confirm
-import online.vyybandasky.plus365.core.domain.EntryState
-import online.vyybandasky.plus365.core.governance.Decision
 import online.vyybandasky.plus365.core.book.needingOverride
+import online.vyybandasky.plus365.core.domain.EntryState
+import online.vyybandasky.plus365.core.domain.TargetChangeState
+import online.vyybandasky.plus365.core.governance.Decision
+import online.vyybandasky.plus365.core.governance.Refusal
 import online.vyybandasky.plus365.core.governance.eligibleConfirmers
 import online.vyybandasky.plus365.core.governance.eligibleOverriders
-import online.vyybandasky.plus365.core.governance.Refusal
 import online.vyybandasky.plus365.core.money.formatKes
+import online.vyybandasky.plus365.core.presentation.targetProposals
 
 class DevSeedTest {
 
@@ -252,5 +254,52 @@ class DevSeedTest {
         // Numbers are deployment config. Nothing in this app contacts anyone, and
         // no number is compiled into it.
         assertTrue(book.members.all { it.phoneE164.isEmpty() })
+    }
+}
+
+/**
+ * The seed shows the governance rule, not just the money.
+ *
+ * A first launch that opens on an empty target card teaches nobody what
+ * unanimity means. The seeded proposal is deliberately *unfinished* — agreed and
+ * refused both look settled, and only one still short of a person shows what the
+ * rule actually costs.
+ */
+class SeedShowsGovernanceTest {
+
+    @Test
+    fun the_seed_opens_with_a_target_change_waiting_on_somebody() {
+        val b = DevSeed.book()
+        val p = b.targetChange("tc1")!!
+        assertEquals(TargetChangeState.PROPOSED, p.state)
+        assertEquals(setOf(DevSeed.BONNIE, DevSeed.BRIAN), p.approvals)
+    }
+
+    @Test
+    fun and_the_target_it_would_change_has_not_moved() {
+        val b = DevSeed.book()
+        assertEquals(DevSeed.TARGET, b.member(DevSeed.KANGIRI)!!.contributionTargetCents)
+    }
+
+    @Test
+    fun the_one_person_left_is_named() {
+        val rows = DevSeed.book().targetProposals(DevSeed.KANGIRI)
+        val row = rows.single { it.id == "tc1" }
+        assertEquals(listOf("Kang'iri"), row.waitingOn)
+        assertTrue(row.yoursToAnswer)
+    }
+
+    @Test
+    fun and_it_is_not_theirs_to_answer_if_they_already_agreed() {
+        val row = DevSeed.book().targetProposals(DevSeed.BRIAN).single { it.id == "tc1" }
+        assertTrue(!row.yoursToAnswer)
+    }
+
+    /** Seeding governance must not have moved a shilling. */
+    @Test
+    fun the_seeded_proposal_moves_no_money() {
+        val s = DevSeed.book().state()
+        assertTrue(s.balances)
+        assertEquals(s.cashAtHandCents, s.perAccount.values.sum())
     }
 }
