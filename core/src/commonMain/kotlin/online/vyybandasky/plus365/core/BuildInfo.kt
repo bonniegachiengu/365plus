@@ -14,7 +14,7 @@ package online.vyybandasky.plus365.core
 object BuildInfo {
 
     /** Bumped every slice. The name to check against what was expected. */
-    const val NAME: String = "0.49.0-sync-server"
+    const val NAME: String = "0.50.0-sync-client"
 
     /**
      * The same build as a plain three-part number.

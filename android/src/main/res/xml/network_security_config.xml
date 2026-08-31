@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Plain HTTP is allowed, because the laptop cannot offer anything else.
+
+  It is a machine on the flat's WiFi with no domain name and no certificate.
+  TLS here would mean a self-signed certificate and a "do you trust this?"
+  prompt on every phone — which teaches three people to tap through the exact
+  warning that is supposed to mean something.
+
+  The first version of this file tried to permit cleartext for private ranges
+  only, listing 192.168.0.0 with includeSubdomains. That does not work and
+  would have blocked the only address the app ever dials: this config matches
+  *hostnames*, and there is no CIDR syntax in it, so `192.168.0.0` matches that
+  one literal address and nothing else. Better to allow it plainly and say so
+  than to ship a restriction that reads well and does the opposite.
+
+  What actually limits the exposure is that the app has one address in it — the
+  one a member typed on the sync screen — and the pairing code the laptop
+  demands before it will say anything about the ledger.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
