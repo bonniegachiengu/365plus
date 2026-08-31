@@ -256,7 +256,12 @@ fun App(store: LedgerStore) {
                     }
                 }
                 session.notice?.let { n ->
-                    NoticeBanner(n.text, n is Notice.Refused) { commit(session.clearNotice()) }
+                    NoticeBanner(
+                        n.text,
+                        n is Notice.Refused,
+                        { commit(session.clearNotice()) },
+                        session.receipt,
+                    )
                     if (n is Notice.Info) {
                         LaunchedEffect(n) {
                             delay(6_000)

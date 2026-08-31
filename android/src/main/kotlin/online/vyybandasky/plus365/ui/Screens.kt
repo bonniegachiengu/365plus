@@ -67,6 +67,7 @@ fun ConfirmScreen(
         title = "Needs confirming",
         onBack = onBack,
         notice = session.notice?.let { it.text to (it is online.vyybandasky.plus365.core.presentation.Notice.Refused) },
+        receipt = session.receipt,
         onDismissNotice = { onChange(session.clearNotice()) },
     ) {
         Column(

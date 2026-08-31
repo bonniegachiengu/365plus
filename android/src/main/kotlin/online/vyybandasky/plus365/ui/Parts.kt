@@ -13,10 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -24,8 +25,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import online.vyybandasky.plus365.core.money.formatKes
+import online.vyybandasky.plus365.core.presentation.Receipt
 import online.vyybandasky.plus365.core.presentation.Standing
 import online.vyybandasky.plus365.core.sms.ParseOutcome
 import online.vyybandasky.plus365.core.sms.message
@@ -183,15 +186,35 @@ fun ReviewLine(label: String, value: String, emphasis: Boolean = false) {
     }
 }
 
-/** The bar that carries a refusal or a confirmation back to the person. */
+/**
+ * The bar that carries a refusal or a confirmation back to the person.
+ *
+ * A confirmation also carries the three figures the group reads after anything
+ * happens: the Founders account, the Keshflo account, and the two added
+ * together. Whatever kind of update it was, the same three come back — so the
+ * arithmetic can be checked from where you are standing rather than by
+ * navigating somewhere else and trusting that nothing moved on the way.
+ *
+ * Not on a refusal. Nothing changed, so printing balances underneath "that was
+ * refused" would invite the reader to wonder which part of it took effect.
+ */
 @Composable
-fun NoticeBanner(text: String, isRefusal: Boolean, onDismiss: (() -> Unit)? = null) {
-    Row(
+fun NoticeBanner(
+    text: String,
+    isRefusal: Boolean,
+    onDismiss: (() -> Unit)? = null,
+    receipt: Receipt? = null,
+) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(if (isRefusal) Plus.DebtDim else Plus.MoneyDim, RoundedCornerShape(14.dp))
             .then(if (onDismiss != null) Modifier.tappable(onDismiss) else Modifier)
             .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -209,6 +232,44 @@ fun NoticeBanner(text: String, isRefusal: Boolean, onDismiss: (() -> Unit)? = nu
                 color = if (isRefusal) Plus.Debt else Plus.Money,
             )
         }
+    }
+    if (receipt != null && !isRefusal) {
+        HorizontalDivider(color = Plus.Divider)
+        ReceiptLine("Founder's A/C", receipt.founders)
+        ReceiptLine("Keshflo A/C", receipt.keshflo)
+        ReceiptLine("Cash at hand", receipt.cashAtHand, emphasis = true)
+        if (!receipt.addsUp) {
+            // The sum is a fact about the group having two accounts, not a rule
+            // the code enforces. If it ever stops holding, say so rather than
+            // printing three figures that no longer add up.
+            Text(
+                "${receipt.elsewhere} is set aside somewhere other than these two, " +
+                    "so the total is more than their sum.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Plus.Debt,
+            )
+        }
+    }
+    }
+}
+
+@Composable
+private fun ReceiptLine(label: String, value: String, emphasis: Boolean = false) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            color = Plus.TextMid,
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (emphasis) Plus.Money else Plus.TextHigh,
+            fontWeight = if (emphasis) FontWeight.Bold else FontWeight.Normal,
+        )
     }
 }
 

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -25,7 +26,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import online.vyybandasky.plus365.core.presentation.Receipt
 import online.vyybandasky.plus365.core.presentation.Standing
 
 /** Every surface is one of these, so nothing looks borrowed. */
@@ -141,31 +144,79 @@ fun ReviewLine(label: String, value: String, emphasis: Boolean = false) {
     }
 }
 
+/**
+ * The bar that carries a refusal or a confirmation back to the person.
+ *
+ * A confirmation also carries the three figures the group reads after anything
+ * happens: the Founders account, the Keshflo account, and the two added
+ * together. Whatever kind of update it was, the same three come back, so the
+ * arithmetic can be checked from where you are standing.
+ *
+ * Never on a refusal. Nothing changed, and balances printed under "that was
+ * refused" invite the reader to wonder which part of it took effect anyway.
+ */
 @Composable
-fun NoticeBanner(text: String, isRefusal: Boolean, onDismiss: (() -> Unit)? = null) {
-    Row(
+fun NoticeBanner(
+    text: String,
+    isRefusal: Boolean,
+    onDismiss: (() -> Unit)? = null,
+    receipt: Receipt? = null,
+) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(if (isRefusal) Plus.DebtDim else Plus.MoneyDim, RoundedCornerShape(14.dp))
             .then(if (onDismiss != null) Modifier.tappable(onDismiss) else Modifier)
             .padding(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Box(Modifier.size(8.dp).background(if (isRefusal) Plus.Debt else Plus.Money, CircleShape))
-        Text(
-            text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (isRefusal) Plus.Debt else Plus.Money,
-            modifier = Modifier.weight(1f),
-        )
-        if (onDismiss != null) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(Modifier.size(8.dp).background(if (isRefusal) Plus.Debt else Plus.Money, CircleShape))
             Text(
-                "Dismiss",
-                style = MaterialTheme.typography.labelMedium,
+                text,
+                style = MaterialTheme.typography.bodyMedium,
                 color = if (isRefusal) Plus.Debt else Plus.Money,
+                modifier = Modifier.weight(1f),
             )
+            if (onDismiss != null) {
+                Text(
+                    "Dismiss",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isRefusal) Plus.Debt else Plus.Money,
+                )
+            }
         }
+        if (receipt != null && !isRefusal) {
+            HorizontalDivider(color = Plus.Divider)
+            ReceiptLine("Founder's A/C", receipt.founders)
+            ReceiptLine("Keshflo A/C", receipt.keshflo)
+            ReceiptLine("Cash at hand", receipt.cashAtHand, emphasis = true)
+            if (!receipt.addsUp) {
+                Text(
+                    "${receipt.elsewhere} is set aside somewhere other than these two, " +
+                        "so the total is more than their sum.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Plus.Debt,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReceiptLine(label: String, value: String, emphasis: Boolean = false) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = Plus.TextMid)
+        Text(
+            value,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (emphasis) Plus.Money else Plus.TextHigh,
+            fontWeight = if (emphasis) FontWeight.Bold else FontWeight.Normal,
+        )
     }
 }
 

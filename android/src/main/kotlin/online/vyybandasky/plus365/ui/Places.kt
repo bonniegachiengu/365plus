@@ -56,6 +56,7 @@ fun PlacesScreen(
             it.text to (it is online.vyybandasky.plus365.core.presentation.Notice.Refused)
         },
         onDismissNotice = { onChange(session.clearNotice()) },
+        receipt = session.receipt,
     ) {
         Column(
             modifier = Modifier.verticalScroll(rememberScrollState()),
