@@ -278,6 +278,7 @@ fun ProfileScreen(
     session: Session,
     onBack: () -> Unit,
     onChange: (Session) -> Unit = {},
+    onOpenSync: () -> Unit = {},
 ) {
     val p = session.book.profile(session.actingAs, session.config)
     if (p == null) {
@@ -292,6 +293,16 @@ fun ProfileScreen(
             modifier = Modifier.verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
+            Card {
+                Label("The laptop holds the book")
+                Text(
+                    "Send what you have recorded up to the laptop and take back " +
+                        "what everyone has agreed.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Plus.TextMid,
+                )
+                BigButton("Sync with the laptop", filled = false, onClick = onOpenSync)
+            }
             Card {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(14.dp),

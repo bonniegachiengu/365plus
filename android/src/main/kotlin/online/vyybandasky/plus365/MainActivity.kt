@@ -9,36 +9,38 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import java.io.File
-import kotlinx.datetime.Clock
-import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.delay
+import kotlinx.datetime.Clock
 import online.vyybandasky.plus365.core.presentation.Notice
 import online.vyybandasky.plus365.core.presentation.PoolAction
 import online.vyybandasky.plus365.core.presentation.PoolMove
 import online.vyybandasky.plus365.core.presentation.Session
-import online.vyybandasky.plus365.core.store.LedgerStore
 import online.vyybandasky.plus365.core.presentation.saveFailedAlarm
+import online.vyybandasky.plus365.core.store.LedgerStore
 import online.vyybandasky.plus365.core.store.Saved
 import online.vyybandasky.plus365.core.store.trySave
 import online.vyybandasky.plus365.store.FileLedgerStore
 import online.vyybandasky.plus365.ui.ConfirmScreen
+import online.vyybandasky.plus365.ui.EntryScreen
 import online.vyybandasky.plus365.ui.FlowScreen
 import online.vyybandasky.plus365.ui.HomeScreen
-import online.vyybandasky.plus365.ui.EntryScreen
 import online.vyybandasky.plus365.ui.LedgerScreen
 import online.vyybandasky.plus365.ui.MemberScreen
 import online.vyybandasky.plus365.ui.MoveScreen
-import online.vyybandasky.plus365.ui.PlacesScreen
 import online.vyybandasky.plus365.ui.OverrideScreen
-import online.vyybandasky.plus365.ui.ProfileScreen
+import online.vyybandasky.plus365.ui.PlacesScreen
 import online.vyybandasky.plus365.ui.Plus
 import online.vyybandasky.plus365.ui.Plus365Theme
+import online.vyybandasky.plus365.ui.ProfileScreen
+import online.vyybandasky.plus365.ui.SyncScreen
+import online.vyybandasky.plus365.ui.SyncSettings
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -61,6 +63,7 @@ private sealed interface Screen {
     data object Profile : Screen
     data class Move(val move: PoolMove) : Screen
     data object Places : Screen
+    data object Sync : Screen
 }
 
 /**
@@ -84,6 +87,12 @@ fun Plus365App(store: LedgerStore) {
     // The single path from a change to disk. Every callback goes through it, so
     // there is no route that updates the screen without also saving — and none
     // that updates the screen while quietly failing to.
+    // Where the laptop is, remembered between launches. Typing an address and a
+    // code on a phone once is fine; doing it every time is how a feature stops
+    // being used.
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var syncSettings by remember { mutableStateOf(loadSyncSettings(ctx)) }
+
     val commit: (Session) -> Unit = { next ->
         session = when (val r = store.trySave(next.book)) {
             is Saved.Ok -> next
@@ -189,6 +198,15 @@ fun Plus365App(store: LedgerStore) {
                     session = session,
                     onBack = { screen = Screen.Home },
                     onChange = commit,
+                    onOpenSync = { screen = Screen.Sync },
+                )
+
+                is Screen.Sync -> SyncScreen(
+                    session = session,
+                    settings = syncSettings,
+                    onSaveSettings = { syncSettings = it; saveSyncSettings(ctx, it) },
+                    onSynced = commit,
+                    onBack = { screen = Screen.Home },
                 )
 
                 is Screen.Places -> PlacesScreen(
@@ -211,4 +229,27 @@ fun Plus365App(store: LedgerStore) {
             }
         }
     }
+}
+
+/**
+ * The laptop's address and code, kept in the app's own preferences.
+ *
+ * Not in the ledger. The ledger is the group's shared record and this is one
+ * phone's note about how to reach a machine — putting it in the book would sync
+ * one member's network settings to everybody else's device.
+ */
+private fun loadSyncSettings(ctx: android.content.Context): SyncSettings {
+    val p = ctx.getSharedPreferences("sync", android.content.Context.MODE_PRIVATE)
+    return SyncSettings(
+        address = p.getString("address", "").orEmpty(),
+        code = p.getString("code", "").orEmpty(),
+    )
+}
+
+private fun saveSyncSettings(ctx: android.content.Context, s: SyncSettings) {
+    ctx.getSharedPreferences("sync", android.content.Context.MODE_PRIVATE)
+        .edit()
+        .putString("address", s.address)
+        .putString("code", s.code)
+        .apply()
 }

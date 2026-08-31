@@ -2596,6 +2596,72 @@ for real, which is a genuine check-then-act race. It looked like the cause. It
 was not — a fully clean start with nothing on the port failed identically. The
 race is real and still there; it just was not this.
 
+## D93 — A star, because there is only one book
+
+Bonnie's topology, 31 Aug 2026: the laptop is the server, the phones are
+clients. Every phone pushes to the laptop and takes back what the laptop makes
+of it. Not peer-to-peer.
+
+That is the right call for three founders and it is worth saying why beyond
+"simpler". Peer-to-peer would mean every device merging every other device's
+version, which is not one ledger with copies but N ledgers that mostly agree —
+and "mostly" is doing an enormous amount of work in a sentence about money.
+A star has exactly one book to be right about and exactly one place where
+merging happens, so there is exactly one answer to what the group has.
+
+The phone client is deliberately stupid. It sends what it has and adopts what
+comes back. It does not merge, does not resolve, and has no opinion about whose
+version of an entry is right — if it did, there would be two places that decide
+and no way to say which was authoritative.
+
+`POST /sync` is one round trip in both directions rather than a push and a
+separate pull. A phone between the two would have pushed and not yet received,
+and could not tell whether it was behind or the laptop was.
+
+It is `synchronized`. Two phones pushing at once would otherwise merge against
+the same starting book and the second would overwrite the first — the ordinary
+lost update, with somebody's contribution as the thing lost.
+
+## D94 — Binding the LAN means the code is the lock
+
+The API listened on loopback because phones were supposed to arrive through a
+tunnel. There is no tunnel, so it binds the LAN now — and a LAN bind means
+anybody on the WiFi can reach the port. This one is somebody's flat, and
+"it is a home network" describes today rather than deciding anything.
+
+So every route that touches the ledger asks for a six-character pairing code,
+made once and kept beside the ledger. `/health` stays open because it carries no
+ledger data and is how a build is identified from outside.
+
+The alphabet has no O/0 and no I/1. A code gets read aloud across a room and
+typed on a phone keyboard, and one that survives neither gets replaced by
+somebody turning the check off.
+
+The test asserting loopback-only failed, correctly, and was kept rather than
+deleted — rewritten to assert what actually protects the ledger now. A test that
+is deleted when the design changes takes the reasoning with it.
+
+## D95 — Two things that would have shipped broken
+
+**The Android network config.** The first version permitted cleartext for
+private ranges only, listing `192.168.0.0` with `includeSubdomains`. That file
+matches *hostnames* and has no CIDR syntax, so it would have permitted exactly
+one literal address and blocked the only address the app ever dials. It read
+like a careful restriction and did the opposite. Replaced with a plain permit
+and an honest comment: what actually limits exposure is that there is one
+address in the app, typed by a member, and a code the laptop demands.
+
+**The LAN address.** `NetworkInterface.isVirtual` means "subinterface", not
+"virtual adapter", so it does not catch Hyper-V's. This laptop offers
+172.23.96.1 and 172.25.32.1 alongside the real 192.168.1.66 — all site-local,
+two of them reachable from precisely one machine. Picking the first would have
+handed somebody an address that never answers, and they would have spent the
+evening blaming the WiFi. Now skips vEthernet/WSL/Hyper-V/Docker by name and
+prefers 192.168/16.
+
+Both were found by checking rather than by running, which is the only way these
+two could have been found before a person hit them.
+
 ## Still open
 
 | Question | Blocks | Notes |
