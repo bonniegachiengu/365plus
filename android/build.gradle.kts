@@ -34,8 +34,8 @@ android {
         // Bumped every slice so the build on the phone can be named, not
         // assumed. An APK that silently failed to replace the old one looks
         // exactly like a feature that silently failed to work.
-        versionCode = 18
-        versionName = "0.46.0-update-receipt"
+        versionCode = 19
+        versionName = "0.47.0-seed-governance"
     }
 
     buildFeatures {
