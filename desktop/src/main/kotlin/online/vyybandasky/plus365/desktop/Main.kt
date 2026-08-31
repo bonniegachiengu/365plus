@@ -92,10 +92,25 @@ fun main() {
     // background thread and takes the process with it rather than as something
     // catchable here. Asking the OS for the port first turns that into a
     // question with an answer.
-    val server = if (portIsFree(DEFAULT_HOST, DEFAULT_PORT)) {
-        startHealthServer()
+    //
+    // And if 8443 itself cannot be had, try a few others before giving up.
+    // Windows hands whole ranges to Hyper-V and WSL to reserve, and 8443 landed
+    // inside one on this machine — `netsh interface ipv4 show excludedportrange
+    // protocol=tcp` listed 8435-8534. Nothing was listening and nothing was
+    // wrong; the port was simply spoken for, and the ranges move when the
+    // machine reboots.
+    //
+    // That is worth surviving rather than reporting, because this endpoint is
+    // how a build gets verified by name from outside the app. Losing it to
+    // somebody else's port reservation means the next person cannot check what
+    // they are running, and the header prints whichever port was actually
+    // taken so the answer is never guessed.
+    val chosenPort = API_PORTS.firstOrNull { portIsFree(DEFAULT_HOST, it) }
+    val server = if (chosenPort != null) {
+        apiPort = chosenPort
+        startHealthServer(port = chosenPort)
     } else {
-        apiFailure = "port $DEFAULT_PORT is taken"
+        apiFailure = "ports ${API_PORTS.joinToString(", ")} are all taken"
         null
     }
     try {
@@ -140,6 +155,18 @@ fun main() {
  * settled once before the first frame and never changes afterwards.
  */
 private var apiFailure: String? = null
+
+/**
+ * The port the API actually got, which is not always the one it asked for.
+ */
+private var apiPort: Int = DEFAULT_PORT
+
+/**
+ * Ports to try, in order. The first is the one the brief names; the rest exist
+ * because a port being free is a fact about this machine this week, not about
+ * the app.
+ */
+private val API_PORTS = listOf(DEFAULT_PORT, 8543, 8643, 9443)
 
 /**
  * Bumped on every Escape.
@@ -324,7 +351,7 @@ private fun Header(
                         } +
                         (
                             apiFailure?.let { "API off ($it)" }
-                                ?: "API on http://$DEFAULT_HOST:$DEFAULT_PORT/health"
+                                ?: "API on http://$DEFAULT_HOST:$apiPort/health"
                             ),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (apiFailure != null) Plus.Pending else Plus.TextLow,

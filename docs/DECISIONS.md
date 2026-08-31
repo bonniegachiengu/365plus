@@ -2567,6 +2567,35 @@ than something the code enforces. If a third ever holds money the sum quietly
 stops working, so the receipt says so instead of printing three figures that no
 longer add up.
 
+## D92 — A port that was never ours to assume
+
+`/health` stopped answering. The window said `API off (port 8443 is taken)` and
+nothing was listening on 8443 — `netstat` showed no socket at all, and killing
+every copy of the app changed nothing.
+
+`netsh interface ipv4 show excludedportrange protocol=tcp` had the answer:
+**8435-8534**, one of the ranges Windows hands to Hyper-V and WSL to reserve.
+8443 sat inside it. Nothing was wrong, nothing was listening, and the port was
+simply spoken for. These ranges move when the machine reboots, which is why it
+worked earlier the same day.
+
+Two things worth keeping from it. The app was right and said so plainly — it
+degraded to a working window with an amber header naming the reason, rather than
+dying or pretending. That is the behaviour to preserve.
+
+The other is that the endpoint is not a convenience. It is how a build gets
+verified by name from outside the app, and losing it silently means the next
+person cannot check what they are running. So it now tries 8443, then 8543,
+8643, 9443, and prints whichever it actually got. A port being free is a fact
+about this machine this week, not a fact about the app, and the code had been
+treating it as the second kind.
+
+The first suspicion was wrong and worth recording as such: two `Plus365.exe`
+processes were running, and `portIsFree` test-binds and closes before Ktor binds
+for real, which is a genuine check-then-act race. It looked like the cause. It
+was not — a fully clean start with nothing on the port failed identically. The
+race is real and still there; it just was not this.
+
 ## Still open
 
 | Question | Blocks | Notes |
