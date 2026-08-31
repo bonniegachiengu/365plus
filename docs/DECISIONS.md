@@ -2499,6 +2499,74 @@ Confirmed with Bonnie: no real artwork exists. The generated placeholder is the
 finished answer for now, not a gap, and the item is closed rather than carried.
 Reopen it when there is art, not before.
 
+## D89 — Building on mock numbers, on purpose
+
+Brian's direction, relayed 31 Aug 2026: build on mock data now, and harmonize
+the real figures in person — Brian and Bonnie, probably Kang'iri. Too many
+nitty-gritties for text.
+
+So the "waiting on Brian's breakdown" blocker is gone, and not by being
+answered. It was the wrong shape. Nothing in the app needs the real numbers to
+be finished: the seed exists to exercise every screen, and a screen that renders
+13,334 correctly renders 25,504 correctly. What the meeting settles is what the
+figures *are*, and that was never a software question.
+
+Worth naming because the instinct runs the other way. A blocker sitting on a
+board for weeks starts to look like something that must be cleared before
+progress, when it is often something running quietly alongside it. The test is
+whether the unknown changes what gets built. This one changed only what gets
+typed in afterwards.
+
+One figure arrived with the direction and is deliberately **not** in the seed:
+Kang'iri partly repaid a pending loan of 14,868 with 5,000, leaving 9,868. It
+belongs to the meeting. Putting a real balance into mock data is how mock data
+stops being obviously mock, and the next person to read it has no way to tell
+which figures were invented and which were somebody's actual money.
+
+## D90 — A repayment is not a contribution
+
+Brian named the distinction, and it is the one this model could most easily have
+got quietly wrong. Both messages bring money in. Both raise cash at hand. A
+model that stopped there would look right on the total while being wrong about
+every member.
+
+They differ in what else they touch. A contribution raises a member's **stake** —
+the figure their target is measured against. A repayment touches only their
+**debt**. If repaying counted as contributing, the fastest route to a savings
+target would be to borrow from the pool and hand the money straight back, and
+the books would show somebody saving hard while the pool stood still.
+
+The effect table already had this right. What it did not have was anything
+asserting it, which is a different condition from being correct — it is being
+correct by luck until somebody refactors. Now pinned, and mutation-checked:
+making a repayment raise the stake breaks two tests.
+
+## D91 — The three figures that follow every update
+
+Also Brian's: each update reports the Founders account, the Keshflo account, and
+the total cash at hand, which is the two added together. The old books already
+print it that way.
+
+Derived from the folded ledger, never assembled from the message that caused it.
+A receipt built out of the text describing an update is a receipt that can
+disagree with the ledger — and this one is folded from the ledger itself, so if
+it is wrong then the ledger is wrong, which is the thing worth knowing.
+
+It is a property of the session rather than something each action builds for
+itself. Twenty-one places report success in `Session.kt`, and a receipt
+assembled at each of them would be twenty-one chances to print the position as
+it stood just before the thing that was meant to change it.
+
+Confirmed balances only. An entry recorded but not yet agreed to has moved no
+money, and a receipt counting it would report one member's claim as the group's
+position.
+
+And it carries `elsewhereCents`. "Cash at hand is the sum of both" is true
+because the group has exactly two pockets, which is a fact about today rather
+than something the code enforces. If a third ever holds money the sum quietly
+stops working, so the receipt says so instead of printing three figures that no
+longer add up.
+
 ## Still open
 
 | Question | Blocks | Notes |
@@ -2506,7 +2574,6 @@ Reopen it when there is art, not before.
 | Repayment allocation across principal / interest / cost | D5 finishing | Needs Brian, who keeps the book. |
 | M-Pesa SMS auto-confirm vs. two-person control | SMS slice | If the recorder's own line is also the verifier, that is self-confirmation in a costume. Suggested: trust SMS for money-**in** only; human for everything else. |
 | How pre-app history is grandfathered | loading the real book | Existing entries carry no confirmations; gating them naively would zero the ledger. |
-| Is "Joseph" the same person as Kang'iri, or a third member? | seeding the real figures | Blocks the historical seed entirely — a member list that is wrong by one person makes every per-member figure wrong. |
-| Sign-off on the extracted figures | seeding the real figures | Brian 29,000 / Joseph 12,000; loans 25,504; cash 21,307; interest 5,811. Read off screenshots, unconfirmed. |
+| Is "Joseph" the same person as Kang'iri, or a third member? | the harmonization meeting, not the build | Carried to the meeting. No longer blocks anything in code — see D89. |
 | Does "unanimous" mean all founders, or all members including Keshflo borrowers? | D86 electorate | Built as all active founders — see `targetElectorate()`. One line to change if the group meant everybody. |
 | The two live ledgers still carry an M-Shwari account | D87 finishing | Both hold KSh 0 and predate the decision. Removing an account is a data change nobody has approved, and the app deliberately cannot delete one. |

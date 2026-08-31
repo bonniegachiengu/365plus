@@ -93,6 +93,17 @@ data class Session(
             copy(notice = Notice.Refused("This device may not act as $memberId."))
         }
 
+    /**
+     * The three figures that follow every update: Founders, Keshflo, and the
+     * total cash at hand.
+     *
+     * A property rather than something each action builds for itself. Twenty-one
+     * places in this file report success, and a receipt assembled at each of
+     * them would be twenty-one chances to report the position as it was just
+     * before the thing that was supposed to have changed it.
+     */
+    val receipt: Receipt get() = book.receipt()
+
     fun clearNotice(): Session = copy(notice = null)
 
     private fun nextId(prefix: String): String = "$prefix-$idCounter"

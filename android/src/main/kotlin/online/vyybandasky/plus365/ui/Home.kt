@@ -16,9 +16,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.HorizontalDivider
@@ -33,20 +33,21 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.presentation.ActivityRow
-import online.vyybandasky.plus365.core.sms.Assurance
-import online.vyybandasky.plus365.core.sms.label
 import online.vyybandasky.plus365.core.presentation.MemberCard
 import online.vyybandasky.plus365.core.presentation.PoolAction
 import online.vyybandasky.plus365.core.presentation.PoolMove
+import online.vyybandasky.plus365.core.presentation.Receipt
 import online.vyybandasky.plus365.core.presentation.Session
 import online.vyybandasky.plus365.core.presentation.activity
-import online.vyybandasky.plus365.core.presentation.cashOnHand
 import online.vyybandasky.plus365.core.presentation.beneficiaryCards
-import online.vyybandasky.plus365.core.presentation.founderCards
+import online.vyybandasky.plus365.core.presentation.cashOnHand
 import online.vyybandasky.plus365.core.presentation.firstRunLine
+import online.vyybandasky.plus365.core.presentation.founderCards
 import online.vyybandasky.plus365.core.presentation.overdrawReport
 import online.vyybandasky.plus365.core.presentation.overrideCount
 import online.vyybandasky.plus365.core.presentation.pendingActs
+import online.vyybandasky.plus365.core.sms.Assurance
+import online.vyybandasky.plus365.core.sms.label
 
 /**
  * The home screen.
@@ -586,6 +587,8 @@ fun ScreenScaffold(
     onBack: (() -> Unit)?,
     notice: Pair<String, Boolean>?,
     onDismissNotice: (() -> Unit)? = null,
+    /** The three figures that follow an update. Shown under a confirmation. */
+    receipt: Receipt? = null,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
     Column(
@@ -615,7 +618,7 @@ fun ScreenScaffold(
                 fontWeight = FontWeight.Bold,
             )
         }
-        if (notice != null) NoticeBanner(notice.first, notice.second, onDismissNotice)
+        if (notice != null) NoticeBanner(notice.first, notice.second, onDismissNotice, receipt)
         content()
     }
 }
