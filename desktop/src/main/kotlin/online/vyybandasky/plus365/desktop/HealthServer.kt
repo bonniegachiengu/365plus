@@ -25,14 +25,26 @@ val APP_VERSION: String get() = BuildInfo.NAME
  * The port the brief names (§4). Plain HTTP despite the 8443 convention — TLS is
  * terminated by Cloudflare at the edge, exactly as it is for Myra and LaunchGear,
  * so terminating it again here would buy nothing.
+ *
+ * On this machine 8443 is unusable: Windows reserves 8435-8534 for Hyper-V and
+ * WSL. The app tries a list and reports which one it got (D92), so this is the
+ * first preference rather than a promise.
  */
 const val DEFAULT_PORT: Int = 8443
 
 /**
- * Bound to loopback on purpose. Phones reach this through the tunnel, never by
- * dialling the laptop directly, so there is no reason to listen on the LAN.
+ * Every interface, so a phone on the same WiFi can reach it.
+ *
+ * This was loopback, on the reasoning that phones would arrive through a tunnel
+ * rather than dial the laptop directly. The group has no tunnel and three
+ * founders in one room, so the LAN is the transport.
+ *
+ * Listening on the LAN means listening to everyone on the WiFi, which is why
+ * every route that touches the ledger asks for a pairing code. Binding wide and
+ * checking nothing would put the group's money one guessed port away from
+ * anybody sharing the network.
  */
-const val DEFAULT_HOST: String = "127.0.0.1"
+const val DEFAULT_HOST: String = "0.0.0.0"
 
 /**
  * The health payload, built as a pure function so it can be asserted without
@@ -51,9 +63,12 @@ fun Routing.healthRoutes() {
 fun buildServer(
     port: Int = DEFAULT_PORT,
     host: String = DEFAULT_HOST,
+    hub: SyncHub? = null,
+    pairingCode: String? = null,
 ): EmbeddedServer<*, *> = embeddedServer(CIO, port = port, host = host) {
     routing {
         healthRoutes()
+        if (hub != null && pairingCode != null) syncRoutes(hub, pairingCode)
     }
 }
 
@@ -61,4 +76,7 @@ fun buildServer(
 fun startHealthServer(
     port: Int = DEFAULT_PORT,
     host: String = DEFAULT_HOST,
-): EmbeddedServer<*, *> = buildServer(port, host).also { it.start(wait = false) }
+    hub: SyncHub? = null,
+    pairingCode: String? = null,
+): EmbeddedServer<*, *> =
+    buildServer(port, host, hub, pairingCode).also { it.start(wait = false) }

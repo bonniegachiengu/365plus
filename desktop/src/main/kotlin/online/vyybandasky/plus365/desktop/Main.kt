@@ -23,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +46,7 @@ import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.BuildInfo
+import online.vyybandasky.plus365.core.book.LedgerBook
 import online.vyybandasky.plus365.core.domain.TargetChangeState
 import online.vyybandasky.plus365.core.presentation.ActivityRow
 import online.vyybandasky.plus365.core.presentation.LedgerFilter
@@ -105,10 +107,33 @@ fun main() {
     // somebody else's port reservation means the next person cannot check what
     // they are running, and the header prints whichever port was actually
     // taken so the answer is never guessed.
+    liveSession = mutableStateOf(Session.restored(store, Clock.System.now()))
+    pairingCode = PairingCode.loadOrCreate(File(System.getProperty("user.home"), ".365plus"))
+    lanIp = lanAddress()
+
+    // The hub is the only way in from the network, and it is deliberately two
+    // lambdas rather than a reference to anything: the server can read the book
+    // and replace it, and that is the whole of its power over the ledger.
+    val hub = SyncHub(
+        read = { liveSession.value.book },
+        write = { merged ->
+            when (store.trySave(merged)) {
+                is Saved.Ok -> {
+                    // Rebuilding the session rather than copying the book keeps
+                    // the id counter honest — a Session over a book it did not
+                    // start with will hand out ids that already exist.
+                    liveSession.value = liveSession.value.withBook(merged)
+                    true
+                }
+                is Saved.Failed -> false
+            }
+        },
+    )
+
     val chosenPort = API_PORTS.firstOrNull { portIsFree(DEFAULT_HOST, it) }
     val server = if (chosenPort != null) {
         apiPort = chosenPort
-        startHealthServer(port = chosenPort)
+        startHealthServer(port = chosenPort, hub = hub, pairingCode = pairingCode)
     } else {
         apiFailure = "ports ${API_PORTS.joinToString(", ")} are all taken"
         null
@@ -161,6 +186,12 @@ private var apiFailure: String? = null
  */
 private var apiPort: Int = DEFAULT_PORT
 
+/** The code a phone must present. Made once and kept beside the ledger. */
+private var pairingCode: String = ""
+
+/** The address to type into a phone, if this machine has a reachable one. */
+private var lanIp: String? = null
+
 /**
  * Ports to try, in order. The first is the one the brief names; the rest exist
  * because a port being free is a fact about this machine this week, not about
@@ -204,9 +235,25 @@ private sealed interface Screen {
  * Every figure and every sentence comes from `core/presentation`, so this window
  * and that phone cannot disagree about the ledger. Only the paint is local.
  */
+/**
+ * The one session, held outside the composition.
+ *
+ * It used to be `remember`ed inside [App], which was right while the window was
+ * the only thing that could change the ledger. The sync server can now too, and
+ * it runs on a background thread before the composition exists — so the state
+ * has to outlive and sit outside the window rather than be reachable only from
+ * within it.
+ *
+ * A Compose `MutableState` rather than a plain field: written from the Ktor
+ * thread, read from the UI thread, and the window recomposes when a phone
+ * pushes something. That is the whole reason a merge shows up on screen without
+ * anybody touching the laptop.
+ */
+private lateinit var liveSession: MutableState<Session>
+
 @Composable
 fun App(store: LedgerStore) {
-    var session by remember { mutableStateOf(Session.restored(store, Clock.System.now())) }
+    var session by liveSession
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
 
     val commit: (Session) -> Unit = { next ->
@@ -350,8 +397,13 @@ private fun Header(
                             if (it == 0) "" else "$it to settle · "
                         } +
                         (
-                            apiFailure?.let { "API off ($it)" }
-                                ?: "API on http://$DEFAULT_HOST:$apiPort/health"
+                            // What a phone has to be told, on the screen of the
+                            // machine it has to be told about. An address kept
+                            // in a config file is an address somebody reads out
+                            // wrong.
+                            apiFailure?.let { "sync off ($it)" }
+                                ?: lanIp?.let { "phones: http://$it:$apiPort · code $pairingCode" }
+                                ?: "sync on port $apiPort — no LAN address found"
                             ),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (apiFailure != null) Plus.Pending else Plus.TextLow,
