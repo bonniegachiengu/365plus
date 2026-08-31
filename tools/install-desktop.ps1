@@ -104,4 +104,44 @@ Write-Host "Start menu: $env:APPDATA\Microsoft\Windows\Start Menu\Programs\365+\
 Write-Host ""
 Write-Host "Launching. Check the build line under the title matches what you expect."
 Start-Process $exe
+
+# Ask the running app what it is, rather than trusting that the install took.
+#
+# This exists because it did not, once. The app was running while the MSI
+# installed; Windows replaced the launcher and kept the old jars, and the thing
+# that came back up reported the previous version while every step above had
+# printed success. An install that silently half-applies looks exactly like a
+# feature that silently does not work, and the whole point of a version stamp is
+# lost if nobody checks it.
+#
+# So the script now reads the stamp back off the endpoint and fails loudly when
+# it disagrees with the source it just built from.
+$want = (Select-String -Path "$repo/core/src/commonMain/kotlin/online/vyybandasky/plus365/core/BuildInfo.kt" `
+    -Pattern 'const val NAME: String = "([^"]+)"').Matches[0].Groups[1].Value
+
+$got = $null
+foreach ($try in 1..20) {
+    Start-Sleep -Seconds 2
+    foreach ($port in 8443, 8543, 8643, 9443) {
+        try {
+            $r = Invoke-RestMethod -Uri "http://127.0.0.1:$port/health" -TimeoutSec 3
+            if ($r.version) { $got = $r; break }
+        } catch { }
+    }
+    if ($got) { break }
+}
+
+if (-not $got) {
+    Write-Host ""
+    Write-Host "Could not reach the app to check its version." -ForegroundColor Yellow
+    Write-Host "It may still be starting, or every candidate port is taken."
+} elseif ($got.version -ne $want) {
+    Write-Host ""
+    Write-Host "STALE INSTALL: the app reports $($got.version) but this build is $want." -ForegroundColor Red
+    Write-Host "Close every copy of 365+ and run this again."
+    throw "installed version does not match the build"
+} else {
+    Write-Host ""
+    Write-Host "Verified: running $($got.version) (commit $($got.commit))." -ForegroundColor Green
+}
 Pop-Location
