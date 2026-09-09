@@ -412,7 +412,7 @@ fun LedgerBook.confirm(
     if (member(confirmedBy) == null) {
         return Decision.Refused(Refusal.UnknownMember(confirmedBy))
     }
-    if (!isFounder(confirmedBy)) {
+    if (!isFounder(confirmedBy) && !config.mayConfirmAsNonFounder(confirmedBy)) {
         return Decision.Refused(Refusal.NotAMember(confirmedBy))
     }
     when (val gate = checkConfirm(target, confirmedBy, config)) {

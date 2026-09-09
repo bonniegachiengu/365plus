@@ -47,6 +47,9 @@ data class ActorConfig(
 
     fun mayAct(as_: MemberId): Boolean = as_ in mayActAs
 
+    /** DEV admin may exercise the confirmation role as any active member. */
+    fun mayConfirmAsNonFounder(as_: MemberId): Boolean = mode == Mode.DEV && mayAct(as_)
+
     companion object {
         /** The real thing: one device, one member, no impersonation. */
         fun production(owner: MemberId) =
