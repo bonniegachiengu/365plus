@@ -177,7 +177,7 @@ fun LedgerBook.pendingActs(config: ActorConfig, now: Instant? = null): List<Pend
             recordedBy = displayName(recorder),
             recordedById = recorder,
             whenRecorded = lead.recordedAt?.let { relativeTime(it, now) } ?: "just now",
-            eligibleConfirmers = eligibleConfirmers(lead, memberIds(), config)
+            eligibleConfirmers = eligibleConfirmers(lead, founderIds(), config)
                 .map { MemberRef(it, displayName(it)) },
             entryCount = act.size,
             reference = act.firstNotNullOfOrNull { it.recordedEvidence?.reference },
