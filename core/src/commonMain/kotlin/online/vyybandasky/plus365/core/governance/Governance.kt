@@ -47,6 +47,7 @@ data class ActorConfig(
 
     fun mayAct(as_: MemberId): Boolean = as_ in mayActAs
 
+
     companion object {
         /** The real thing: one device, one member, no impersonation. */
         fun production(owner: MemberId) =

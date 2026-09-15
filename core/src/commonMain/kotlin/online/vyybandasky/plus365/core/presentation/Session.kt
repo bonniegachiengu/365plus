@@ -731,9 +731,13 @@ data class Session(
          */
         fun restored(store: LedgerStore, now: Instant? = null): Session {
             val opened = store.open { DevSeed.book(now) }
+            val restoredConfig = ActorConfig.dev(
+                owner = DevSeed.BONNIE,
+                everyone = opened.book.members.filter { it.active }.map { it.id }.toSet(),
+            )
             return Session(
                 book = opened.book,
-                config = DevSeed.DEV_CONFIG,
+                config = restoredConfig,
                 actingAs = DevSeed.BONNIE,
                 storeAlarm = opened.alarm(),
                 idCounter = opened.book.nextSeq,
