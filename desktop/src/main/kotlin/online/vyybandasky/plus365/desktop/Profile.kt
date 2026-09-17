@@ -1,5 +1,12 @@
 package online.vyybandasky.plus365.desktop
 
+import online.vyybandasky.plus365.core.DevSeed
+import online.vyybandasky.plus365.core.governance.AdminAuthority
+import online.vyybandasky.plus365.core.governance.AdminDecision
+import online.vyybandasky.plus365.core.governance.activateMember
+import online.vyybandasky.plus365.core.governance.deactivateMember
+import online.vyybandasky.plus365.core.presentation.Notice
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,6 +19,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -29,7 +40,7 @@ import online.vyybandasky.plus365.core.presentation.profile
  * rule that needs two.
  *
  * Every figure and sentence here comes from `core/presentation`, including the
- * one about where the ledger is kept — that one differs by machine, which is
+ * one about where the ledger is kept â€” that one differs by machine, which is
  * what [Shell] is for.
  */
 @Composable
@@ -94,7 +105,7 @@ fun ProfileBody(session: Session, onChange: (Session) -> Unit) {
             }
             Text(
                 "Switching changes who records and who confirms. It does not let the " +
-                    "same person do both — that is refused whoever this machine says " +
+                    "same person do both â€” that is refused whoever this machine says " +
                     "it is.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Plus.TextLow,
@@ -105,11 +116,15 @@ fun ProfileBody(session: Session, onChange: (Session) -> Unit) {
 
     // No sign-out: there is no account to sign out of. Saying so is better than
     // a button that does nothing, or an invented login.
+    if (session.actingAs == DevSeed.BONNIE) {
+        AdminMemberManagementCard(session, onChange)
+    }
+
     Card(colour = Plus.SurfaceRaised) {
         Label("Signing out")
         Text(
             "There is nothing to sign out of yet. This build has no accounts and no " +
-                "server — the master ledger lives on this machine, and the phones " +
+                "server â€” the master ledger lives on this machine, and the phones " +
                 "will sync to it. Sign-in arrives with sync.",
             style = MaterialTheme.typography.bodyMedium,
             color = Plus.TextMid,
@@ -128,5 +143,157 @@ fun ProfileBody(session: Session, onChange: (Session) -> Unit) {
             style = MaterialTheme.typography.bodySmall,
             color = Plus.TextLow,
         )
+    }
+}
+
+@Composable
+private fun AdminMemberManagementCard(
+    session: Session,
+    onChange: (Session) -> Unit,
+) {
+    var selectedMemberId by remember {
+        mutableStateOf<String?>(null)
+    }
+
+    val members = session.book.members
+    val selected = members.firstOrNull { it.id == selectedMemberId }
+
+    Card(colour = Plus.SurfaceRaised) {
+        Label("Administrative member management", Plus.TextHigh)
+
+        Text(
+            "Lifecycle administration only. This does not grant founder authority " +
+                "or change financial governance.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Plus.TextLow,
+        )
+
+        HorizontalDivider(
+            color = Plus.Divider,
+            modifier = Modifier.padding(vertical = 8.dp),
+        )
+
+        for (member in members) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (member.id == selectedMemberId) {
+                            Modifier.background(Plus.MoneyDim, RoundedCornerShape(12.dp))
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                    .tappable { selectedMemberId = member.id },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Avatar(member.displayName.firstOrNull()?.uppercase() ?: "?")
+
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        member.displayName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Plus.TextHigh,
+                    )
+                    Text(
+                        if (member.active) "Active" else "Inactive",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (member.active) Plus.Money else Plus.TextLow,
+                    )
+                }
+
+                Text(
+                    if (member.active) "ACTIVE" else "INACTIVE",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (member.active) Plus.Money else Plus.TextLow,
+                )
+            }
+        }
+
+        if (selected != null) {
+            HorizontalDivider(
+                color = Plus.Divider,
+                modifier = Modifier.padding(vertical = 8.dp),
+            )
+
+            Text(
+                "Selected: ${selected.displayName}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Plus.TextMid,
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (selected.active) {
+                    BigButton(
+                        text = "Deactivate",
+                        danger = true,
+                        onClick = {
+                            when (
+                                val decision = session.book.deactivateMember(
+                                    memberId = selected.id,
+                                    administeredBy = DevSeed.BONNIE,
+                                    authority = AdminAuthority.of(DevSeed.BONNIE),
+                                )
+                            ) {
+                                is AdminDecision.Allowed ->
+                                    onChange(
+                                        session
+                                            .withBook(decision.value)
+                                            .copy(
+                                                notice = Notice.Info(
+                                                    "${selected.displayName} deactivated."
+                                                )
+                                            )
+                                    )
+
+                                is AdminDecision.Refused ->
+                                    onChange(
+                                        session.copy(
+                                            notice = Notice.Refused(
+                                                decision.refusal.message
+                                            )
+                                        )
+                                    )
+                            }
+                        },
+                    )
+                } else {
+                    BigButton(
+                        text = "Activate",
+                        onClick = {
+                            when (
+                                val decision = session.book.activateMember(
+                                    memberId = selected.id,
+                                    administeredBy = DevSeed.BONNIE,
+                                    authority = AdminAuthority.of(DevSeed.BONNIE),
+                                )
+                            ) {
+                                is AdminDecision.Allowed ->
+                                    onChange(
+                                        session
+                                            .withBook(decision.value)
+                                            .copy(
+                                                notice = Notice.Info(
+                                                    "${selected.displayName} activated."
+                                                )
+                                            )
+                                    )
+
+                                is AdminDecision.Refused ->
+                                    onChange(
+                                        session.copy(
+                                            notice = Notice.Refused(
+                                                decision.refusal.message
+                                            )
+                                        )
+                                    )
+                            }
+                        },
+                    )
+                }
+            }
+        }
     }
 }
