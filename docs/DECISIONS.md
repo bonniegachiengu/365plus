@@ -2676,3 +2676,13 @@ two could have been found before a person hit them.
 ## D006 — Admin Financial Recording Boundary
 
 Admin/operator may act as a financial recorder when explicitly authorized for that recording capability. Admin status alone does not grant authority to confirm, reject, settle, override, alter stake, alter balances, or change financial governance rules. Recorder and confirmer remain separate roles under D3.
+
+## D006-A — Admin financial recording scope
+
+**Decided:** 2026-09-17. **Status:** settled.
+
+An explicitly authorized Admin/operator may record **any normal financial action**: contribution, lend, borrow, repay, payout, member lends in, and pay a member back.
+
+Recording does **not** confer financial governance authority. The existing D3 invariant remains unchanged: **the recorder cannot confirm their own recorded entry**. Confirmation, rejection, settlement, override, and other financial governance authority remain separately governed.
+
+**Depends on it:** the D006 authorization matrix and the financial recording/authorization implementation that follows.
