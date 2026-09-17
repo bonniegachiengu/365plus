@@ -2686,3 +2686,20 @@ An explicitly authorized Admin/operator may record **any normal financial action
 Recording does **not** confer financial governance authority. The existing D3 invariant remains unchanged: **the recorder cannot confirm their own recorded entry**. Confirmation, rejection, settlement, override, and other financial governance authority remain separately governed.
 
 **Depends on it:** the D006 authorization matrix and the financial recording/authorization implementation that follows.
+
+## D006-B — Peer lending initiation
+
+**Decided:** 2026-09-17. **Status:** settled.
+
+All peer lending is permitted. Any **Founder or Member** may initiate a loan with another **Founder or Member**, subject to the later confirmation and settlement rules.
+
+- Founder ↔ Founder: permitted.
+- Founder ↔ Member: permitted.
+- Member ↔ Member: permitted.
+- Admin status alone does not grant peer-lending initiation authority.
+- Initiation does not grant confirmation, rejection, settlement, override, or other governance authority.
+- Keshflo Beneficiaries remain outside ordinary Founder/Member peer lending under this decision; beneficiary lending remains a separately governed pathway.
+
+**Invariant:** Initiation of a financial relationship does not imply authority to govern that relationship.
+
+**Depends on it:** the D006 confirmation/rejection matrix and settlement rules that follow.
