@@ -2672,3 +2672,7 @@ two could have been found before a person hit them.
 | Is "Joseph" the same person as Kang'iri, or a third member? | the harmonization meeting, not the build | Carried to the meeting. No longer blocks anything in code — see D89. |
 | Does "unanimous" mean all founders, or all members including Keshflo borrowers? | D86 electorate | Built as all active founders — see `targetElectorate()`. One line to change if the group meant everybody. |
 | The two live ledgers still carry an M-Shwari account | D87 finishing | Both hold KSh 0 and predate the decision. Removing an account is a data change nobody has approved, and the app deliberately cannot delete one. |
+
+## D006 — Admin Financial Recording Boundary
+
+Admin/operator may act as a financial recorder when explicitly authorized for that recording capability. Admin status alone does not grant authority to confirm, reject, settle, override, alter stake, alter balances, or change financial governance rules. Recorder and confirmer remain separate roles under D3.
