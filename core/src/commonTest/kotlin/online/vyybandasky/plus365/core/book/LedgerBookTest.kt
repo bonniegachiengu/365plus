@@ -12,6 +12,7 @@ import online.vyybandasky.plus365.core.governance.ActorConfig
 import online.vyybandasky.plus365.core.governance.AdminAuthority
 import online.vyybandasky.plus365.core.governance.Decision
 import online.vyybandasky.plus365.core.governance.Refusal
+import online.vyybandasky.plus365.core.governance.SettlementAuthority
 
 private val CONFIG = ActorConfig.dev(DevSeed.BONNIE, DevSeed.EVERYONE)
 
@@ -96,6 +97,111 @@ class LedgerBookTest {
         assertEquals(EntryState.CONFIRMED, confirmed.entry("admin-e1")!!.state)
         assertEquals(100_000L, confirmed.state().poolCashCents)
         assertEquals(DevSeed.BRIAN, confirmed.entry("admin-e1")!!.confirmedByMemberId)
+    }
+
+    @Test
+    fun a_founder_can_settle_a_confirmed_entry() {
+        var b = freshBook().record(
+            id = "e1",
+            type = EntryType.CONTRIBUTION,
+            amountCents = 100_000,
+            memberId = DevSeed.BONNIE,
+            recordedBy = DevSeed.BONNIE,
+            config = CONFIG,
+        ).value().book
+        b = b.confirm("e1", DevSeed.BRIAN, CONFIG).value().book
+
+        val settled = b.settle(
+            "e1",
+            DevSeed.BRIAN,
+            CONFIG,
+            SettlementAuthority.of(
+                EntryType.CONTRIBUTION to setOf(DevSeed.BRIAN),
+            ),
+        ).value()
+
+        assertEquals(EntryState.CONFIRMED, settled.book.entry("e1")!!.state)
+        assertEquals(100_000L, settled.book.state().poolCashCents)
+
+    }
+
+    @Test
+    fun the_recorder_cannot_settle_their_own_confirmed_entry() {
+        var b = freshBook().record(
+            id = "e1",
+            type = EntryType.CONTRIBUTION,
+            amountCents = 100_000,
+            memberId = DevSeed.BONNIE,
+            recordedBy = DevSeed.BONNIE,
+            config = CONFIG,
+        ).value().book
+        b = b.confirm("e1", DevSeed.BRIAN, CONFIG).value().book
+
+        val refused = assertIs<Decision.Refused>(
+            b.settle(
+                "e1",
+                DevSeed.BONNIE,
+                CONFIG,
+                SettlementAuthority.of(
+                    EntryType.CONTRIBUTION to setOf(DevSeed.BRIAN),
+                ),
+            ),
+        )
+
+        assertIs<Refusal.SelfSettlement>(refused.refusal)
+        assertEquals(EntryState.CONFIRMED, b.entry("e1")!!.state)
+    }
+
+    @Test
+    fun an_involved_member_cannot_settle_just_because_they_are_involved() {
+        var b = freshBook().record(
+            id = "e1",
+            type = EntryType.CONTRIBUTION,
+            amountCents = 100_000,
+            memberId = DevSeed.BONNIE,
+            recordedBy = DevSeed.KANGIRI,
+            config = CONFIG,
+        ).value().book
+        b = b.confirm("e1", DevSeed.BRIAN, CONFIG).value().book
+
+        val refused = assertIs<Decision.Refused>(
+            b.settle(
+                "e1",
+                DevSeed.BONNIE,
+                CONFIG,
+                SettlementAuthority.of(
+                    EntryType.CONTRIBUTION to setOf(DevSeed.BRIAN),
+                ),
+            ),
+        )
+
+        assertIs<Refusal.NotAuthorised>(refused.refusal)
+    }
+
+    @Test
+    fun an_unconfirmed_entry_cannot_be_settled() {
+        val b = freshBook().record(
+            id = "e1",
+            type = EntryType.CONTRIBUTION,
+            amountCents = 100_000,
+            memberId = DevSeed.BONNIE,
+            recordedBy = DevSeed.BRIAN,
+            config = CONFIG,
+        ).value().book
+
+        val refused = assertIs<Decision.Refused>(
+            b.settle(
+                "e1",
+                DevSeed.KANGIRI,
+                CONFIG,
+                SettlementAuthority.of(
+                    EntryType.CONTRIBUTION to setOf(DevSeed.BRIAN),
+                ),
+            ),
+        )
+
+        assertIs<Refusal.Invalid>(refused.refusal)
+        assertEquals(EntryState.PENDING, b.entry("e1")!!.state)
     }
 
     @Test
