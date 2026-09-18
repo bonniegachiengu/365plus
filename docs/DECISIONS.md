@@ -2703,3 +2703,24 @@ All peer lending is permitted. Any **Founder or Member** may initiate a loan wit
 **Invariant:** Initiation of a financial relationship does not imply authority to govern that relationship.
 
 **Depends on it:** the D006 confirmation/rejection matrix and settlement rules that follow.
+
+## D006-C — Confirmation and rejection authority
+
+**Decided:** 2026-09-18. **Status:** settled.
+
+Every governed financial action requires **Founder confirmation before settlement** by default. Recording, confirmation/rejection, and settlement are separate authorities.
+
+- An explicitly authorized Admin/operator may record normal financial actions, but Admin status does not grant confirmation or rejection authority.
+- A Founder may confirm or reject governed financial entries, subject to the existing governance gate.
+- No actor may confirm or reject their own recorded entry.
+- Members may participate in permitted financial actions but do not gain confirmation/rejection authority by membership alone.
+- Keshflo Beneficiary lending is Founder-governed and remains separate from ordinary Founder/Member peer lending.
+- DEV mode does not bypass production governance rules.
+- Settlement authority remains separately governed from confirmation/rejection.
+- Financial corrections must preserve the financial history rather than silently overwrite it.
+
+**State flow:** Governed entries move `Initiated → Recorded → Awaiting Confirmation → Confirmed → Settled`, or `Initiated → Recorded → Awaiting Confirmation → Rejected`. Entries explicitly exempted from governance confirmation may move `Initiated → Recorded → Settled`.
+
+**Invariant:** Admin controls the system; founders govern the money.
+
+**Depends on it:** D006 authorization matrix, confirmation/rejection implementation, and subsequent settlement rules.

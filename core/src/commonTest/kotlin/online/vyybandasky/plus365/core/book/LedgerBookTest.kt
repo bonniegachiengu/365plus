@@ -9,6 +9,7 @@ import online.vyybandasky.plus365.core.domain.ConfirmSource
 import online.vyybandasky.plus365.core.domain.EntryState
 import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.governance.ActorConfig
+import online.vyybandasky.plus365.core.governance.AdminAuthority
 import online.vyybandasky.plus365.core.governance.Decision
 import online.vyybandasky.plus365.core.governance.Refusal
 
@@ -22,6 +23,102 @@ private fun freshBook(withAccounts: Boolean = false) = LedgerBook(
 private fun <T> Decision<T>.value(): T = assertIs<Decision.Allowed<T>>(this).value
 
 class LedgerBookTest {
+    @Test
+    fun an_authorised_admin_can_record_a_financial_entry_but_it_remains_pending() {
+        val admin = AdminAuthority.of(DevSeed.WANJIKU)
+        val adminConfig = ActorConfig.dev(
+            DevSeed.BONNIE,
+            DevSeed.EVERYONE + DevSeed.WANJIKU,
+        )
+
+        val b = freshBook().record(
+            id = "admin-e1",
+            type = EntryType.CONTRIBUTION,
+            amountCents = 100_000,
+            memberId = DevSeed.BONNIE,
+            recordedBy = DevSeed.WANJIKU,
+            config = adminConfig,
+            adminAuthority = admin,
+        ).value().book
+
+        assertEquals(EntryState.PENDING, b.entry("admin-e1")!!.state)
+        assertEquals(100_000L, b.state().pendingPoolCashCents)
+        assertEquals(0L, b.state().poolCashCents)
+        assertEquals(DevSeed.WANJIKU, b.entry("admin-e1")!!.recordedByMemberId)
+    }
+
+    @Test
+    fun an_admin_recorder_cannot_confirm_their_own_entry() {
+        val admin = AdminAuthority.of(DevSeed.WANJIKU)
+        val adminConfig = ActorConfig.dev(
+            DevSeed.BONNIE,
+            DevSeed.EVERYONE + DevSeed.WANJIKU,
+        )
+
+        val b = freshBook().record(
+            id = "admin-e1",
+            type = EntryType.CONTRIBUTION,
+            amountCents = 100_000,
+            memberId = DevSeed.BONNIE,
+            recordedBy = DevSeed.WANJIKU,
+            config = adminConfig,
+            adminAuthority = admin,
+        ).value().book
+
+        val refused = assertIs<Decision.Refused>(
+            b.confirm("admin-e1", DevSeed.WANJIKU, adminConfig),
+        )
+
+        assertIs<Refusal.SelfConfirmation>(refused.refusal)
+        assertEquals(EntryState.PENDING, b.entry("admin-e1")!!.state)
+    }
+
+    @Test
+    fun a_founder_can_confirm_an_admin_recorded_entry() {
+        val admin = AdminAuthority.of(DevSeed.WANJIKU)
+        val adminConfig = ActorConfig.dev(
+            DevSeed.BONNIE,
+            DevSeed.EVERYONE + DevSeed.WANJIKU,
+        )
+
+        val b = freshBook().record(
+            id = "admin-e1",
+            type = EntryType.CONTRIBUTION,
+            amountCents = 100_000,
+            memberId = DevSeed.BONNIE,
+            recordedBy = DevSeed.WANJIKU,
+            config = adminConfig,
+            adminAuthority = admin,
+        ).value().book
+
+        val confirmed = b.confirm("admin-e1", DevSeed.BRIAN, adminConfig).value().book
+
+        assertEquals(EntryState.CONFIRMED, confirmed.entry("admin-e1")!!.state)
+        assertEquals(100_000L, confirmed.state().poolCashCents)
+        assertEquals(DevSeed.BRIAN, confirmed.entry("admin-e1")!!.confirmedByMemberId)
+    }
+
+    @Test
+    fun a_non_authorised_non_founder_cannot_record_as_admin() {
+        val adminConfig = ActorConfig.dev(
+            DevSeed.BONNIE,
+            DevSeed.EVERYONE + DevSeed.WANJIKU,
+        )
+
+        val refused = assertIs<Decision.Refused>(
+            freshBook().record(
+                id = "admin-e1",
+                type = EntryType.CONTRIBUTION,
+                amountCents = 100_000,
+                memberId = DevSeed.BONNIE,
+                recordedBy = DevSeed.WANJIKU,
+                config = adminConfig,
+            ),
+        )
+
+        assertIs<Refusal.NotAMember>(refused.refusal)
+    }
+
 
     @Test
     fun a_recorded_entry_lands_pending_and_moves_nothing() {

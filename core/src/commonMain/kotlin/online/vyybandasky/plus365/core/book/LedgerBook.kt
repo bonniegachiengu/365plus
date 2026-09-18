@@ -18,6 +18,7 @@ import online.vyybandasky.plus365.core.domain.Pocket
 import online.vyybandasky.plus365.core.domain.PocketId
 import online.vyybandasky.plus365.core.domain.MemberId
 import online.vyybandasky.plus365.core.governance.ActorConfig
+import online.vyybandasky.plus365.core.governance.AdminAuthority
 import online.vyybandasky.plus365.core.governance.Decision
 import online.vyybandasky.plus365.core.governance.Refusal
 import online.vyybandasky.plus365.core.governance.asConfirmedBy
@@ -207,6 +208,7 @@ fun LedgerBook.record(
     memberId: MemberId,
     recordedBy: MemberId,
     config: ActorConfig,
+    adminAuthority: AdminAuthority = AdminAuthority.none(),
     loanId: LoanId? = null,
     accountId: AccountId? = null,
     pocketId: PocketId? = null,
@@ -226,7 +228,7 @@ fun LedgerBook.record(
     if (member(recordedBy) == null) {
         return Decision.Refused(Refusal.UnknownMember(recordedBy))
     }
-    if (!isFounder(recordedBy)) {
+    if (!isFounder(recordedBy) && !adminAuthority.mayAdminister(recordedBy)) {
         return Decision.Refused(Refusal.NotAMember(recordedBy))
     }
     // Who may act is one question; who an entry may be *about* is another. A
@@ -412,12 +414,12 @@ fun LedgerBook.confirm(
     if (member(confirmedBy) == null) {
         return Decision.Refused(Refusal.UnknownMember(confirmedBy))
     }
-    if (!isFounder(confirmedBy)) {
-        return Decision.Refused(Refusal.NotAMember(confirmedBy))
-    }
     when (val gate = checkConfirm(target, confirmedBy, config)) {
         is Decision.Refused -> return gate
         is Decision.Allowed -> Unit
+    }
+    if (!isFounder(confirmedBy)) {
+        return Decision.Refused(Refusal.NotAMember(confirmedBy))
     }
 
     // Where the recorder produced a message, the confirmer must produce their
