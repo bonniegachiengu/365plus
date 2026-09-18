@@ -68,6 +68,11 @@ sealed interface Refusal {
         override val message = "An entry cannot be confirmed by the member who recorded it."
     }
 
+    /** The recorder may not settle their own financial entry. */
+    data class SelfSettlement(val memberId: MemberId) : Refusal {
+        override val message = "An entry cannot be settled by the member who recorded it."
+    }
+
     data class NotAuthorised(val actingAs: MemberId) : Refusal {
         override val message = "This device may not act as $actingAs."
     }
@@ -187,6 +192,27 @@ fun checkReject(
     rejecter: MemberId,
     config: ActorConfig,
 ): Decision<Unit> = checkConfirm(entry, rejecter, config)
+
+/**
+ * May [settler] settle [entry] from this device?
+ *
+ * Settlement is a separate governance action. This gate enforces device
+ * authorization and recorder separation; the book-specific Founder requirement
+ * remains with [LedgerBook], just as it does for confirmation.
+ */
+fun checkSettle(
+    entry: Entry,
+    settler: MemberId,
+    config: ActorConfig,
+): Decision<Unit> {
+    if (!config.mayAct(settler)) {
+        return Decision.Refused(Refusal.NotAuthorised(settler))
+    }
+    if (entry.recordedByMemberId == settler) {
+        return Decision.Refused(Refusal.SelfSettlement(settler))
+    }
+    return Decision.Allowed(Unit)
+}
 
 /** May [recorder] record at all from this device? */
 fun checkRecord(recorder: MemberId, config: ActorConfig): Decision<Unit> =

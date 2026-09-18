@@ -42,6 +42,35 @@ class GovernanceTest {
     }
 
     @Test
+    fun the_recorder_cannot_settle_their_own_entry() {
+        val decision = checkSettle(pendingEntry(recordedBy = A), A, dev)
+        val refused = assertIs<Decision.Refused>(decision)
+        assertIs<Refusal.SelfSettlement>(refused.refusal)
+    }
+
+    @Test
+    fun anyone_else_can_pass_the_settlement_gate() {
+        assertIs<Decision.Allowed<Unit>>(checkSettle(pendingEntry(recordedBy = A), B, dev))
+        assertIs<Decision.Allowed<Unit>>(checkSettle(pendingEntry(recordedBy = A), C, dev))
+    }
+
+    @Test
+    fun dev_mode_does_not_switch_settlement_separation_off() {
+        val ownEntry = pendingEntry(recordedBy = A)
+        assertIs<Decision.Refused>(checkSettle(ownEntry, A, dev))
+        assertIs<Decision.Allowed<Unit>>(checkSettle(pendingEntry(recordedBy = B), A, dev))
+    }
+
+    @Test
+    fun production_still_requires_the_device_to_be_authorised_to_settle() {
+        val prod = ActorConfig.production(A)
+        val refused = assertIs<Decision.Refused>(
+            checkSettle(pendingEntry(recordedBy = B), C, prod),
+        )
+        assertIs<Refusal.NotAuthorised>(refused.refusal)
+    }
+
+    @Test
     fun dev_mode_does_not_switch_the_rule_off_it_only_widens_who_may_act() {
         // Bonnie may act as anyone here — and still cannot confirm his own entry.
         val ownEntry = pendingEntry(recordedBy = A)

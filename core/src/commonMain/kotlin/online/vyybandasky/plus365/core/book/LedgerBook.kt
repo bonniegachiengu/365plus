@@ -21,10 +21,12 @@ import online.vyybandasky.plus365.core.governance.ActorConfig
 import online.vyybandasky.plus365.core.governance.AdminAuthority
 import online.vyybandasky.plus365.core.governance.Decision
 import online.vyybandasky.plus365.core.governance.Refusal
+import online.vyybandasky.plus365.core.governance.SettlementAuthority
 import online.vyybandasky.plus365.core.governance.asConfirmedBy
 import online.vyybandasky.plus365.core.governance.asRejectedBy
 import online.vyybandasky.plus365.core.governance.checkConfirm
 import online.vyybandasky.plus365.core.governance.checkRecord
+import online.vyybandasky.plus365.core.governance.checkSettle
 import online.vyybandasky.plus365.core.governance.checkReject
 import online.vyybandasky.plus365.core.domain.ChargeKind
 import online.vyybandasky.plus365.core.domain.MemberKind
@@ -474,6 +476,40 @@ fun LedgerBook.confirm(
             listOf(confirmed),
         ),
     )
+}
+
+/**
+ * Settle a confirmed financial entry.
+ *
+ * Settlement is a distinct governance action after confirmation. It does not
+ * change the entry state yet: the settlement state/metadata model is deferred
+ * to a later decision. This method therefore establishes the authority boundary
+ * without changing fold semantics.
+ */
+fun LedgerBook.settle(
+    entryId: EntryId,
+    settledBy: MemberId,
+    config: ActorConfig,
+    settlementAuthority: SettlementAuthority,
+): Decision<Recorded> {
+    val target = entry(entryId)
+        ?: return Decision.Refused(Refusal.UnknownEntry(entryId))
+    if (member(settledBy) == null) {
+        return Decision.Refused(Refusal.UnknownMember(settledBy))
+    }
+    when (val gate = checkSettle(target, settledBy, config)) {
+        is Decision.Refused -> return gate
+        is Decision.Allowed -> Unit
+    }
+    if (target.state != EntryState.CONFIRMED) {
+        return Decision.Refused(
+            Refusal.Invalid("Only a CONFIRMED entry can be settled; this one is ${target.state}."),
+        )
+    }
+    if (!settlementAuthority.maySettle(target.type, settledBy)) {
+        return Decision.Refused(Refusal.NotAuthorised(settledBy))
+    }
+    return Decision.Allowed(Recorded(this, listOf(target)))
 }
 
 /**
