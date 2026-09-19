@@ -32,6 +32,7 @@ import online.vyybandasky.plus365.core.domain.EntryType
 import online.vyybandasky.plus365.core.domain.MemberId
 import online.vyybandasky.plus365.core.domain.TargetChangeState
 import online.vyybandasky.plus365.core.governance.ActorConfig
+import online.vyybandasky.plus365.core.governance.AdminAuthority
 import online.vyybandasky.plus365.core.governance.ConflictKind
 import online.vyybandasky.plus365.core.governance.Decision
 import online.vyybandasky.plus365.core.governance.OverrideDecision
@@ -62,6 +63,7 @@ data class Session(
     val config: ActorConfig,
     /** Who this device is currently acting as. In dev, switchable. */
     val actingAs: MemberId,
+    val adminAuthority: AdminAuthority = AdminAuthority.none(),
     val notice: Notice? = null,
     /**
      * Set when the stored ledger did not open cleanly. Stays for the session:
@@ -720,6 +722,7 @@ data class Session(
             book = DevSeed.book(),
             config = DevSeed.DEV_CONFIG,
             actingAs = DevSeed.BONNIE,
+            adminAuthority = AdminAuthority.of(DevSeed.BONNIE),
         )
 
         /**
@@ -739,6 +742,7 @@ data class Session(
                 book = opened.book,
                 config = restoredConfig,
                 actingAs = DevSeed.BONNIE,
+                adminAuthority = AdminAuthority.of(DevSeed.BONNIE),
                 storeAlarm = opened.alarm(),
                 idCounter = opened.book.nextSeq,
             )
