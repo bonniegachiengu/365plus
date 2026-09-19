@@ -114,9 +114,10 @@ fun main() {
     // The hub is the only way in from the network, and it is deliberately two
     // lambdas rather than a reference to anything: the server can read the book
     // and replace it, and that is the whole of its power over the ledger.
-    val hub = SyncHub(
-        read = { liveSession.value.book },
-        write = { merged ->
+    val serverLedger = object : ServerLedger {
+        override fun read(): LedgerBook = liveSession.value.book
+
+        override fun write(merged: LedgerBook): Boolean =
             when (store.trySave(merged)) {
                 is Saved.Ok -> {
                     // Rebuilding the session rather than copying the book keeps
@@ -127,8 +128,9 @@ fun main() {
                 }
                 is Saved.Failed -> false
             }
-        },
-    )
+    }
+
+    val hub = SyncHub(serverLedger)
 
     val chosenPort = API_PORTS.firstOrNull { portIsFree(DEFAULT_HOST, it) }
     val server = if (chosenPort != null) {
