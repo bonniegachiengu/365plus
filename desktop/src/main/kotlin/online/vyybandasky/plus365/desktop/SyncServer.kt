@@ -18,6 +18,17 @@ import java.net.NetworkInterface
 import kotlin.random.Random
 
 /**
+ * Persistence boundary used by the sync server.
+ *
+ * The API should not know whether the authoritative book lives in a file,
+ * PostgreSQL, or another durable store. That choice belongs behind this seam.
+ */
+interface ServerLedger {
+    fun read(): LedgerBook
+    fun write(book: LedgerBook): Boolean
+}
+
+/**
  * The laptop's side of sync.
  *
  * A star, not a mesh: every phone talks to this and to nothing else, and this
@@ -27,13 +38,17 @@ import kotlin.random.Random
  *
  * Everything here is a thin shell over [mergeFrom]. The transport decides
  * nothing; if it did, there would be two answers to what the ledger says.
+ *
+ * The sync server's access to the authoritative ledger remains independent
+ * of the persistence mechanism.
  */
 class SyncHub(
-    /** The laptop's current book. */
-    val read: () -> LedgerBook,
-    /** Replace it. Returns false if it could not be written to disk. */
-    val write: (LedgerBook) -> Boolean,
-)
+    private val ledger: ServerLedger,
+) {
+    fun read(): LedgerBook = ledger.read()
+
+    fun write(book: LedgerBook): Boolean = ledger.write(book)
+}
 
 /**
  * The shared secret a phone must present.
