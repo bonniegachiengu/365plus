@@ -116,7 +116,7 @@ fun ProfileBody(session: Session, onChange: (Session) -> Unit) {
 
     // No sign-out: there is no account to sign out of. Saying so is better than
     // a button that does nothing, or an invented login.
-    if (session.actingAs == DevSeed.BONNIE) {
+    if (session.adminAuthority.mayAdminister(session.actingAs)) {
         AdminMemberManagementCard(session, onChange)
     }
 
@@ -233,8 +233,8 @@ private fun AdminMemberManagementCard(
                             when (
                                 val decision = session.book.deactivateMember(
                                     memberId = selected.id,
-                                    administeredBy = DevSeed.BONNIE,
-                                    authority = AdminAuthority.of(DevSeed.BONNIE),
+                                    administeredBy = session.actingAs,
+                                    authority = session.adminAuthority,
                                 )
                             ) {
                                 is AdminDecision.Allowed ->
@@ -266,8 +266,8 @@ private fun AdminMemberManagementCard(
                             when (
                                 val decision = session.book.activateMember(
                                     memberId = selected.id,
-                                    administeredBy = DevSeed.BONNIE,
-                                    authority = AdminAuthority.of(DevSeed.BONNIE),
+                                    administeredBy = session.actingAs,
+                                    authority = session.adminAuthority,
                                 )
                             ) {
                                 is AdminDecision.Allowed ->
