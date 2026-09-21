@@ -1,4 +1,4 @@
-package online.vyybandasky.plus365.desktop
+package online.vyybandasky.plus365.server
 
 import java.net.HttpURLConnection
 import java.net.ServerSocket
@@ -36,7 +36,7 @@ class HealthServerBootTest {
         // Not 8443: a developer running the desktop app while tests run would
         // otherwise collide with it and fail for the wrong reason.
         val port = freePort()
-        val server = startHealthServer(port = port)
+        val server = startServer(port = port)
         try {
             var last: Throwable? = null
             repeat(50) {

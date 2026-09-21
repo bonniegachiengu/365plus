@@ -42,8 +42,6 @@ dependencies {
 
     // Embedded HTTP for the sync API. CIO rather than Netty: no servlet stack,
     // much smaller, and this only ever serves three phones on a LAN or tunnel.
-    implementation(libs.ktor.server.core)
-    implementation(libs.ktor.server.cio)
 
     testImplementation(kotlin("test"))
 }
