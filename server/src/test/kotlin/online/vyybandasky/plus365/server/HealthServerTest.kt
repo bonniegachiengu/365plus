@@ -1,4 +1,4 @@
-package online.vyybandasky.plus365.desktop
+package online.vyybandasky.plus365.server
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -43,13 +43,13 @@ class HealthServerTest {
     @Test
     fun the_pairing_code_is_the_thing_protecting_it_now() {
         val dir = kotlin.io.path.createTempDirectory("pairing").toFile()
-        val code = PairingCode.loadOrCreate(dir)
+        val code = ServerPairingCode.loadOrCreate(dir)
         assertEquals(6, code.length)
         // No O/0 or I/1: a code read aloud across a room has to survive being
         // heard, and one read off a screen has to survive being typed.
         assertTrue(code.none { it in "O0I1" })
         // Stable. A code that changed on restart would unpair every phone.
-        assertEquals(code, PairingCode.loadOrCreate(dir))
+        assertEquals(code, ServerPairingCode.loadOrCreate(dir))
     }
 
 

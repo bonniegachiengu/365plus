@@ -21,3 +21,5 @@ rootProject.name = "365plus"
 include(":core")
 include(":desktop")
 include(":android")
+
+include(":server")

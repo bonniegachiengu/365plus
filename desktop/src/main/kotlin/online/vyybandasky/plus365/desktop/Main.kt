@@ -46,7 +46,6 @@ import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import online.vyybandasky.plus365.core.BuildInfo
-import online.vyybandasky.plus365.core.book.LedgerBook
 import online.vyybandasky.plus365.core.domain.TargetChangeState
 import online.vyybandasky.plus365.core.presentation.ActivityRow
 import online.vyybandasky.plus365.core.presentation.LedgerFilter
@@ -79,147 +78,46 @@ import online.vyybandasky.plus365.core.store.trySave
 import online.vyybandasky.plus365.desktop.store.FileLedgerStore
 
 fun main() {
-    // The master copy. Beside the app's own data, not in Documents — this is a
-    // record the app owns, not a file a person edits by hand.
+    // The desktop is a client/UI. The server owns network sync and server-side
+    // persistence; closing this window must not be the mechanism that stops it.
     val store = FileLedgerStore(File(System.getProperty("user.home"), ".365plus/ledger.json"))
 
-    // The API comes up first so the phones can reach the master as soon as the
-    // window is on screen. Non-blocking — Compose owns the main thread.
-    //
-    // If the port is already taken — a second copy of the app, or anything else
-    // on 8443 — the window still opens. The ledger is the app; the endpoint the
-    // phones sync through is a convenience, and losing it is not a reason to
-    // deny somebody the sight of their own money. The header says so instead.
-    // Ktor binds on a coroutine, so a port clash surfaces as a stack trace on a
-    // background thread and takes the process with it rather than as something
-    // catchable here. Asking the OS for the port first turns that into a
-    // question with an answer.
-    //
-    // And if 8443 itself cannot be had, try a few others before giving up.
-    // Windows hands whole ranges to Hyper-V and WSL to reserve, and 8443 landed
-    // inside one on this machine — `netsh interface ipv4 show excludedportrange
-    // protocol=tcp` listed 8435-8534. Nothing was listening and nothing was
-    // wrong; the port was simply spoken for, and the ranges move when the
-    // machine reboots.
-    //
-    // That is worth surviving rather than reporting, because this endpoint is
-    // how a build gets verified by name from outside the app. Losing it to
-    // somebody else's port reservation means the next person cannot check what
-    // they are running, and the header prints whichever port was actually
-    // taken so the answer is never guessed.
     liveSession = mutableStateOf(Session.restored(store, Clock.System.now()))
-    pairingCode = PairingCode.loadOrCreate(File(System.getProperty("user.home"), ".365plus"))
-    lanIp = lanAddress()
 
-    // The hub is the only way in from the network, and it is deliberately two
-    // lambdas rather than a reference to anything: the server can read the book
-    // and replace it, and that is the whole of its power over the ledger.
-    val serverLedger = object : ServerLedger {
-        override fun read(): LedgerBook = liveSession.value.book
-
-        override fun write(merged: LedgerBook): Boolean =
-            when (store.trySave(merged)) {
-                is Saved.Ok -> {
-                    // Rebuilding the session rather than copying the book keeps
-                    // the id counter honest — a Session over a book it did not
-                    // start with will hand out ids that already exist.
-                    liveSession.value = liveSession.value.withBook(merged)
+    application {
+        Window(
+            onCloseRequest = ::exitApplication,
+            title = "365+ — master ledger",
+            state = rememberWindowState(
+                size = DpSize(1120.dp, 900.dp),
+                position = WindowPosition(Alignment.Center),
+            ),
+            onKeyEvent = { e ->
+                // Escape goes back. On a page of money this is the one
+                // shortcut worth having: the fastest way out of a screen you
+                // opened by mistake, and the one every other window on this
+                // machine already does.
+                if (e.type == KeyEventType.KeyDown && e.key == Key.Escape) {
+                    escapePressed++
                     true
+                } else {
+                    false
                 }
-                is Saved.Failed -> false
-            }
-    }
-
-    val hub = SyncHub(serverLedger)
-
-    val chosenPort = API_PORTS.firstOrNull { portIsFree(DEFAULT_HOST, it) }
-    val server = if (chosenPort != null) {
-        apiPort = chosenPort
-        startHealthServer(port = chosenPort, hub = hub, pairingCode = pairingCode)
-    } else {
-        apiFailure = "ports ${API_PORTS.joinToString(", ")} are all taken"
-        null
-    }
-    try {
-        application {
-            Window(
-                onCloseRequest = ::exitApplication,
-                title = "365+ — master ledger",
-                state = rememberWindowState(
-                    size = DpSize(1120.dp, 900.dp),
-                    position = WindowPosition(Alignment.Center),
-                ),
-                onKeyEvent = { e ->
-                    // Escape goes back. On a page of money this is the one
-                    // shortcut worth having: the fastest way out of a screen you
-                    // opened by mistake, and the one every other window on this
-                    // machine already does.
-                    if (e.type == KeyEventType.KeyDown && e.key == Key.Escape) {
-                        escapePressed++
-                        true
-                    } else {
-                        false
-                    }
-                },
-            ) {
-                // A window can be dragged narrower than the layout can survive —
-                // three columns of money side by side do not fit in 400px, and
-                // Compose will not stop you finding that out. Windows will, if
-                // asked.
-                window.minimumSize = java.awt.Dimension(880, 620)
-                App(store)
-            }
+            },
+        ) {
+            // A window can be dragged narrower than the layout can survive —
+            // three columns of money side by side do not fit in 400px, and
+            // Compose will not stop you finding that out. Windows will, if
+            // asked.
+            window.minimumSize = java.awt.Dimension(880, 620)
+            App(store)
         }
-    } finally {
-        server?.stop(gracePeriodMillis = 1_000, timeoutMillis = 3_000)
     }
 }
 
-/**
- * Why the API is not running, if it is not.
- *
- * A top-level var rather than something threaded through `App`, because it is
- * settled once before the first frame and never changes afterwards.
- */
-private var apiFailure: String? = null
 
-/**
- * The port the API actually got, which is not always the one it asked for.
- */
-private var apiPort: Int = DEFAULT_PORT
-
-/** The code a phone must present. Made once and kept beside the ledger. */
-private var pairingCode: String = ""
-
-/** The address to type into a phone, if this machine has a reachable one. */
-private var lanIp: String? = null
-
-/**
- * Ports to try, in order. The first is the one the brief names; the rest exist
- * because a port being free is a fact about this machine this week, not about
- * the app.
- */
-private val API_PORTS = listOf(DEFAULT_PORT, 8543, 8643, 9443)
-
-/**
- * Bumped on every Escape.
- *
- * A counter rather than a boolean, because two Escapes in a row are two requests
- * to go back and a boolean cannot tell them apart. Compose observes the change,
- * not the value.
- */
+/** Bumped on every Escape so Compose can observe each navigation request. */
 private var escapePressed by mutableStateOf(0)
-
-/** Can we have this port? A closed socket is the only honest way to ask. */
-private fun portIsFree(host: String, port: Int): Boolean = try {
-    java.net.ServerSocket().use {
-        it.reuseAddress = false
-        it.bind(java.net.InetSocketAddress(host, port))
-        true
-    }
-} catch (_: java.io.IOException) {
-    false
-}
 
 /** Where the window currently is. Same shape as the phone's. */
 private sealed interface Screen {
@@ -398,17 +296,9 @@ private fun Header(
                         session.book.overrideCount().let {
                             if (it == 0) "" else "$it to settle · "
                         } +
-                        (
-                            // What a phone has to be told, on the screen of the
-                            // machine it has to be told about. An address kept
-                            // in a config file is an address somebody reads out
-                            // wrong.
-                            apiFailure?.let { "sync off ($it)" }
-                                ?: lanIp?.let { "phones: http://$it:$apiPort · code $pairingCode" }
-                                ?: "sync on port $apiPort — no LAN address found"
-                            ),
+                        "Master ledger",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (apiFailure != null) Plus.Pending else Plus.TextLow,
+                    color = Plus.TextLow,
                 )
                 // Says which build this is, so an install that failed to replace
                 // the old one cannot be mistaken for code that failed to work.
