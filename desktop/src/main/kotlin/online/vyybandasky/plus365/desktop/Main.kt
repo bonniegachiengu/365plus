@@ -76,11 +76,20 @@ import online.vyybandasky.plus365.core.store.LedgerStore
 import online.vyybandasky.plus365.core.store.Saved
 import online.vyybandasky.plus365.core.store.trySave
 import online.vyybandasky.plus365.desktop.store.FileLedgerStore
+import online.vyybandasky.plus365.desktop.store.HttpLedgerStore
 
 fun main() {
     // The desktop is a client/UI. The server owns network sync and server-side
     // persistence; closing this window must not be the mechanism that stops it.
-    val store = FileLedgerStore(File(System.getProperty("user.home"), ".365plus/ledger.json"))
+    val serverConfig = DesktopServerConfig.fromEnvironment()
+    val store: LedgerStore = if (serverConfig != null) {
+        HttpLedgerStore(
+            baseUrl = serverConfig.serverUrl,
+            pairingCode = serverConfig.pairingCode,
+        )
+    } else {
+        FileLedgerStore(File(System.getProperty("user.home"), ".365plus/ledger.json"))
+    }
 
     liveSession = mutableStateOf(Session.restored(store, Clock.System.now()))
 
