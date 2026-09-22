@@ -44,6 +44,7 @@ dependencies {
     // much smaller, and this only ever serves three phones on a LAN or tunnel.
 
     testImplementation(kotlin("test"))
+    testImplementation(project(":server"))
 }
 
 compose.desktop {
