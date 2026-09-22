@@ -34,9 +34,35 @@ class HttpLedgerStore(
         }.getOrNull()
 
     override fun write(text: String) {
-        throw UnsupportedOperationException(
-            "HttpLedgerStore.write is not implemented yet; use /sync for writes",
-        )
+        val connection =
+            URI("${baseUrl.trimEnd('/')}/sync").toURL().openConnection()
+                as HttpURLConnection
+
+        try {
+            connection.requestMethod = "POST"
+            connection.connectTimeout = 2_000
+            connection.readTimeout = 2_000
+            connection.doOutput = true
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.setRequestProperty("X-Pairing-Code", pairingCode)
+
+            connection.outputStream.use { it.write(text.toByteArray()) }
+
+            val code = connection.responseCode
+            if (code !in 200..299) {
+                val detail =
+                    (connection.errorStream ?: connection.inputStream)
+                        ?.bufferedReader()
+                        ?.use { it.readText() }
+                        .orEmpty()
+
+                throw IllegalStateException(
+                    "server sync failed with HTTP $code${if (detail.isBlank()) "" else ": $detail"}",
+                )
+            }
+        } finally {
+            connection.disconnect()
+        }
     }
 
     override fun clear() {

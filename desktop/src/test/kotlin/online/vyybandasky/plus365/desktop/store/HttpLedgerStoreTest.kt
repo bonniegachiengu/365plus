@@ -15,6 +15,33 @@ class HttpLedgerStoreTest {
         ServerSocket(0).use { it.localPort }
 
     @Test
+    fun write_posts_ledger_to_server_and_read_returns_it() {
+        val dataDir = createTempDirectory("365plus-desktop-write").toFile()
+        val runtime = ServerRuntime(
+            dataDir = dataDir,
+            port = freePort(),
+            host = "127.0.0.1",
+        )
+
+        runtime.start()
+
+        try {
+            val store = HttpLedgerStore(
+                baseUrl = "http://127.0.0.1:${runtime.port}",
+                pairingCode = runtime.pairingCode,
+            )
+
+            val book = DevSeed.book()
+            val encoded = encodeBook(book)
+
+            store.write(encoded)
+
+            assertEquals(encoded, store.read())
+        } finally {
+            runtime.stop()
+        }
+    }
+    @Test
     fun read_fetches_the_server_ledger() {
         val dataDir = createTempDirectory("365plus-http-store").toFile()
         val port = freePort()
