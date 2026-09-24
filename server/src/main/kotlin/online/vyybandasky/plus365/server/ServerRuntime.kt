@@ -37,12 +37,14 @@ class ServerRuntime(
     )
 
     val pairingCode: String = ServerPairingCode.loadOrCreate(dataDir)
+    private val sessions = DeviceSessions()
 
     val server = buildServer(
         port = port,
         host = host,
         hub = hub,
         pairingCode = pairingCode,
+        sessions = sessions,
     )
 
     fun start() {
