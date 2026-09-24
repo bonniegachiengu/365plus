@@ -157,6 +157,10 @@ and is never overwritten.
 `FileLedgerStore` in each shell — ten lines each, because `core` has no file API
 and should not grow one.
 
+The persistence implementation may be file-backed or PostgreSQL-backed at the
+server boundary. PostgreSQL stores the same ledger snapshot/log concept; it does
+not store balances, totals or roll-ups.
+
 ## D9 — Dark fintech, one look, always
 
 **Decided:** 2026-08-26. **Status:** settled. Spec: `docs/UI_UX.md`.
@@ -2724,3 +2728,18 @@ Every governed financial action requires **Founder confirmation before settlemen
 **Invariant:** Admin controls the system; founders govern the money.
 
 **Depends on it:** D006 authorization matrix, confirmation/rejection implementation, and subsequent settlement rules.
+
+## D96 — PostgreSQL is a server-side persistence option
+
+The server may run with PostgreSQL persistence when started with `--postgres`.
+The database sits behind the server's existing HTTP sync boundary; clients do not
+connect to PostgreSQL directly.
+
+The PostgreSQL runtime contract is intentionally small: `PGHOST`, `PGPORT`,
+`PGDATABASE`, `PGUSER`, and `PGPASSWORD`. File persistence remains the default
+when `--postgres` is not supplied. Database credentials are runtime secrets and
+do not belong in the repository.
+
+This does not change the topology established by D93 or the persistence rule in
+D8. There is still one authoritative server-side book, and derived balances are
+still folded from the persisted ledger rather than stored separately.

@@ -148,10 +148,16 @@ and both stay.
 The ledger narrows by direction, state, member and free text, groups by date, and
 **always says how much a narrowed view is hiding**.
 
-The book **persists**. It is kept as a JSON log — entries and their
-confirmations, never a balance — so the file cannot drift from what the fold
-computes. The phone keeps it in private app storage; the laptop in
-`~/.365plus/ledger.json`, with a copy of the version it replaced beside it.
+The book **persists**. It is kept as a ledger log — entries and their
+confirmations, never a balance — so the stored record cannot drift from what the
+fold computes. On a phone, the book remains in private app storage. On the
+server, file persistence remains the default at `~/.365plus/ledger.json`.
+
+The server can instead use PostgreSQL with `--postgres`. PostgreSQL is a
+server-side persistence implementation behind the existing HTTP sync boundary;
+phones never connect to the database directly. PostgreSQL is selected at runtime
+with `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, and `PGPASSWORD`. Credentials
+are runtime configuration and are never stored in the repository.
 
 Opening the store **never overwrites a file it could not read** — a ledger that
 will not parse is left exactly where it is and the app says so in red rather than
@@ -164,8 +170,8 @@ only the account holder is texted, a second member confirms them by hand. Every
 other Ziidi notice, and everything from M-Shwari and Etica, is kept unparsed
 rather than guessed at.
 
-Still ahead: sync between the phones and the master, *automatic* capture of M-Pesa
-messages rather than pasting them, and `cloudflared` as a native Windows service.
+Still ahead: *automatic* capture of M-Pesa messages rather than pasting them,
+and `cloudflared` as a native Windows service.
 
 Sample data is made up and lives in `DevSeed`. It is built by calling `record()`
 and `confirm()`, so if two-person control ever broke, the seed would fail to
