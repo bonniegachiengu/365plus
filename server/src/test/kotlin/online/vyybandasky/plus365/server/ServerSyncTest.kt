@@ -117,6 +117,102 @@ class ServerSyncTest {
     }
 
     @Test
+    fun session_bootstrap_issues_a_device_token_with_the_pairing_code() {
+        val dataDir = createTempDirectory("365plus-server-session").toFile()
+        val runtime = ServerRuntime(
+            dataDir = dataDir,
+            port = freePort(),
+            host = "127.0.0.1",
+        )
+
+        runtime.start()
+
+        try {
+            var last: Throwable? = null
+            var responseCode = 0
+            var responseBody = ""
+
+            repeat(50) {
+                try {
+                    val response = request(
+                        method = "POST",
+                        url = "http://127.0.0.1:${runtime.port}/session",
+                        pairingCode = runtime.pairingCode,
+                    )
+                    responseCode = response.first
+                    responseBody = response.second
+                    last = null
+                    return@repeat
+                } catch (t: Throwable) {
+                    last = t
+                    Thread.sleep(100)
+                }
+            }
+
+            if (last != null) {
+                throw AssertionError(
+                    "server never answered /session",
+                    last,
+                )
+            }
+
+            assertEquals(200, responseCode)
+            assertTrue(responseBody.startsWith("""{"ok":true,"session":""""))
+            assertTrue(responseBody.endsWith(""""}"""))
+
+            val token = responseBody
+                .removePrefix("""{"ok":true,"session":"""")
+                .removeSuffix(""""}""")
+
+            assertEquals(43, token.length)
+            assertTrue(token.all { it.isLetterOrDigit() || it == '-' || it == '_' })
+        } finally {
+            runtime.stop()
+        }
+    }
+
+    @Test
+    fun session_bootstrap_requires_the_pairing_code() {
+        val dataDir = createTempDirectory("365plus-server-session-auth").toFile()
+        val runtime = ServerRuntime(
+            dataDir = dataDir,
+            port = freePort(),
+            host = "127.0.0.1",
+        )
+
+        runtime.start()
+
+        try {
+            var last: Throwable? = null
+
+            repeat(50) {
+                try {
+                    val (code, body) = request(
+                        method = "POST",
+                        url = "http://127.0.0.1:${runtime.port}/session",
+                        pairingCode = "WRONG1",
+                    )
+                    assertEquals(401, code)
+                    assertTrue(body.contains("pairing code"))
+                    last = null
+                    return@repeat
+                } catch (t: Throwable) {
+                    last = t
+                    Thread.sleep(100)
+                }
+            }
+
+            if (last != null) {
+                throw AssertionError(
+                    "server never answered unauthorised /session",
+                    last,
+                )
+            }
+        } finally {
+            runtime.stop()
+        }
+    }
+    @Test
     fun sync_requires_the_pairing_code() {
         val dataDir = createTempDirectory("365plus-server-auth").toFile()
         val runtime = ServerRuntime(

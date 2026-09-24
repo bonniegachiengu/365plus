@@ -59,6 +59,26 @@ fun Routing.healthRoutes() {
     }
 }
 
+fun Routing.sessionRoutes(pairingCode: String, sessions: DeviceSessions) {
+    post("/session") {
+        val given = call.request.headers["X-Pairing-Code"]
+        if (given != pairingCode) {
+            call.respondText(
+                """{"ok":false,"error":"pairing code missing or wrong"}""",
+                ContentType.Application.Json,
+                HttpStatusCode.Unauthorized,
+            )
+            return@post
+        }
+
+        val token = sessions.issue()
+        call.respondText(
+            """{"ok":true,"session":"$token"}""",
+            ContentType.Application.Json,
+        )
+    }
+}
+
 fun Routing.syncRoutes(hub: SyncHub, code: String) {
     suspend fun io.ktor.server.application.ApplicationCall.authorised(): Boolean {
         val given = request.headers["X-Pairing-Code"]
@@ -124,10 +144,14 @@ fun buildServer(
     host: String = DEFAULT_HOST,
     hub: SyncHub? = null,
     pairingCode: String? = null,
+    sessions: DeviceSessions? = null,
 ): EmbeddedServer<*, *> =
     embeddedServer(CIO, port = port, host = host) {
         routing {
             healthRoutes()
+            if (pairingCode != null && sessions != null) {
+                sessionRoutes(pairingCode, sessions)
+            }
             if (hub != null && pairingCode != null) {
                 syncRoutes(hub, pairingCode)
             }
