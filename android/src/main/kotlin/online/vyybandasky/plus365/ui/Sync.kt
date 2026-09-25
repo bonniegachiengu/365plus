@@ -103,19 +103,32 @@ fun SyncScreen(
                     result = null
                     onSaveSettings(SyncSettings(address, code))
                     scope.launch {
-                        when (val r = SyncClient(address, code).sync(session.book)) {
-                            is SyncOutcome.Synced -> {
-                                failed = false
-                                result = r.summary
-                                onSynced(session.withBook(r.book))
+                        val client = SyncClient(address, code)
+                        when (val bootstrap = client.bootstrapSession()) {
+                            is online.vyybandasky.plus365.sync.SessionOutcome.Acquired -> {
+                                when (val r = client.sync(session.book)) {
+                                    is SyncOutcome.Synced -> {
+                                        failed = false
+                                        result = r.summary
+                                        onSynced(session.withBook(r.book))
+                                    }
+                                    is SyncOutcome.Refused -> {
+                                        failed = true
+                                        result = r.why
+                                    }
+                                    is SyncOutcome.Unreachable -> {
+                                        failed = true
+                                        result = r.why
+                                    }
+                                }
                             }
-                            is SyncOutcome.Refused -> {
+                            is online.vyybandasky.plus365.sync.SessionOutcome.Refused -> {
                                 failed = true
-                                result = r.why
+                                result = bootstrap.message
                             }
-                            is SyncOutcome.Unreachable -> {
+                            is online.vyybandasky.plus365.sync.SessionOutcome.Unreachable -> {
                                 failed = true
-                                result = r.why
+                                result = bootstrap.message
                             }
                         }
                         busy = false
