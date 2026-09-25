@@ -20,6 +20,11 @@ import java.net.URL
  * not justify a dependency, and the ledger is small enough that streaming it as
  * a string is the simplest thing that is also correct.
  */
+sealed interface SessionOutcome {
+    data class Acquired(val token: String) : SessionOutcome
+    data class Refused(val message: String) : SessionOutcome
+    data class Unreachable(val message: String) : SessionOutcome
+}
 sealed interface SyncOutcome {
     /** The laptop merged and sent back the authoritative book. */
     data class Synced(val book: LedgerBook, val summary: String) : SyncOutcome
@@ -35,6 +40,48 @@ class SyncClient(
     private val baseUrl: String,
     private val pairingCode: String,
 ) {
+    private var sessionToken: String? = null
+
+    suspend fun bootstrapSession(): SessionOutcome = withContext(Dispatchers.IO) {
+        val url = runCatching { URL("${baseUrl.trimEnd('/')}/session") }.getOrElse {
+            return@withContext SessionOutcome.Unreachable(it.message.orEmpty())
+        }
+
+        val conn = runCatching { url.openConnection() as HttpURLConnection }.getOrElse {
+            return@withContext SessionOutcome.Unreachable(it.message.orEmpty())
+        }
+
+        try {
+            conn.requestMethod = "POST"
+            conn.doOutput = true
+            conn.connectTimeout = 8_000
+            conn.readTimeout = 20_000
+            conn.setRequestProperty("X-Pairing-Code", pairingCode)
+            conn.outputStream.use { }
+
+            if (conn.responseCode == 401) {
+                return@withContext SessionOutcome.Refused(
+                    "The laptop did not recognise that code. Check the six letters on its screen."
+                )
+            }
+
+            val body = conn.inputStream.bufferedReader().readText()
+            val token = Regex("""\"session\"\s*:\s*\"([^\"]+)\"""")
+                .find(body)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?: return@withContext SessionOutcome.Refused(
+                    "The laptop did not return a session token."
+                )
+
+            sessionToken = token
+            SessionOutcome.Acquired(token)
+        } catch (e: Exception) {
+            SessionOutcome.Unreachable(e.message.orEmpty())
+        } finally {
+            runCatching { conn.disconnect() }
+        }
+    }
     /**
      * Push what this phone has, take back the merged ledger.
      *
@@ -55,7 +102,11 @@ class SyncClient(
             conn.connectTimeout = 8_000
             conn.readTimeout = 20_000
             conn.setRequestProperty("Content-Type", "application/json")
-            conn.setRequestProperty("X-Pairing-Code", pairingCode)
+            if (sessionToken != null) {
+                conn.setRequestProperty("X-Session-Token", sessionToken)
+            } else {
+                conn.setRequestProperty("X-Pairing-Code", pairingCode)
+            }
             conn.outputStream.use { it.write(encodeBook(book).toByteArray()) }
 
             val code = conn.responseCode
