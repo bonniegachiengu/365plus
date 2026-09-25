@@ -79,10 +79,13 @@ fun Routing.sessionRoutes(pairingCode: String, sessions: DeviceSessions) {
     }
 }
 
-fun Routing.syncRoutes(hub: SyncHub, code: String) {
+fun Routing.syncRoutes(hub: SyncHub, code: String, sessions: DeviceSessions) {
     suspend fun io.ktor.server.application.ApplicationCall.authorised(): Boolean {
         val given = request.headers["X-Pairing-Code"]
         if (given == code) return true
+
+        val session = request.headers["X-Session-Token"]
+        if (session != null && sessions.contains(session)) return true
 
         respondText(
             """{"ok":false,"error":"pairing code missing or wrong"}""",
@@ -152,8 +155,8 @@ fun buildServer(
             if (pairingCode != null && sessions != null) {
                 sessionRoutes(pairingCode, sessions)
             }
-            if (hub != null && pairingCode != null) {
-                syncRoutes(hub, pairingCode)
+            if (hub != null && pairingCode != null && sessions != null) {
+                syncRoutes(hub, pairingCode, sessions)
             }
         }
     }

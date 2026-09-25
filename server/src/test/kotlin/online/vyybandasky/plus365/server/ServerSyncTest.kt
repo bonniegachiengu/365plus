@@ -19,6 +19,7 @@ class ServerSyncTest {
         method: String,
         url: String,
         pairingCode: String? = null,
+        sessionToken: String? = null,
         body: String? = null,
     ): Pair<Int, String> {
         val connection = URI(url).toURL().openConnection() as HttpURLConnection
@@ -28,6 +29,9 @@ class ServerSyncTest {
 
         if (pairingCode != null) {
             connection.setRequestProperty("X-Pairing-Code", pairingCode)
+        }
+        if (sessionToken != null) {
+            connection.setRequestProperty("X-Session-Token", sessionToken)
         }
 
         if (body != null) {
@@ -212,6 +216,46 @@ class ServerSyncTest {
             runtime.stop()
         }
     }
+    @Test
+    fun session_token_authorises_ledger_without_the_pairing_code() {
+        val dataDir = createTempDirectory("365plus-server-session-sync").toFile()
+        val runtime = ServerRuntime(
+            dataDir = dataDir,
+            port = freePort(),
+            host = "127.0.0.1",
+        )
+
+        runtime.start()
+
+        try {
+            val (sessionCode, sessionBody) = request(
+                method = "POST",
+                url = "http://127.0.0.1:${runtime.port}/session",
+                pairingCode = runtime.pairingCode,
+            )
+
+            assertEquals(200, sessionCode)
+
+            val token = sessionBody
+                .removePrefix("""{"ok":true,"session":"""")
+                .removeSuffix(""""}""")
+
+            assertEquals(43, token.length)
+
+            val (ledgerCode, ledgerBody) = request(
+                method = "GET",
+                url = "http://127.0.0.1:${runtime.port}/ledger",
+                sessionToken = token,
+            )
+
+            assertEquals(200, ledgerCode)
+            assertTrue(ledgerBody.startsWith("{"))
+        } finally {
+            runtime.stop()
+        }
+    }
+
+
     @Test
     fun sync_requires_the_pairing_code() {
         val dataDir = createTempDirectory("365plus-server-auth").toFile()
