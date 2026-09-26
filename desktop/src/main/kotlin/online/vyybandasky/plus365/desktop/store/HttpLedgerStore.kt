@@ -9,17 +9,67 @@ class HttpLedgerStore(
     private val pairingCode: String,
 ) : LedgerStore {
 
+    private var sessionToken: String? = null
+
+    private fun connection(path: String): HttpURLConnection =
+        URI("${baseUrl.trimEnd('/')}$path").toURL().openConnection() as HttpURLConnection
+
+    fun bootstrapSession(): Boolean =
+        runCatching {
+            val connection = connection("/session")
+
+            try {
+                connection.requestMethod = "POST"
+                connection.connectTimeout = 2_000
+                connection.readTimeout = 2_000
+                connection.doOutput = true
+                connection.setRequestProperty("X-Pairing-Code", pairingCode)
+                connection.outputStream.use { }
+
+                if (connection.responseCode !in 200..299) {
+                    false
+                } else {
+                    val body = connection.inputStream
+                        .bufferedReader()
+                        .use { it.readText() }
+
+                    val token = Regex("""\"session\"\s*:\s*\"([^\"]+)\"""")
+                        .find(body)
+                        ?.groupValues
+                        ?.getOrNull(1)
+
+                    if (token.isNullOrBlank()) {
+                        false
+                    } else {
+                        sessionToken = token
+                        true
+                    }
+                }
+            } finally {
+                connection.disconnect()
+            }
+        }.getOrDefault(false)
+
+    private fun ensureSession() {
+        if (sessionToken == null) bootstrapSession()
+    }
+
+    private fun authorise(connection: HttpURLConnection) {
+        sessionToken?.let {
+            connection.setRequestProperty("X-Session-Token", it)
+        } ?: connection.setRequestProperty("X-Pairing-Code", pairingCode)
+    }
+
     override fun read(): String? =
         runCatching {
-            val connection =
-                URI("${baseUrl.trimEnd('/')}/ledger").toURL().openConnection()
-                    as HttpURLConnection
+            ensureSession()
+            val connection = connection("/ledger")
 
             try {
                 connection.requestMethod = "GET"
                 connection.connectTimeout = 2_000
                 connection.readTimeout = 2_000
-                connection.setRequestProperty("X-Pairing-Code", pairingCode)
+                authorise(connection)
 
                 if (connection.responseCode !in 200..299) {
                     null
@@ -34,9 +84,8 @@ class HttpLedgerStore(
         }.getOrNull()
 
     override fun write(text: String) {
-        val connection =
-            URI("${baseUrl.trimEnd('/')}/sync").toURL().openConnection()
-                as HttpURLConnection
+        ensureSession()
+        val connection = connection("/sync")
 
         try {
             connection.requestMethod = "POST"
@@ -44,7 +93,7 @@ class HttpLedgerStore(
             connection.readTimeout = 2_000
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", "application/json")
-            connection.setRequestProperty("X-Pairing-Code", pairingCode)
+            authorise(connection)
 
             connection.outputStream.use { it.write(text.toByteArray()) }
 
