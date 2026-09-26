@@ -34,6 +34,8 @@ class HttpLedgerStoreTest {
             val book = DevSeed.book()
             val encoded = encodeBook(book)
 
+            assertEquals(true, store.bootstrapSession())
+
             store.write(encoded)
 
             assertEquals(encoded, store.read())
