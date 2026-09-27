@@ -22,6 +22,8 @@ Profile → **Sync with the laptop** → type the address and the code → **Syn
 
 Both are remembered, so it is once per phone.
 
+On the first sync, the phone uses the pairing code to request a device session from `/session`. The session token is then used for normal `/ledger` and `/sync` requests. The session token is kept in memory only; the pairing code remains the bootstrap credential.
+
 ## What a sync does
 
 One round trip. The phone sends its whole ledger; the laptop merges it into the
@@ -61,8 +63,7 @@ dialog the first time. Ticking the network in use is enough.
 
 ## Security, honestly stated
 
-Traffic is plain HTTP, and the pairing code is the only thing between somebody
-on the same WiFi and the group's ledger. That is a deliberate trade for three
+Traffic is plain HTTP. The pairing code is used to bootstrap a device session; normal sync requests then use that session token. The pairing code remains the recovery/bootstrap credential, and the session token is currently memory-only. That is a deliberate trade for three
 founders in one room with no domain name to put a certificate on — the
 alternative was a self-signed certificate and a "do you trust this?" prompt on
 every phone, which teaches people to tap through the warning that matters.
